@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Registration Submitted</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='gdtkd_logo.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+  <link src="{{ url_for('static', filename='css/main.css') }}" rel="stylesheet">
+</head>
+<script src="{{ url_for('static', filename='js/global.js') }}"></script>
+<body>
+  <div class="container">
+    <h1>Registration Submitted Successfully!</h1>
+    <p>
+      Name: {{form_data.fname}} {{form_data.lname}}<br>
+      email: {{form_data.email}}<br>
+      phone: {{form_data.phone}}<br>
+      address1: {{form_data.address1}}<br>
+      address2: {{form_data.address2}}<br>
+      city: {{form_data.city}}<br>
+      state: {{form_data.state}}<br>
+      zip: {{form_data.zip}}<br>
+      birthdate: {{form_data.birthdate}}<br>
+      age: {{form_data.age}}<br>
+      gender: {{form_data.gender}}<br>
+      weight: {{form_data.weight}} kg<br>
+      school: {{form_data.school}}<br>
+      coach: {{form_data.coach}}<br>
+      beltRank: {{form_data.beltRank}}<br>
+      events: {{form_data.events}}<br>
+    </p>
+  </div>
+</body>
