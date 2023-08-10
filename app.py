@@ -9,38 +9,67 @@ app.config["UPLOAD_FOLDER"] = "/data"
 @app.route("/", methods=["GET", "POST"])
 def handle_form():
     if request.method == "POST":
-        if request.form.get("liability") != "on":
-            abort(400, "Please go back and accept the Liability Waiver Conditions")
+        reg_type = request.form.get("regType")
+        if reg_type == "competitor":
+            uploadDir = os.path.join(app.config["UPLOAD_FOLDER"], "competitors")
 
-        form_data = dict(
-            fname=request.form.get("fname"),
-            lname=request.form.get("lname"),
-            email=request.form.get("email"),
-            phone=request.form.get("phone"),
-            address1=request.form.get("address1"),
-            address2=request.form.get("address2"),
-            city=request.form.get("city"),
-            state=request.form.get("state"),
-            zip=request.form.get("zip"),
-            birthdate=request.form.get("birthdate"),
-            age=request.form.get("age"),
-            gender=request.form.get("gender"),
-            weight=request.form.get("weight"),
-            school=request.form.get("school"),
-            coach=request.form.get("coach"),
-            beltRank=request.form.get("beltRank"),
-            events=request.form.get("eventList"),
-        )
-        formFilename = f"{form_data['fname']}_{form_data['lname']}.json"
-        with open(os.path.join(app.config["UPLOAD_FOLDER"], formFilename), "w") as f:
-            json.dump(form_data, f)
+            if request.form.get("liability") != "on":
+                abort(400, "Please go back and accept the Liability Waiver Conditions")
 
-        profileImg = request.files["profilePic"]
-        imageExt = os.path.splitext(profileImg.filename)[1]
-        imgFilename = f"{form_data['fname']}_{form_data['lname']}{imageExt}"
-        profileImg.save(os.path.join(app.config["UPLOAD_FOLDER"], imgFilename))
+            form_data = dict(
+                fname=request.form.get("fname"),
+                lname=request.form.get("lname"),
+                email=request.form.get("email"),
+                phone=request.form.get("phone"),
+                address1=request.form.get("address1"),
+                address2=request.form.get("address2"),
+                city=request.form.get("city"),
+                state=request.form.get("state"),
+                zip=request.form.get("zip"),
+                birthdate=request.form.get("birthdate"),
+                age=request.form.get("age"),
+                gender=request.form.get("gender"),
+                weight=request.form.get("weight"),
+                school=request.form.get("school"),
+                coach=request.form.get("coach"),
+                beltRank=request.form.get("beltRank"),
+                events=request.form.get("eventList"),
+            )
+            formFilename = f"{form_data['fname']}_{form_data['lname']}.json"
+            with open(os.path.join(uploadDir, formFilename), "w") as f:
+                json.dump(form_data, f)
 
-        return render_template("success.html", form_data=form_data, indent=4)
+            profileImg = request.files["profilePic"]
+            imageExt = os.path.splitext(profileImg.filename)[1]
+            imgFilename = f"{form_data['fname']}_{form_data['lname']}{imageExt}"
+            profileImg.save(os.path.join(app.config["UPLOAD_FOLDER"], imgFilename))
+
+            return render_template(
+                "success.html", form_data=form_data, regType="competitor", indent=4
+            )
+        else:
+            uploadDir = os.path.join(app.config["UPLOAD_FOLDER"], "coaches")
+
+            form_data = dict(
+                fname=request.form.get("fname"),
+                lname=request.form.get("lname"),
+                email=request.form.get("email"),
+                phone=request.form.get("phone"),
+                address1=request.form.get("address1"),
+                address2=request.form.get("address2"),
+                city=request.form.get("city"),
+                state=request.form.get("state"),
+                zip=request.form.get("zip"),
+                school=request.form.get("school"),
+            )
+            formFilename = f"{form_data['fname']}_{form_data['lname']}.json"
+            with open(os.path.join(uploadDir, formFilename), "w") as f:
+                json.dump(form_data, f)
+
+            return render_template(
+                "success.html", form_data=form_data, regType="coach", indent=4
+            )
+
     else:
         # Display the form
         return render_template(
@@ -52,4 +81,8 @@ def handle_form():
 
 
 if __name__ == "__main__":
+    if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "competitors")):
+        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "competitors"))
+    if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "coaches")):
+        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "coaches"))
     app.run(host="0.0.0.0")
