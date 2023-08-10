@@ -79,9 +79,9 @@
 </script>
 <body>
   <div class="container">
-    <h1>Registration Form</h1>
+    <h1>{{competition_name}} Registration Form</h1>
     <form action="/" method="post" enctype=multipart/form-data id="eventRegistration">
-      <label for="inputName" class="form-check-label">Competitor Name</label>
+      <label for="inputName" class="form-check-label">Name</label>
       <div class="row g-3">
         <div class="col">
           <input type="text" class="form-control" name="fname" placeholder="First name" aria-label="First name" required>
@@ -176,7 +176,7 @@
           <input type="text" class="form-control" name="zip" id="postal_code-input" required>
         </div>
       </div>
-      <div class="row g-3">
+      <div class="row g-3" id="classDetail" hidden>
         <div class="col-md-6">
           <div class="row g-3">
             <div class="col-md-8">
@@ -232,7 +232,7 @@
           </div>
         </div>
       </div>
-      <div class="row g-3">
+      <div class="row g-3" id="profile" hidden>
         <div class="col-md-6">
           <label class="form-check-label" for="profilePic">Profile Photo</label>
           <input type="file" class="form-control" name="profilePic" id="profilePic" accept="image/*" onchange="upload_img(this.files)" required>
@@ -247,12 +247,12 @@
           <label for="inputSchool" class="form-check-label">Taekwondo School Or Club</label>
           <input type="text" class="form-control" name="school" id="inputSchool" required>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-6" id="coachDetail" hidden>
           <label for="inputCoach" class="form-check-label">Taekwondo Instructor / Coach</label>
           <input type="text" class="form-control" name="coach" id="inputCoach" required>
         </div>
       </div>
-      <div class="row g-3">
+      <div class="row g-3" id="beltDetail" hidden>
         <div class="col-md-4">
           <div class="row g-3">
             <label for="belt">Belt Rank</label>
@@ -312,7 +312,7 @@
           <p id="costDetail"></p>
         </div>
       </div>
-      <div class="row g-3">
+      <div class="row g-3" id="eventDetail" hidden>
         <div class="col-md-4">
           <div class="row g-3">
             <label for="events">Events</label>
