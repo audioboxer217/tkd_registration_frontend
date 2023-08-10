@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, abort
 import json
 import os
 
@@ -9,6 +9,9 @@ app.config["UPLOAD_FOLDER"] = "/data"
 @app.route("/", methods=["GET", "POST"])
 def handle_form():
     if request.method == "POST":
+        if request.form.get("liability") != "on":
+            abort(400, "Please go back and accept the Liability Waiver Conditions")
+
         form_data = dict(
             fname=request.form.get("fname"),
             lname=request.form.get("lname"),
@@ -41,7 +44,10 @@ def handle_form():
     else:
         # Display the form
         return render_template(
-            "form.html", mapsApiKey=os.getenv("MAPS_API_KEY").strip("'")
+            "form.html",
+            mapsApiKey=os.getenv("MAPS_API_KEY").strip("'"),
+            competition_name=os.getenv("COMPETITION_NAME").strip("'"),
+            competition_year=os.getenv("COMPETITION_YEAR").strip("'"),
         )
 
 
