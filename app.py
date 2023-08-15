@@ -12,6 +12,7 @@ def handle_form():
         reg_type = request.form.get("regType")
         if reg_type == "competitor":
             uploadDir = os.path.join(app.config["UPLOAD_FOLDER"], "competitors")
+            imageDir = os.path.join(app.config["UPLOAD_FOLDER"], "profile_pics")
 
             if request.form.get("liability") != "on":
                 abort(400, "Please go back and accept the Liability Waiver Conditions")
@@ -42,7 +43,7 @@ def handle_form():
             profileImg = request.files["profilePic"]
             imageExt = os.path.splitext(profileImg.filename)[1]
             imgFilename = f"{form_data['fname']}_{form_data['lname']}{imageExt}"
-            profileImg.save(os.path.join(app.config["UPLOAD_FOLDER"], imgFilename))
+            profileImg.save(os.path.join(imageDir, imgFilename))
 
             return render_template(
                 "success.html", form_data=form_data, regType="competitor", indent=4
@@ -81,6 +82,8 @@ def handle_form():
 
 
 if __name__ == "__main__":
+    if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "profile_pics")):
+        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "profile_pics"))
     if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "competitors")):
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "competitors"))
     if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "coaches")):
