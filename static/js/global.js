@@ -46,6 +46,62 @@ function upload_img(files) {
   }
 }
 
+function updateFields() {
+  regChoice = document.querySelectorAll('input[name="regChoice"]:checked')[0].id
+  document.getElementById("regType").value = regChoice
+  if (regChoice == "competitor") {
+    document.getElementById("classSection").hidden = false;
+    document.getElementById("birthdate").required = true;
+    document.getElementById("inputAge").required = true;
+    document.getElementById("genderMale").required = true;
+    document.getElementById("genderFemale").required = true;
+    document.getElementById("weightKgs").required = true;
+
+    document.getElementById("profile").hidden = false;
+    document.getElementById("profilePic").required = true;
+
+    document.getElementById("coachSection").hidden = false;
+    document.getElementById("inputCoach").required = true;
+
+    document.getElementById("beltSection").hidden = false;
+    document.getElementById("blackBelt").required = true;
+
+    document.getElementById("eventSection").hidden = false;
+    document.getElementById("eventList").required = true;
+
+    document.getElementById("liabilityTextSection").hidden = false;
+    document.getElementById("liabilityAcceptSection").hidden = false;
+    document.getElementById("liability").required = true;
+
+    updateTotal()
+  }
+  else {
+    document.getElementById("classSection").hidden = true;
+    document.getElementById("birthdate").required = false;
+    document.getElementById("inputAge").required = false;
+    document.getElementById("genderMale").required = false;
+    document.getElementById("genderFemale").required = false;
+    document.getElementById("weightKgs").required = false;
+
+    document.getElementById("profile").hidden = true;
+    document.getElementById("profilePic").required = false;
+
+    document.getElementById("coachSection").hidden = true;
+    document.getElementById("inputCoach").required = false;
+
+    document.getElementById("beltSection").hidden = true;
+    document.getElementById("blackBelt").required = false;
+
+    document.getElementById("eventSection").hidden = true;
+    document.getElementById("eventList").required = false;
+
+    document.getElementById("liabilityTextSection").hidden = true;
+    document.getElementById("liabilityAcceptSection").hidden = true;
+    document.getElementById("liability").required = false;
+
+    updateTotal()
+  }
+}
 function formatPhoneNumber(input) {
   // Remove any non-digits from the input
   var phoneNum = input.replace(/[^0-9]/g, "");
@@ -81,26 +137,35 @@ function updateEventList() {
   updateTotal()
 }
 function updateTotal() {
-  if (
-    document.querySelectorAll('input[name="beltRank"]:checked').length > 0 &&
-    document.querySelectorAll('input[name="events"]:checked').length > 0
-  ) {
-    if (document.getElementById('blackBelt').checked) {
-      var eventPrice = 25
-      var total = 75
+  regChoice = document.querySelectorAll('input[name="regChoice"]:checked')[0].id
+  if (regChoice == "competitor") {
+    if (
+      document.querySelectorAll('input[name="beltRank"]:checked').length > 0 &&
+      document.querySelectorAll('input[name="events"]:checked').length > 0
+    ) {
+      if (document.getElementById('blackBelt').checked) {
+        var eventPrice = 25
+        var total = 75
+      }
+      else {
+        var eventPrice = 20
+        var total = 70
+      }
+      total += eventPrice * document.querySelectorAll('input[name="events"]:checked').length
+      document.getElementById("total").value = "$" + total
+    }
+    else if (
+      document.querySelectorAll('input[name="beltRank"]:checked').length == 0 &&
+      document.querySelectorAll('input[name="events"]:checked').length > 0
+    ) {
+      alert("Please choose a Belt Rank to get your Total")
     }
     else {
-      var eventPrice = 20
-      var total = 70
+      document.getElementById("total").value = ""
     }
-    total += eventPrice * document.querySelectorAll('input[name="events"]:checked').length
-    document.getElementById("total").value = "$" + total
   }
-  else if (
-    document.querySelectorAll('input[name="beltRank"]:checked').length == 0 &&
-    document.querySelectorAll('input[name="events"]:checked').length > 0
-  ) {
-    alert("Please choose a Belt Rank to get your Total")
+  else {
+    document.getElementById("total").value = "$200"
   }
 }
 function convertWeight(amount, unit) {

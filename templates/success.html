@@ -23,14 +23,16 @@
       city: {{form_data.city}}<br>
       state: {{form_data.state}}<br>
       zip: {{form_data.zip}}<br>
+      school: {{form_data.school}}<br>
+      {% if regType == "competitor" %}
       birthdate: {{form_data.birthdate}}<br>
       age: {{form_data.age}}<br>
       gender: {{form_data.gender}}<br>
       weight: {{form_data.weight}} kg<br>
-      school: {{form_data.school}}<br>
       coach: {{form_data.coach}}<br>
       beltRank: {{form_data.beltRank}}<br>
       events: {{form_data.events}}<br>
+      {% endif %}
     </p>
   </div>
 </body>
