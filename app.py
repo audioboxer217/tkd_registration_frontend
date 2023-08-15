@@ -11,8 +11,8 @@ def handle_form():
     if request.method == "POST":
         reg_type = request.form.get("regType")
         if reg_type == "competitor":
-            uploadDir = os.path.join(app.config["UPLOAD_FOLDER"], "competitors")
-            imageDir = os.path.join(app.config["UPLOAD_FOLDER"], "profile_pics")
+            uploadDir = app.config["UPLOAD_FOLDER"]
+            imageDir = os.path.join(uploadDir, "profile_pics")
 
             if request.form.get("liability") != "on":
                 abort(400, "Please go back and accept the Liability Waiver Conditions")
@@ -35,6 +35,7 @@ def handle_form():
                 coach=request.form.get("coach"),
                 beltRank=request.form.get("beltRank"),
                 events=request.form.get("eventList"),
+                reg_type=request.form.get("regType"),
             )
             formFilename = f"{form_data['fname']}_{form_data['lname']}.json"
             with open(os.path.join(uploadDir, formFilename), "w") as f:
@@ -46,10 +47,13 @@ def handle_form():
             profileImg.save(os.path.join(imageDir, imgFilename))
 
             return render_template(
-                "success.html", form_data=form_data, regType="competitor", indent=4
+                "success.html",
+                form_data=form_data,
+                regType="competitor",
+                indent=4,
             )
         else:
-            uploadDir = os.path.join(app.config["UPLOAD_FOLDER"], "coaches")
+            uploadDir = app.config["UPLOAD_FOLDER"]
 
             form_data = dict(
                 fname=request.form.get("fname"),
@@ -62,6 +66,7 @@ def handle_form():
                 state=request.form.get("state"),
                 zip=request.form.get("zip"),
                 school=request.form.get("school"),
+                reg_type=request.form.get("regType"),
             )
             formFilename = f"{form_data['fname']}_{form_data['lname']}.json"
             with open(os.path.join(uploadDir, formFilename), "w") as f:
@@ -84,8 +89,5 @@ def handle_form():
 if __name__ == "__main__":
     if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "profile_pics")):
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "profile_pics"))
-    if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "competitors")):
-        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "competitors"))
-    if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "coaches")):
-        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "coaches"))
+
     app.run(host="0.0.0.0")
