@@ -80,9 +80,9 @@ def handle_form():
         # Display the form
         return render_template(
             "form.html",
-            mapsApiKey=os.getenv("MAPS_API_KEY").strip("'"),
-            competition_name=os.getenv("COMPETITION_NAME").strip("'"),
-            competition_year=os.getenv("COMPETITION_YEAR").strip("'"),
+            mapsApiKey=os.getenv("MAPS_API_KEY"),
+            competition_name=os.getenv("COMPETITION_NAME"),
+            competition_year=os.getenv("COMPETITION_YEAR"),
         )
 
 
