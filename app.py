@@ -14,8 +14,9 @@ def handle_form():
             uploadDir = app.config["UPLOAD_FOLDER"]
             imageDir = os.path.join(uploadDir, "profile_pics")
 
+            msg = "Please go back and accept the Liability Waiver Conditions"
             if request.form.get("liability") != "on":
-                abort(400, "Please go back and accept the Liability Waiver Conditions")
+                abort(400, msg)
 
             form_data = dict(
                 fname=request.form.get("fname"),
@@ -43,7 +44,8 @@ def handle_form():
 
             profileImg = request.files["profilePic"]
             imageExt = os.path.splitext(profileImg.filename)[1]
-            imgFilename = f"{form_data['fname']}_{form_data['lname']}{imageExt}"
+            fullName = f"{form_data['fname']}_{form_data['lname']}"
+            imgFilename = f"{fullName}{imageExt}"
             profileImg.save(os.path.join(imageDir, imgFilename))
 
             return render_template(
@@ -87,7 +89,11 @@ def handle_form():
 
 
 if __name__ == "__main__":
-    if not os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], "profile_pics")):
-        os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "profile_pics"))
+    profile_pics_dir = os.path.join(
+        app.config["UPLOAD_FOLDER"],
+        "profile_pics",
+    )
+    if not os.path.exists(profile_pics_dir):
+        os.makedirs(profile_pics_dir)
 
     app.run(host="0.0.0.0")
