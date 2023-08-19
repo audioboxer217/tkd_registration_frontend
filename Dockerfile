@@ -1,12 +1,20 @@
-FROM python:3.8
+FROM python:3.8-slim AS builder
 
-WORKDIR /app
+RUN apt-get update && apt-get install -y python3-pip
 
 COPY requirements.txt ./
 
-RUN pip install -r requirements.txt
+RUN pip install --user -r requirements.txt
 
-COPY . .
+COPY . /app
+
+FROM python:3.8-slim
+
+COPY --from=builder /app /app
+
+COPY --from=builder /root/.local /root/.local
+
+WORKDIR /app
 
 EXPOSE 5000
 
