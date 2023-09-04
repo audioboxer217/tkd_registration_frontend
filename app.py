@@ -9,18 +9,24 @@ app.config["UPLOAD_FOLDER"] = "/data"
 @app.route("/", methods=["GET", "POST"])
 def handle_form():
     if request.method == "POST":
+        uploadDir = app.config["UPLOAD_FOLDER"]
         reg_type = request.form.get("regType")
         if reg_type == "competitor":
-            uploadDir = app.config["UPLOAD_FOLDER"]
             imageDir = os.path.join(uploadDir, "profile_pics")
 
             msg = "Please go back and accept the Liability Waiver Conditions"
             if request.form.get("liability") != "on":
                 abort(400, msg)
 
+            profileImg = request.files["profilePic"]
+            imageExt = os.path.splitext(profileImg.filename)[1]
+            fname = request.form.get("fname")
+            lname = request.form.get("lname")
+            fullName = f'{fname}_{lname}'
+
             form_data = dict(
-                fname=request.form.get("fname"),
-                lname=request.form.get("lname"),
+                fname=fname,
+                lname=lname,
                 email=request.form.get("email"),
                 phone=request.form.get("phone"),
                 address1=request.form.get("address1"),
@@ -32,21 +38,18 @@ def handle_form():
                 age=request.form.get("age"),
                 gender=request.form.get("gender"),
                 weight=request.form.get("weight"),
+                imgFilename=f"{fullName}{imageExt}",
                 school=request.form.get("school"),
                 coach=request.form.get("coach"),
                 beltRank=request.form.get("beltRank"),
                 events=request.form.get("eventList"),
                 reg_type=request.form.get("regType"),
             )
-            formFilename = f"{form_data['fname']}_{form_data['lname']}.json"
+            formFilename = f"{fullName}.json"
             with open(os.path.join(uploadDir, formFilename), "w") as f:
                 json.dump(form_data, f)
 
-            profileImg = request.files["profilePic"]
-            imageExt = os.path.splitext(profileImg.filename)[1]
-            fullName = f"{form_data['fname']}_{form_data['lname']}"
-            imgFilename = f"{fullName}{imageExt}"
-            profileImg.save(os.path.join(imageDir, imgFilename))
+            profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
 
             return render_template(
                 "success.html",
@@ -55,8 +58,6 @@ def handle_form():
                 indent=4,
             )
         else:
-            uploadDir = app.config["UPLOAD_FOLDER"]
-
             form_data = dict(
                 fname=request.form.get("fname"),
                 lname=request.form.get("lname"),
