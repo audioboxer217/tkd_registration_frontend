@@ -360,12 +360,6 @@
           </div>
         </div>
       </div>
-      <div class="row g-3">
-        <div class="col-md-8">
-          <label class="form-check-label" for="demonstration">Your Total</label>
-          <input class="form-control" type="text" id="total" aria-label="Total" readonly required>
-        </div>
-      </div>
       <div class="row g-3" id="liabilityTextSection" hidden>
         <div class="col-md-6">
           <p>
@@ -391,6 +385,12 @@
       </div>
       <input class="form-control" type="text" name="eventList" id="eventList" hidden>
       <input class="form-control" type="text" name="regType" id="regType" hidden required>
+      <div class="row g-3">
+        <div class="col-md-8">
+          <strong><label class="form-check-label" for="demonstration">Your Total</label></strong>
+          <input class="form-control-plaintext bold" type="text" id="total" aria-label="Total" readonly required>
+        </div>
+      </div>
       <button type="submit" class="btn btn-primary">Register</button>
     </form>
   </div>
