@@ -6,9 +6,9 @@ import stripe
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "/data"
 app.config["URL"] = "http://localhost"
+stripe.api_key = os.getenv("STRIPE_API_KEY")
 
 # Test Details
-stripe.api_key = os.getenv("STRIPE_API_KEY")
 price_dict = dict(
     black_reg="price_1NmksyLkt5uWmF69LJZpYOBn",
     black_event="price_1NoY65Lkt5uWmF69P2HMG26V",
@@ -45,18 +45,15 @@ def handle_form():
             reg_type=request.form.get("regType"),
         )
 
-        try:
-            profileImg = request.files["profilePic"]
-            imageExt = os.path.splitext(profileImg.filename)[1]
-        except NameError:
-            profileImg = None
-            imageExt = None
-
         # Add Competitor Form Data
         if reg_type == "competitor":
             msg = "Please go back and accept the Liability Waiver Conditions"
             if request.form.get("liability") != "on":
                 abort(400, msg)
+
+            profileImg = request.files["profilePic"]
+            imageExt = os.path.splitext(profileImg.filename)[1]
+            profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
 
             form_data.update(
                 dict(
@@ -107,7 +104,6 @@ def handle_form():
                     "quantity": 1,
                 }
             ]
-        print(registration_items)
 
         try:
             checkout_session = stripe.checkout.Session.create(
@@ -118,14 +114,11 @@ def handle_form():
             )
         except Exception as e:
             return str(e)
-        print(checkout_session)
-        if checkout_session.status == "complete":
-            formFilename = f"{fullName}.json"
-            with open(os.path.join(uploadDir, formFilename), "w") as f:
-                json.dump(form_data, f)
 
-            if profileImg is not None:
-                profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
+        form_data.update(dict(checkout=checkout_session.id))
+        formFilename = f"{fullName}.json"
+        with open(os.path.join(uploadDir, formFilename), "w") as f:
+            json.dump(form_data, f)
 
         return redirect(checkout_session.url, code=303)
 
