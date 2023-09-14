@@ -53,7 +53,6 @@ def handle_form():
 
             profileImg = request.files["profilePic"]
             imageExt = os.path.splitext(profileImg.filename)[1]
-            profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
 
             form_data.update(
                 dict(
@@ -67,6 +66,8 @@ def handle_form():
                     events=request.form.get("eventList"),
                 )
             )
+
+            profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
 
             num_add_event = len(form_data["events"].split(",")) - 1
             if form_data["beltRank"] == "black":
