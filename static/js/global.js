@@ -125,6 +125,7 @@ function updateCostDetails() {
   else {
     document.getElementById("costDetail").innerHTML = colorBelt;
   }
+  document.getElementById("costDetail").classList="bg-secondary text-white"
   updateTotal()
 }
 function updateEventList() {
