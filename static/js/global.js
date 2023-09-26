@@ -1,10 +1,16 @@
 function upload_img(files) {
   if (files[0]) {
-
+    var maxSize = 2000000; // 2MB
     var MAX_WIDTH = 300;
     var MAX_HEIGHT = 300;
 
     let imageFile = files[0];
+    // Check if the image is larger than the max size
+    if (imageFile.size > maxSize) {
+      // Show an error message
+      alert("The image is too large. Please resize it before uploading. Max Size: 2MB");
+      return;
+    }
     var reader = new FileReader();
     reader.onload = function (e) {
       var img = document.createElement("img");
@@ -125,7 +131,7 @@ function updateCostDetails() {
   else {
     document.getElementById("costDetail").innerHTML = colorBelt;
   }
-  document.getElementById("costDetail").classList="bg-secondary text-white"
+  document.getElementById("costDetail").classList = "bg-secondary text-white"
   updateTotal()
 }
 function updateEventList() {
