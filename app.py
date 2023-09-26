@@ -5,7 +5,7 @@ import stripe
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "/data"
-app.config["URL"] = "http://localhost"
+app.config["URL"] = "https://32viu5x5si.execute-api.us-east-2.amazonaws.com/register"
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 
 # Test Details
@@ -67,7 +67,7 @@ def handle_form():
                 )
             )
 
-            profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
+            # profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
 
             num_add_event = len(form_data["events"].split(",")) - 1
             if form_data["beltRank"] == "black":
@@ -118,8 +118,8 @@ def handle_form():
 
         form_data.update(dict(checkout=checkout_session.id))
         formFilename = f"{fullName}.json"
-        with open(os.path.join(uploadDir, formFilename), "w") as f:
-            json.dump(form_data, f)
+        # with open(os.path.join(uploadDir, formFilename), "w") as f:
+        #     json.dump(form_data, f)
 
         return redirect(checkout_session.url, code=303)
 
@@ -143,11 +143,11 @@ def success_page():
 
 
 if __name__ == "__main__":
-    profile_pics_dir = os.path.join(
-        app.config["UPLOAD_FOLDER"],
-        "profile_pics",
-    )
-    if not os.path.exists(profile_pics_dir):
-        os.makedirs(profile_pics_dir)
+    # profile_pics_dir = os.path.join(
+    #     app.config["UPLOAD_FOLDER"],
+    #     "profile_pics",
+    # )
+    # if not os.path.exists(profile_pics_dir):
+    #     os.makedirs(profile_pics_dir)
 
     app.run(host="0.0.0.0")
