@@ -11,3 +11,4 @@ stripe==6.0.0
 toml==0.10.2
 Werkzeug==2.0.1
 zappa>=0.17.6
+boto==2.49.0

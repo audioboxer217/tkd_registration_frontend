@@ -1,10 +1,11 @@
 from flask import Flask, render_template, redirect, request, abort
+import boto3
 import json
 import os
 import stripe
 
 app = Flask(__name__)
-app.config["UPLOAD_FOLDER"] = "/data"
+app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
 app.config["URL"] = os.getenv("REG_URL")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 
@@ -21,8 +22,6 @@ price_dict = dict(
 @app.route("/", methods=["GET", "POST"])
 def handle_form():
     if request.method == "POST":
-        uploadDir = app.config["UPLOAD_FOLDER"]
-        imageDir = os.path.join(uploadDir, "profile_pics")
         reg_type = request.form.get("regType")
 
         # Name
@@ -67,7 +66,8 @@ def handle_form():
                 )
             )
 
-            # profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
+            s3 = boto3.client('s3')
+            s3.upload_fileobj(profileImg, app.config["profilePicBucket"], form_data["imgFilename"] )
 
             num_add_event = len(form_data["events"].split(",")) - 1
             if form_data["beltRank"] == "black":
