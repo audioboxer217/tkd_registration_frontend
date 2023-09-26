@@ -5,7 +5,7 @@ import stripe
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "/data"
-app.config["URL"] = "https://32viu5x5si.execute-api.us-east-2.amazonaws.com/register"
+app.config["URL"] = os.getenv("REG_URL")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 
 # Test Details
