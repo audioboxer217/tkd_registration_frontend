@@ -6,17 +6,14 @@ import stripe
 
 app = Flask(__name__)
 app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
+app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
 app.config["URL"] = os.getenv("REG_URL")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
+s3 = boto3.client('s3')
 
-# Test Details
-price_dict = dict(
-    black_reg="price_1NmksyLkt5uWmF69LJZpYOBn",
-    black_event="price_1NoY65Lkt5uWmF69P2HMG26V",
-    color_reg="price_1NoY86Lkt5uWmF69YSVmz3P2",
-    color_event="price_1NoY8ZLkt5uWmF69t47jMIo3",
-    coach="price_1NoY7QLkt5uWmF69lvlzgBo6",
-)
+# Price Details
+price_json = s3.get_object(Bucket=app.config["configBucket"], Key='stripe_prices.json')['Body'].read()
+price_dict = json.loads(price_json)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -66,7 +63,6 @@ def handle_form():
                 )
             )
 
-            s3 = boto3.client('s3')
             s3.upload_fileobj(profileImg, app.config["profilePicBucket"], form_data["imgFilename"] )
 
             num_add_event = len(form_data["events"].split(",")) - 1
