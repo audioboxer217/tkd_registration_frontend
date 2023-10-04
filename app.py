@@ -8,8 +8,10 @@ app = Flask(__name__)
 app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
 app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
 app.config["URL"] = os.getenv("REG_URL")
+app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 s3 = boto3.client('s3')
+sqs = boto3.client('sqs')
 
 # Price Details
 price_json = s3.get_object(Bucket=app.config["configBucket"], Key='stripe_prices.json')['Body'].read()
@@ -113,9 +115,21 @@ def handle_form():
             return str(e)
 
         form_data.update(dict(checkout=checkout_session.id))
-        formFilename = f"{fullName}.json"
-        # with open(os.path.join(uploadDir, formFilename), "w") as f:
-        #     json.dump(form_data, f)
+        sqs.send_message(
+            QueueUrl=app.config["SQS_QUEUE_URL"],
+            DelaySeconds=10,
+            MessageAttributes={
+                'Name': {
+                    'DataType': 'String',
+                    'StringValue': fullName
+                },
+                'Transaction': {
+                    'DataType': 'String',
+                    'StringValue': checkout_session.id
+                }
+            },
+            MessageBody=json.dumps(form_data)
+        )
 
         return redirect(checkout_session.url, code=303)
 
@@ -139,11 +153,4 @@ def success_page():
 
 
 if __name__ == "__main__":
-    # profile_pics_dir = os.path.join(
-    #     app.config["UPLOAD_FOLDER"],
-    #     "profile_pics",
-    # )
-    # if not os.path.exists(profile_pics_dir):
-    #     os.makedirs(profile_pics_dir)
-
     app.run(host="0.0.0.0")

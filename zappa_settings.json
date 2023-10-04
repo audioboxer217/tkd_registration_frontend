@@ -16,7 +16,8 @@
             "COMPETITION_YEAR": "2024",
             "CONTACT_EMAIL": "contacttulsa@goldendragontkd.com",
             "PROFILE_PIC_BUCKET": "gdtkd-reg-profile-pics",
-            "CONFIG_BUCKET": "gdtkd-reg-config"
+            "CONFIG_BUCKET": "gdtkd-reg-config",
+            "SQS_QUEUE_URL": "https://sqs.us-east-2.amazonaws.com/799879571353/processing"
         },
         "parameter_depth": 1,
         "memory_size": 512,
