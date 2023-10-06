@@ -1,4 +1,5 @@
 from flask import Flask, render_template, redirect, request, abort
+from datetime import datetime, timedelta
 import boto3
 import json
 import os
@@ -110,6 +111,7 @@ def handle_form():
                 mode="payment",
                 success_url=f'{app.config["URL"]}/success',
                 cancel_url=f'{app.config["URL"]}',
+                expires_at=int((datetime.utcnow() + timedelta(minutes=30)).timestamp())
             )
         except Exception as e:
             return str(e)
@@ -117,7 +119,7 @@ def handle_form():
         form_data.update(dict(checkout=checkout_session.id))
         sqs.send_message(
             QueueUrl=app.config["SQS_QUEUE_URL"],
-            DelaySeconds=10,
+            DelaySeconds=120,
             MessageAttributes={
                 'Name': {
                     'DataType': 'String',
