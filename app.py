@@ -1,28 +1,27 @@
 from flask import Flask, render_template, redirect, request, abort
+from datetime import datetime, timedelta
+import boto3
 import json
 import os
 import stripe
 
 app = Flask(__name__)
-app.config["UPLOAD_FOLDER"] = "/data"
-app.config["URL"] = "http://localhost"
+app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
+app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
+app.config["URL"] = os.getenv("REG_URL")
+app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
+s3 = boto3.client('s3')
+sqs = boto3.client('sqs')
 
-# Test Details
-price_dict = dict(
-    black_reg="price_1NmksyLkt5uWmF69LJZpYOBn",
-    black_event="price_1NoY65Lkt5uWmF69P2HMG26V",
-    color_reg="price_1NoY86Lkt5uWmF69YSVmz3P2",
-    color_event="price_1NoY8ZLkt5uWmF69t47jMIo3",
-    coach="price_1NoY7QLkt5uWmF69lvlzgBo6",
-)
+# Price Details
+price_json = s3.get_object(Bucket=app.config["configBucket"], Key='stripe_prices.json')['Body'].read()
+price_dict = json.loads(price_json)
 
 
 @app.route("/", methods=["GET", "POST"])
 def handle_form():
     if request.method == "POST":
-        uploadDir = app.config["UPLOAD_FOLDER"]
-        imageDir = os.path.join(uploadDir, "profile_pics")
         reg_type = request.form.get("regType")
 
         # Name
@@ -32,17 +31,16 @@ def handle_form():
 
         # Base Form Data
         form_data = dict(
-            fname=fname,
-            lname=lname,
-            email=request.form.get("email"),
-            phone=request.form.get("phone"),
-            address1=request.form.get("address1"),
-            address2=request.form.get("address2"),
-            city=request.form.get("city"),
-            state=request.form.get("state"),
-            zip=request.form.get("zip"),
-            school=request.form.get("school"),
-            reg_type=request.form.get("regType"),
+            full_name={'S': f"{fname} {lname}"},
+            email={'S': request.form.get("email")},
+            phone={'S': request.form.get("phone")},
+            address1={'S': request.form.get("address1")},
+            address2={'S': request.form.get("address2")},
+            city={'S': request.form.get("city")},
+            state={'S': request.form.get("state")},
+            zip={'S': request.form.get("zip")},
+            school={'S': request.form.get("school")},
+            reg_type={'S': request.form.get("regType")},
         )
 
         # Add Competitor Form Data
@@ -56,21 +54,21 @@ def handle_form():
 
             form_data.update(
                 dict(
-                    birthdate=request.form.get("birthdate"),
-                    age=request.form.get("age"),
-                    gender=request.form.get("gender"),
-                    weight=request.form.get("weight"),
-                    imgFilename=f"{fullName}{imageExt}",
-                    coach=request.form.get("coach"),
-                    beltRank=request.form.get("beltRank"),
-                    events=request.form.get("eventList"),
+                    birthdate={'S': request.form.get("birthdate")},
+                    age={'N': request.form.get("age")},
+                    gender={'S': request.form.get("gender")},
+                    weight={'N': request.form.get("weight")},
+                    imgFilename={'S': f"{fullName}{imageExt}"},
+                    coach={'S': request.form.get("coach")},
+                    beltRank={'S': request.form.get("beltRank")},
+                    events={'S': request.form.get("eventList")},
                 )
             )
 
-            profileImg.save(os.path.join(imageDir, form_data["imgFilename"]))
+            s3.upload_fileobj(profileImg, app.config["profilePicBucket"], form_data["imgFilename"]["S"] )
 
-            num_add_event = len(form_data["events"].split(",")) - 1
-            if form_data["beltRank"] == "black":
+            num_add_event = len(form_data["events"]["S"].split(",")) - 1
+            if form_data["beltRank"]["S"] == "black":
                 registration_items = [
                     {
                         "price": price_dict["black_reg"],
@@ -81,7 +79,7 @@ def handle_form():
                     registration_items.append(
                         {
                             "price": price_dict["black_event"],
-                            "quantity": len(form_data["events"].split(",")) - 1,
+                            "quantity": num_add_event,
                         },
                     )
             else:
@@ -95,7 +93,7 @@ def handle_form():
                     registration_items.append(
                         {
                             "price": price_dict["color_event"],
-                            "quantity": len(form_data["events"].split(",")) - 1,
+                            "quantity": num_add_event,
                         },
                     )
         else:
@@ -112,14 +110,27 @@ def handle_form():
                 mode="payment",
                 success_url=f'{app.config["URL"]}/success',
                 cancel_url=f'{app.config["URL"]}',
+                expires_at=int((datetime.utcnow() + timedelta(minutes=30)).timestamp())
             )
         except Exception as e:
             return str(e)
 
-        form_data.update(dict(checkout=checkout_session.id))
-        formFilename = f"{fullName}.json"
-        with open(os.path.join(uploadDir, formFilename), "w") as f:
-            json.dump(form_data, f)
+        form_data.update(dict(checkout={'S': checkout_session.id}))
+        sqs.send_message(
+            QueueUrl=app.config["SQS_QUEUE_URL"],
+            DelaySeconds=120,
+            MessageAttributes={
+                'Name': {
+                    'DataType': 'String',
+                    'StringValue': fullName
+                },
+                'Transaction': {
+                    'DataType': 'String',
+                    'StringValue': checkout_session.id
+                }
+            },
+            MessageBody=json.dumps(form_data)
+        )
 
         return redirect(checkout_session.url, code=303)
 
@@ -143,11 +154,4 @@ def success_page():
 
 
 if __name__ == "__main__":
-    profile_pics_dir = os.path.join(
-        app.config["UPLOAD_FOLDER"],
-        "profile_pics",
-    )
-    if not os.path.exists(profile_pics_dir):
-        os.makedirs(profile_pics_dir)
-
     app.run(host="0.0.0.0")
