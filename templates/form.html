@@ -17,11 +17,13 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js" integrity="sha384-duAtk5RV7s42V6Zuw+tRBFcqD8RjRKw6RFnxmxIj1lUGAQJyum/vtcUQX8lqKQjp" crossorigin="anonymous"></script>
 <script src="{{ url_for('static', filename='js/global.js') }}"></script>
 <body>
-  <div class="container">
+  <div class="container shadow p-3 mb-5 bg-white rounded">
     <h1>{{competition_name}} Registration Form</h1>
     <form action="/register" method="post" enctype=multipart/form-data id="eventRegistration">
-      <label for="regType" class="form-check-label">Type</label>
-      <div class="row g-3">
+      <div class="row mt-3">
+        <label for="regType" class="form-check-label h5">Type</label>
+      </div>
+      <div class="row">
         <div class="col-md-6">
           <div class="form-check">
             <input class="form-check-input" type="radio" name="regChoice" id="competitor" onchange="updateFields()">
@@ -35,7 +37,9 @@
           </div>
         </div>
       </div>
-      <label for="inputName" class="form-check-label">Name</label>
+      <div class="row mt-2">
+        <label for="inputName" class="form-check-label h5">Name</label>
+      </div>
       <div class="row g-3">
         <div class="col">
           <input type="text" class="form-control" name="fname" placeholder="First name" aria-label="First name" required>
@@ -44,31 +48,31 @@
           <input type="text" class="form-control" name="lname" placeholder="Last name" aria-label="Last name" required>
         </div>
       </div>
-      <div class="row g-3">
+      <div class="row mt-3">
         <div class="col">
-          <label for="inputEmail" class="form-check-label">Email</label>
+          <label for="inputEmail" class="form-check-label h5">Email</label>
           <input type="email" class="form-control" name="email" id="inputEmail" required>
         </div>
         <div class="col">
-          <label for="inputPhone" class="form-check-label">Phone</label>
+          <label for="inputPhone" class="form-check-label h5">Phone</label>
           <input type="phone" class="form-control" name="phone" id="inputPhone" pattern="^\d{3}-\d{3}-\d{4}$" oninvalid="setCustomValidity('Please enter a valid phone number.')" oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>
         </div>
       </div>
-      <div class="row g-3">
+      <div class="row g-3 mt-0">
         <div class="col-12">
-          <label for="location-input" class="form-check-label">Address</label>
+          <label for="location-input" class="form-check-label h5">Address</label>
           <input type="text" class="form-control" name="address1" id="location-input" placeholder="1234 Main St" required autocomplete="off">
         </div>
         <div class="col-12">
-          <label for="inputAddress2" class="form-check-label">Address 2</label>
+          <label for="inputAddress2" class="form-check-label h5">Address 2</label>
           <input type="text" class="form-control" name="address2" id="inputAddress2" placeholder="Apartment, studio, or floor">
         </div>
         <div class="col-md-6">
-          <label for="locality-input" class="form-check-label">City</label>
+          <label for="locality-input" class="form-check-label h5">City</label>
           <input type="text" class="form-control" name="city" id="locality-input" required>
         </div>
         <div class="col-md-4">
-          <label for="administrative_area_level_1-input" class="form-check-label">State</label>
+          <label for="administrative_area_level_1-input" class="form-check-label h5">State</label>
           <select id="administrative_area_level_1-input" class="form-select" name="state" required>
             <option selected>Choose...</option>
             <option value="AK">Alaska</option>
@@ -126,15 +130,15 @@
           </select>
         </div>
         <div class="col-md-2">
-          <label for="postal_code-input" class="form-check-label">Zip</label>
+          <label for="postal_code-input" class="form-check-label h5">Zip</label>
           <input type="text" class="form-control" name="zip" id="postal_code-input" required>
         </div>
       </div>
-      <div class="row g-3" id="classSection" hidden>
+      <div class="row g-3 mt-1" id="classSection"hidden>
         <div class="col-md-6">
           <div class="row g-3">
             <div class="col-md-8">
-              <label class="form-check-label" for="date">Birthday</label>
+              <label class="form-check-label h5" for="date">Birthday</label>
               <div class="input-group date" id="datepicker">
                 <input class="form-control" type="text" name="birthdate" id="birthdate" placeholder="MM/DD/YYYY" onchange="calculateAge(this.value)">
                 <span class="input-group-append">
@@ -145,7 +149,7 @@
               </div>
             </div>
             <div class="col-md-2">
-              <label class="form-check-label">Age</label>
+              <label class="form-check-label h5">Age</label>
               <input class="form-control" type="text" name="age" id="inputAge" readonly>
             </div>
           </div>
@@ -154,8 +158,8 @@
           </div>
         </div>
         <div class="col-md-2">
-          <label class="form-check-label">Gender</label>
-          <div class="row g-3">
+          <label class="form-check-label h5">Gender</label>
+          <div class="row">
             <div class="col">
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="gender" id="genderMale" value="male">
@@ -163,7 +167,7 @@
               </div>
             </div>
           </div>
-          <div class="row g-3">
+          <div class="row">
             <div class="col">
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="gender" id="genderFemale" value="female">
@@ -173,22 +177,20 @@
           </div>
         </div>
         <div class="col-md-4">
-          <label class="form-check-label">Weight</label>
-          <div class="row g-3">
+          <label class="form-check-label h5">Weight</label>
+          <div class="row mt-1">
             <div class="col-md-4">
-              <input class="form-control" type="text" id="weightLbs" placeholder="lbs" onchange="convertWeight(this.value,'lbs')">
-              <label class="form-label" for="weightLbs">lbs</label>
+                <input class="form-control" type="number" id="weightLbs" placeholder="lbs" onchange="convertWeight(this.value,'lbs')">
             </div>
             <div class="col-md-4">
-              <input class="form-control" type="text" name="weight" id="weightKgs" placeholder="kgs"onchange="convertWeight(this.value,'kgs')">
-              <label class="form-label" for="weightKgs">kgs</label>
+              <input class="form-control" type="number" name="weight" id="weightKgs" placeholder="kgs"onchange="convertWeight(this.value,'kgs')">
             </div>
           </div>
         </div>
       </div>
-      <div class="row g-3" id="profile" hidden>
+      <div class="row g-3 mt-0" id="profile" hidden>
         <div class="col-md-6">
-          <label class="form-check-label" for="profilePic">Profile Photo</label>
+          <label class="form-check-label h5" for="profilePic">Profile Photo</label>
           <input type="file" class="form-control" name="profilePic" id="profilePic" accept="image/*" onchange="upload_img(this.files)">
           <p>
             A photo is required to create a badge id. <br>
@@ -200,22 +202,22 @@
           <img id="profileImg">
         </div>
       </div>
-      <div class="row g-3">
+      <div class="row g-3 mt-1">
         <div class="col-md-6">
-          <label for="inputSchool" class="form-check-label">Taekwondo School Or Club</label>
+          <label for="inputSchool" class="form-check-label h5">Taekwondo School Or Club</label>
           <input type="text" class="form-control" name="school" id="inputSchool" required>
         </div>
         <div class="col-md-6" id="coachSection" hidden>
-          <label for="inputCoach" class="form-check-label">Taekwondo Instructor / Coach</label>
+          <label for="inputCoach" class="form-check-label h5">Taekwondo Instructor / Coach</label>
           <input type="text" class="form-control" name="coach" id="inputCoach">
         </div>
       </div>
-      <div class="row g-3" id="beltSection" hidden>
+      <div class="row" id="beltSection" hidden>
         <div class="col-md-4">
-          <div class="row g-3">
-            <label for="belt">Belt Rank</label>
+          <div class="row g-3 mt-0">
+            <label for="belt" class="form-check-label h5">Belt Rank</label>
           </div>
-          <div class="row g-3">
+          <div class="row">
             <div class="col-sm-6">
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="beltRank" id="blackBelt" value="black" onclick="updateCostDetails()">
@@ -270,12 +272,12 @@
           <p id="costDetail"></p>
         </div>
       </div>
-      <div class="row g-3" id="eventSection" hidden>
+      <div class="row" id="eventSection" hidden>
         <div class="col-md-4">
-          <div class="row g-3">
-            <label for="events">Events</label>
+          <div class="row g-3 mt-0">
+            <label for="events" class="form-check-label h5">Events</label>
           </div>
-          <div class="row g-3">
+          <div class="row">
             <div class="col-sm-6">
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" name="events" id="sparring" onclick="updateEventList()">
@@ -309,9 +311,9 @@
           </div>
         </div>
       </div>
-      <div class="row g-3" id="liabilityTextSection" hidden>
+      <div class="row g-3 mt-0" id="liabilityTextSection" hidden>
         <div class="col-md-6">
-          <h3>Liability Waiver</h3>
+          <label for="liability" class="form-check-label h3">Liability Waiver</label>
           <p class="p-3 mb-2 bg-light text-dark">
           In consideration of your acceptance of my registration, I do hereby, for myself, executors, and administrator waive,
           release and forever discharge any and all right claims for damages which I may have, or which may accrue to me, 
@@ -333,7 +335,7 @@
           <label class="form-check-label" for="liability">I hereby agree to all terms and conditions of the liability waiver above</label>
         </div>
       </div>
-      <div class="row g-3 p-3 mb-2 mt-2">
+      <div class="row g-3 mt-3 p-3 mb-2 mt-2">
         <div class="col-md-8">
           <label class="form-check-label h2" for="demonstration">Your Total</label>
           <input class="form-control-plaintext form-control-lg" type="text" id="total" aria-label="Total" readonly required>
