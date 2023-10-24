@@ -24,6 +24,8 @@
         "use_precompiled_packages": true
     },
     "test": {
+        "domain": "okgp24.kseppler.com",
+        "certificate_arn": "arn:aws:acm:us-east-1:799879571353:certificate/8893e1e9-4a35-43a3-a547-eed14e496a50",
         "app_function": "app.app",
         "aws_region": "us-east-2",
         "profile_name": "personal",
