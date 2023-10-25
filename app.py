@@ -112,15 +112,13 @@ def handle_form():
             ]
 
         try:
-            checkout_timeout = (
-                (datetime.utcnow() + timedelta(minutes=30)).timestamp(),
-            )
+            checkout_timeout = datetime.utcnow() + timedelta(minutes=30)
             checkout_session = stripe.checkout.Session.create(
                 line_items=registration_items,
                 mode="payment",
                 success_url=f'{app.config["URL"]}/success',
                 cancel_url=f'{app.config["URL"]}',
-                expires_at=int(checkout_timeout),
+                expires_at=int(checkout_timeout.timestamp()),
             )
         except Exception as e:
             return str(e)
