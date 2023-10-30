@@ -1,29 +1,23 @@
 {
-    "register": {
+    "prod": {
+        "domain": "okgp24.oktkdevents.com",
+        "certificate_arn": "arn:aws:acm:us-east-1:799879571353:certificate/d67f2f63-a421-44e6-b66e-eadc8d3980f2",
         "app_function": "app.app",
         "aws_region": "us-east-2",
         "profile_name": "personal",
         "project_name": "frontend",
         "runtime": "python3.8",
-        "s3_bucket": "zappa-eanaxavu5",
+        "s3_bucket": "zappa-okgp24-frontend-dev",
         "http_methods": [
             "GET",
             "POST"
         ],
         "remote_env": "s3://gdtkd-reg-config/frontend.json",
-        "environment_variables": {
-            "COMPETITION_NAME": "Oklahoma Grand Prix",
-            "COMPETITION_YEAR": "2024",
-            "CONTACT_EMAIL": "contacttulsa@goldendragontkd.com",
-            "PROFILE_PIC_BUCKET": "gdtkd-reg-profile-pics",
-            "CONFIG_BUCKET": "gdtkd-reg-config",
-            "SQS_QUEUE_URL": "https://sqs.us-east-2.amazonaws.com/799879571353/processing"
-        },
         "parameter_depth": 1,
         "memory_size": 512,
         "use_precompiled_packages": true
     },
-    "test": {
+    "dev": {
         "domain": "okgp24.kseppler.com",
         "certificate_arn": "arn:aws:acm:us-east-1:799879571353:certificate/8893e1e9-4a35-43a3-a547-eed14e496a50",
         "app_function": "app.app",
@@ -31,20 +25,12 @@
         "profile_name": "personal",
         "project_name": "frontend",
         "runtime": "python3.8",
-        "s3_bucket": "zappa-okgp24-frontend",
+        "s3_bucket": "zappa-gdtkd-frontend-dev",
         "http_methods": [
             "GET",
             "POST"
         ],
         "remote_env": "s3://gdtkd-reg-config/frontend.json",
-        "environment_variables": {
-            "COMPETITION_NAME": "Oklahoma Grand Prix",
-            "COMPETITION_YEAR": "2024",
-            "CONTACT_EMAIL": "contacttulsa@goldendragontkd.com",
-            "PROFILE_PIC_BUCKET": "gdtkd-reg-profile-pics",
-            "CONFIG_BUCKET": "gdtkd-reg-config",
-            "SQS_QUEUE_URL": "https://sqs.us-east-2.amazonaws.com/799879571353/processing"
-        },
         "parameter_depth": 1,
         "memory_size": 512,
         "use_precompiled_packages": true
