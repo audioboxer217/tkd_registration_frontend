@@ -1,7 +1,7 @@
 {
     "prod": {
-        "domain": "okgp24.oktkdevents.com",
-        "certificate_arn": "arn:aws:acm:us-east-1:799879571353:certificate/d67f2f63-a421-44e6-b66e-eadc8d3980f2",
+        "domain": "okgp.oktkdevents.com",
+        "certificate_arn": "arn:aws:acm:us-east-1:799879571353:certificate/8a0b2828-e9dc-4b74-8c5a-8fe47ee5ab98",
         "app_function": "app.app",
         "aws_region": "us-east-2",
         "profile_name": "personal",
