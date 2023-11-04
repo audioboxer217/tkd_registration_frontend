@@ -35,6 +35,7 @@ def index_page():
 def handle_form():
     if request.method == "POST":
         reg_type = request.form.get("regType")
+        school = request.form.get("school").replace(" ", "-")
 
         # Name
         fname = request.form.get("fname")
@@ -70,7 +71,7 @@ def handle_form():
                     age={"N": request.form.get("age")},
                     gender={"S": request.form.get("gender")},
                     weight={"N": request.form.get("weight")},
-                    imgFilename={"S": f"{fullName}{imageExt}"},
+                    imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
                     coach={"S": request.form.get("coach")},
                     beltRank={"S": request.form.get("beltRank")},
                     events={"S": request.form.get("eventList")},
