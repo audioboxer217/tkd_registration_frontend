@@ -26,13 +26,13 @@
       <div class="row">
         <div class="col-md-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="regChoice" id="competitor" onchange="updateFields()">
+            <input class="form-check-input" type="radio" name="regChoice" id="competitor" onchange="updateFields()"  {{ "checked" if reg_type=='competitor' else "" }} >
             <label class="form-check-label" for="competitor">Competitor</label>
           </div>
         </div>
         <div class="col-md-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="regChoice" id="coach" onchange="updateFields()">
+            <input class="form-check-input" type="radio" name="regChoice" id="coach" onchange="updateFields()" {{ "checked" if reg_type=='coach' else "" }} >
             <label class="form-check-label" for="coach">Coach</label>
           </div>
         </div>
@@ -134,7 +134,7 @@
           <input type="text" class="form-control" name="zip" id="postal_code-input" required>
         </div>
       </div>
-      <div class="row g-3 mt-1" id="classSection"hidden>
+      <div class="row g-3 mt-1" id="classSection" {{ "" if reg_type=='competitor' else "hidden" }}>
         <div class="col-md-6">
           <div class="row g-3">
             <div class="col-md-8">
@@ -188,7 +188,7 @@
           </div>
         </div>
       </div>
-      <div class="row g-3 mt-0" id="profile" hidden>
+      <div class="row g-3 mt-0" id="profile" {{ "" if reg_type=='competitor' else "hidden" }}>
         <div class="col-md-6">
           <label class="form-check-label h5" for="profilePic">Profile Photo</label>
           <input type="file" class="form-control" name="profilePic" id="profilePic" accept="image/*" onchange="upload_img(this.files)">
@@ -207,12 +207,12 @@
           <label for="inputSchool" class="form-check-label h5">Taekwondo School Or Club</label>
           <input type="text" class="form-control" name="school" id="inputSchool" required>
         </div>
-        <div class="col-md-6" id="coachSection" hidden>
+        <div class="col-md-6" id="coachSection" {{ "" if reg_type=='competitor' else "hidden" }}>
           <label for="inputCoach" class="form-check-label h5">Taekwondo Instructor / Coach</label>
           <input type="text" class="form-control" name="coach" id="inputCoach">
         </div>
       </div>
-      <div class="row" id="beltSection" hidden>
+      <div class="row" id="beltSection" {{ "" if reg_type=='competitor' else "hidden" }}>
         <div class="col-md-4">
           <div class="row g-3 mt-0">
             <label for="belt" class="form-check-label h5">Belt Rank</label>
@@ -268,11 +268,14 @@
             </div>
           </div>
         </div>
-        <div class="col-md-8">
-          <p id="costDetail"></p>
+        <div class="col-md-2"></div>
+        <div class="col-md-6">
+          <div class="row g-2 mt-2">
+            <p id="costDetail"></p>
+          </div>
         </div>
       </div>
-      <div class="row" id="eventSection" hidden>
+      <div class="row" id="eventSection" {{ "" if reg_type=='competitor' else "hidden" }}>
         <div class="col-md-4">
           <div class="row g-3 mt-0">
             <label for="events" class="form-check-label h5">Events</label>
@@ -311,7 +314,7 @@
           </div>
         </div>
       </div>
-      <div class="row g-3 mt-0" id="liabilityTextSection" hidden>
+      <div class="row g-3 mt-0" id="liabilityTextSection" {{ "" if reg_type=='competitor' else "hidden" }}>
         <div class="col-md-6">
           <label for="liability" class="form-check-label h3">Liability Waiver</label>
           <p class="p-3 mb-2 bg-light text-dark">
@@ -329,7 +332,7 @@
           </p>
         </div>
       </div>
-      <div class="col-sm-6" id="liabilityAcceptSection" hidden>
+      <div class="col-sm-6" id="liabilityAcceptSection" {{ "" if reg_type=='competitor' else "hidden" }}>
         <div class="form-check">
           <input class="form-check-input" type="checkbox" name="liability" id="liability">
           <label class="form-check-label" for="liability">I hereby agree to all terms and conditions of the liability waiver above</label>
@@ -338,11 +341,11 @@
       <div class="row g-3 mt-3 p-3 mb-2 mt-2">
         <div class="col-md-8">
           <label class="form-check-label h2" for="demonstration">Your Total</label>
-          <input class="form-control-plaintext form-control-lg" type="text" id="total" aria-label="Total" readonly required>
+          <input class="form-control-plaintext form-control-lg" type="text" id="total" aria-label="Total" value="{{ '$200' if reg_type=='coach' else '' }}" readonly required>
         </div>
       </div>
       <input class="form-control" type="text" name="eventList" id="eventList" hidden>
-      <input class="form-control" type="text" name="regType" id="regType" hidden required>
+      <input class="form-control" type="text" name="regType" id="regType" value="{{ reg_type }}"hidden required>
       <button type="submit" class="btn btn-primary">Register</button>
     </form>
   </div>
