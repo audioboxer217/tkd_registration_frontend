@@ -22,10 +22,20 @@ price_json = s3.get_object(
 price_dict = json.loads(price_json)
 
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/")
+def index_page():
+    return render_template(
+        "index.html",
+        email=os.getenv("CONTACT_EMAIL"),
+        org=os.getenv("COMPETITION_NAME"),
+    )
+
+
+@app.route("/register", methods=["GET", "POST"])
 def handle_form():
     if request.method == "POST":
         reg_type = request.form.get("regType")
+        school = request.form.get("school").replace(" ", "-")
 
         # Name
         fname = request.form.get("fname")
@@ -61,7 +71,7 @@ def handle_form():
                     age={"N": request.form.get("age")},
                     gender={"S": request.form.get("gender")},
                     weight={"N": request.form.get("weight")},
-                    imgFilename={"S": f"{fullName}{imageExt}"},
+                    imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
                     coach={"S": request.form.get("coach")},
                     beltRank={"S": request.form.get("beltRank")},
                     events={"S": request.form.get("eventList")},
@@ -140,13 +150,35 @@ def handle_form():
         return redirect(checkout_session.url, code=303)
 
     else:
+        reg_type = request.args.get("reg_type")
         # Display the form
         return render_template(
             "form.html",
             mapsApiKey=os.getenv("MAPS_API_KEY"),
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
+            reg_type=reg_type,
         )
+
+
+@app.route("/schedule", methods=["GET"])
+def schedule_page():
+    return render_template("placeholder.html")
+
+
+@app.route("/information", methods=["GET"])
+def information_page():
+    return render_template("placeholder.html")
+
+
+@app.route("/visit-tulsa", methods=["GET"])
+def visitor_page():
+    return redirect("https://www.visittulsa.com", code=303)
+
+
+@app.route("/events", methods=["GET"])
+def events_page():
+    return render_template("placeholder.html")
 
 
 @app.route("/success", methods=["GET"])
