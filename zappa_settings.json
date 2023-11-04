@@ -7,7 +7,7 @@
         "profile_name": "personal",
         "project_name": "frontend",
         "runtime": "python3.8",
-        "s3_bucket": "zappa-okgp24-frontend-dev",
+        "s3_bucket": "zappa-okgp24-frontend-prod",
         "http_methods": [
             "GET",
             "POST"
