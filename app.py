@@ -10,9 +10,11 @@ app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
 app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
 app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
+app.config["table_name"] = os.getenv("DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
+dynamodb = boto3.client("dynamodb")
 
 # Price Details
 price_json = s3.get_object(
@@ -41,6 +43,16 @@ def handle_form():
         fname = request.form.get("fname")
         lname = request.form.get("lname")
         fullName = f"{fname}_{lname}"
+
+        # Check if registration already exists
+        pk_exists = dynamodb.get_item(
+            TableName=app.config["table_name"],
+            Key={"pk": {"S": f"{school}-{reg_type}-{fullName}"}},
+        )
+
+        if "Item" in pk_exists:
+            print("registration exists")
+            return redirect(f'{app.config["URL"]}/registration_error')
 
         # Base Form Data
         form_data = dict(
@@ -188,6 +200,11 @@ def success_page():
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
     )
+
+
+@app.route("/registration_error", methods=["GET"])
+def error_page():
+    return render_template("registration_error.html")
 
 
 if __name__ == "__main__":
