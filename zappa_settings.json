@@ -7,12 +7,12 @@
         "profile_name": "personal",
         "project_name": "frontend",
         "runtime": "python3.8",
-        "s3_bucket": "zappa-okgp24-frontend-dev",
+        "s3_bucket": "zappa-okgp24-frontend-prod",
         "http_methods": [
             "GET",
             "POST"
         ],
-        "remote_env": "s3://gdtkd-reg-config/frontend.json",
+        "remote_env": "s3://okgp24-reg-config/frontend.json",
         "parameter_depth": 1,
         "memory_size": 512,
         "use_precompiled_packages": true
