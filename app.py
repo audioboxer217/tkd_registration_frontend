@@ -232,14 +232,5 @@ def error_page():
     )
 
 
-@app.route("/test", methods=["GET"])
-def test_page():
-    return render_template(
-        "test.html",
-        email=os.getenv("CONTACT_EMAIL"),
-        org=os.getenv("COMPETITION_NAME"),
-    )
-
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0")
