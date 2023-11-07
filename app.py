@@ -166,21 +166,40 @@ def handle_form():
         # Display the form
         return render_template(
             "form.html",
-            mapsApiKey=os.getenv("MAPS_API_KEY"),
+            title="Registration",
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
             reg_type=reg_type,
+            additional_scripts=[
+                dict(
+                    src=f'https://maps.googleapis.com/maps/api/js?key={os.getenv("MAPS_API_KEY")}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
+                    async_bool="true",
+                    defer="true",
+                ),
+                dict(
+                    src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
+                    integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
+                ),
+                dict(
+                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
+                    integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
+                ),
+                dict(
+                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js",
+                    integrity="sha384-duAtk5RV7s42V6Zuw+tRBFcqD8RjRKw6RFnxmxIj1lUGAQJyum/vtcUQX8lqKQjp",
+                ),
+            ],
         )
 
 
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
-    return render_template("placeholder.html")
+    return render_template("placeholder.html", title="Page to be Created")
 
 
 @app.route("/information", methods=["GET"])
 def information_page():
-    return render_template("placeholder.html")
+    return render_template("placeholder.html", title="Page to be Created")
 
 
 @app.route("/visit-tulsa", methods=["GET"])
@@ -190,13 +209,14 @@ def visitor_page():
 
 @app.route("/events", methods=["GET"])
 def events_page():
-    return render_template("placeholder.html")
+    return render_template("placeholder.html", title="Page to be Created")
 
 
 @app.route("/success", methods=["GET"])
 def success_page():
     return render_template(
         "success.html",
+        title="Registration Submitted",
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
     )
@@ -204,7 +224,21 @@ def success_page():
 
 @app.route("/registration_error", methods=["GET"])
 def error_page():
-    return render_template("registration_error.html")
+    return render_template(
+        "registration_error.html",
+        title="Registration Error",
+        email=os.getenv("CONTACT_EMAIL"),
+        org=os.getenv("COMPETITION_NAME"),
+    )
+
+
+@app.route("/test", methods=["GET"])
+def test_page():
+    return render_template(
+        "test.html",
+        email=os.getenv("CONTACT_EMAIL"),
+        org=os.getenv("COMPETITION_NAME"),
+    )
 
 
 if __name__ == "__main__":
