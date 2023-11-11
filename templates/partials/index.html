@@ -1,7 +1,15 @@
-<h1>{{ org }}</h1>
-<p>
-  You can us at <a href="mailto:{{ email }}">{{ email }}</a> if you have questions or issues.
-</p>
+<div class="row justify-content-md-center">
+  <div class="col-md-12 center-block">
+      <h1>{{ org }}</h1>
+  </div>
+</div>
+<div class="row justify-content-md-center">
+  <div class="col-md-12 center-block">
+    <p>
+      You can us at <a href="mailto:{{ email }}">{{ email }}</a> if you have questions or issues.
+    </p>
+  </div>
+</div>
 <div class="row justify-content-md-center">
   <div class="col-sm-3">
     <div class="row g-1 mb-1">
@@ -21,10 +29,15 @@
   </div>
   <div class="col-sm-3">
     <div class="row g-1 mb-1">
-      <a class="btn btn-primary" href="/information" role="button">Information Packet</a>
+      <a class="btn btn-primary" href="{{ information_booklet_url }}" role="button" target="_blank">Information Packet</a>
     </div>
     <div class="row g-1 mb-1">
-      <a class="btn btn-primary" href="/visit-tulsa" role="button">Things to do in Tulsa</a>
+      <a class="btn btn-primary" href="https://www.visittulsa.com" role="button" target="_blank">Things to do in Tulsa</a>
     </div>
+  </div>
+</div>
+<div class="row justify-content-md-center mt-4">
+  <div class="col">
+    <img src="{{ poster_url }}" class="img-fluid"/>
   </div>
 </div>
