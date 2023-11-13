@@ -31,6 +31,7 @@ def index_page():
         "index.html",
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
         poster_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/registration_poster.jpg',
     )
@@ -170,6 +171,7 @@ def handle_form():
         return render_template(
             "form.html",
             title="Registration",
+            favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
             reg_type=reg_type,
@@ -197,12 +199,20 @@ def handle_form():
 
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
-    return render_template("placeholder.html", title="Page to be Created")
+    return render_template(
+        "placeholder.html",
+        title="Page to be Created",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+)
 
 
 @app.route("/events", methods=["GET"])
 def events_page():
-    return render_template("placeholder.html", title="Page to be Created")
+    return render_template(
+        "placeholder.html",
+        title="Page to be Created",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+)
 
 
 @app.route("/success", methods=["GET"])
@@ -210,6 +220,7 @@ def success_page():
     return render_template(
         "success.html",
         title="Registration Submitted",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
     )
@@ -220,6 +231,7 @@ def error_page():
     return render_template(
         "registration_error.html",
         title="Registration Error",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
     )
