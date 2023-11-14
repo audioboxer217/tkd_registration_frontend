@@ -8,6 +8,7 @@ import stripe
 app = Flask(__name__)
 app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
 app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
+app.config["mediaBucket"] = os.getenv("PUBLIC_MEDIA_BUCKET")
 app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["table_name"] = os.getenv("DB_TABLE")
@@ -30,6 +31,9 @@ def index_page():
         "index.html",
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
+        poster_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/registration_poster.jpg',
     )
 
 
@@ -167,6 +171,7 @@ def handle_form():
         return render_template(
             "form.html",
             title="Registration",
+            favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
             reg_type=reg_type,
@@ -194,22 +199,20 @@ def handle_form():
 
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
-    return render_template("placeholder.html", title="Page to be Created")
-
-
-@app.route("/information", methods=["GET"])
-def information_page():
-    return render_template("placeholder.html", title="Page to be Created")
-
-
-@app.route("/visit-tulsa", methods=["GET"])
-def visitor_page():
-    return redirect("https://www.visittulsa.com", code=303)
+    return render_template(
+        "placeholder.html",
+        title="Page to be Created",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+)
 
 
 @app.route("/events", methods=["GET"])
 def events_page():
-    return render_template("placeholder.html", title="Page to be Created")
+    return render_template(
+        "placeholder.html",
+        title="Page to be Created",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+)
 
 
 @app.route("/success", methods=["GET"])
@@ -217,6 +220,7 @@ def success_page():
     return render_template(
         "success.html",
         title="Registration Submitted",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
     )
@@ -227,6 +231,7 @@ def error_page():
     return render_template(
         "registration_error.html",
         title="Registration Error",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
     )
