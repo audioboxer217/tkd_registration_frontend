@@ -200,10 +200,10 @@ def handle_form():
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
     return render_template(
-        "placeholder.html",
+        "schedule.html",
         title="Page to be Created",
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
-)
+    )
 
 
 @app.route("/events", methods=["GET"])
@@ -212,7 +212,7 @@ def events_page():
         "placeholder.html",
         title="Page to be Created",
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
-)
+    )
 
 
 @app.route("/success", methods=["GET"])
