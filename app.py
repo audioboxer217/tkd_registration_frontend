@@ -201,7 +201,7 @@ def handle_form():
 def schedule_page():
     return render_template(
         "schedule.html",
-        title="Page to be Created",
+        title="Schedule",
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
     )
 
