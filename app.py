@@ -225,7 +225,7 @@ def events_page():
 @app.route("/competitors", methods=["GET"])
 def competitors_page():
     competitor_json = s3.get_object(
-        Bucket=app.config["mediaBucket"],
+        Bucket=app.config["configBucket"],
         Key="entries.json",
     )["Body"].read()
     return render_template(
