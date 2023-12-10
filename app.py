@@ -222,6 +222,73 @@ def events_page():
     )
 
 
+@app.route("/competitors", methods=["GET"])
+def competitors_page():
+    competitor_json = s3.get_object(
+        Bucket=app.config["mediaBucket"],
+        Key="entries.json",
+    )["Body"].read()
+    return render_template(
+        "competitors.html",
+        title="Competitors",
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        competitor_dict=json.loads(competitor_json),
+        additional_stylesheets=[
+            dict(
+                href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css",
+                integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM",
+            ),
+            dict(
+                href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css",
+                integrity="sha384-ok3J6xA9oQqai5C9ytYveFsBeKgoGk4T+NExsr6hoIKjZdv9SJcmx2mafwUWRNf9",
+            ),
+            dict(
+                href="https://cdn.datatables.net/searchpanes/2.2.0/css/searchPanes.bootstrap5.min.css",
+                integrity="sha384-sSvv6aRPZo6vPaGdGfO1YzjvkZXlAUTygB+HHYd8C6DPz0BYxpd/K+iPavXPNy1u",
+            ),
+            dict(
+                href="https://cdn.datatables.net/select/1.7.0/css/select.bootstrap5.min.css",
+                integrity="sha384-BQuA/IRHdZd4G0fkajPKOBOE6lIuKmN2G95L52+ULcI1T/NGKY+gWsB/qDn6xxv7",
+            ),
+        ],
+        additional_scripts=[
+            dict(
+                src="https://code.jquery.com/jquery-3.7.0.js",
+                integrity="sha384-ogycHROOTGA//2Q8YUfjz1Sr7xMOJTUmY2ucsPVuXAg4CtpgQJQzGZsX768KqetU",
+            ),
+            dict(
+                src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js",
+                integrity="sha384-cjmdOgDzOE22dUheI5E6Gzd3upfmReW8N1y/4jwKQE50KYcvFKZJA9JxWgQOzqwQ",
+            ),
+            dict(
+                src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js",
+                integrity="sha384-PgPBH0hy6DTJwu7pTf6bkRqPlf/+pjUBExpr/eIfzszlGYFlF9Wi9VTAJODPhgCO",
+            ),
+            dict(
+                src="https://cdn.datatables.net/searchpanes/2.2.0/js/dataTables.searchPanes.min.js",
+                integrity="sha384-j4rbW9ZgUxkxeMU1PIa5BaTj0qDOc/BV0zkbRqPAGPkIvaOzwTSVlDGGXw+XQ4uW",
+            ),
+            dict(
+                src="https://cdn.datatables.net/searchpanes/2.2.0/js/searchPanes.bootstrap5.min.js",
+                integrity="sha384-JTAq4Zc/HXNcaOy1Hv04w4mpSr7ouMGXxlXwTuwov0Wzv62QwPey9T58VPE1rVSf",
+            ),
+            dict(
+                src="https://cdn.datatables.net/select/1.7.0/js/dataTables.select.min.js",
+                integrity="sha384-5UUEYV/x07jNYpizRK5+tnFvFPDDq5s5wVr5mc802xveN8Ve7kuFu4Ym6mN+QcmZ",
+            ),
+            dict(
+                src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js",
+                integrity="sha384-VUnyCeQcqiiTlSM4AISHjJWKgLSM5VSyOeipcD9S/ybCKR3OhChZrPPjjrLfVV0y",
+            ),
+            dict(
+                src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js",
+                integrity="sha384-T6YQaHyTPTbybQQV23jtlugHCneQYjePXdcEU+KMWGQY8EUQygBW9pRx0zpSU0/i",
+            )
+            # dict(src=url_for("static", filename="js/competitors.js")),
+        ],
+    )
+
+
 @app.route("/success", methods=["GET"])
 def success_page():
     return render_template(
