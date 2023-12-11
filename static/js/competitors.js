@@ -11,6 +11,7 @@ $(document).ready(function() {
     // ],
     reponsive: true,
     searchPanes: {
+      cascadePanes: true,
       columns: [1,2,4],
       panes: [
         {
