@@ -77,7 +77,28 @@ $(document).ready(function() {
                 events_arr = rowData[6].split(',').map(s => s.trim());
                 return events_arr.includes('poomsae')
               }
-            }
+            },
+            {
+              label: 'Pair Poomsae',
+              value: function(rowData, rowIdx){
+                events_arr = rowData[6].split(',').map(s => s.trim());
+                return events_arr.includes('pair poomsae')
+              }
+            },
+            {
+              label: 'Team Poomsae',
+              value: function(rowData, rowIdx){
+                events_arr = rowData[6].split(',').map(s => s.trim());
+                return events_arr.includes('team poomsae')
+              }
+            },
+            {
+              label: 'Breaking',
+              value: function(rowData, rowIdx){
+                events_arr = rowData[6].split(',').map(s => s.trim());
+                return events_arr.includes('breaking')
+              }
+            },
           ]
         }
       ],
