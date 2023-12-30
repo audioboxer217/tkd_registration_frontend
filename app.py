@@ -109,13 +109,6 @@ def handle_form():
                         "quantity": 1,
                     },
                 ]
-                if num_add_event > 0:
-                    registration_items.append(
-                        {
-                            "price": price_dict["black_event"],
-                            "quantity": num_add_event,
-                        },
-                    )
             else:
                 registration_items = [
                     {
@@ -123,13 +116,13 @@ def handle_form():
                         "quantity": 1,
                     },
                 ]
-                if num_add_event > 0:
-                    registration_items.append(
-                        {
-                            "price": price_dict["color_event"],
-                            "quantity": num_add_event,
-                        },
-                    )
+            if num_add_event > 0:
+                registration_items.append(
+                    {
+                        "price": price_dict["addl_event"],
+                        "quantity": num_add_event,
+                    },
+                )
         else:
             registration_items = [
                 {
