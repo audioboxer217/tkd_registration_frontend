@@ -29,6 +29,7 @@ price_dict = json.loads(price_json)
 def index_page():
     return render_template(
         "index.html",
+        title=os.getenv("COMPETITION_NAME"),
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
