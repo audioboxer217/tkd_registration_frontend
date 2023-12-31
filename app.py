@@ -29,6 +29,7 @@ price_dict = json.loads(price_json)
 def index_page():
     return render_template(
         "index.html",
+        title=os.getenv("COMPETITION_NAME"),
         email=os.getenv("CONTACT_EMAIL"),
         org=os.getenv("COMPETITION_NAME"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
@@ -108,13 +109,6 @@ def handle_form():
                         "quantity": 1,
                     },
                 ]
-                if num_add_event > 0:
-                    registration_items.append(
-                        {
-                            "price": price_dict["black_event"],
-                            "quantity": num_add_event,
-                        },
-                    )
             else:
                 registration_items = [
                     {
@@ -122,13 +116,13 @@ def handle_form():
                         "quantity": 1,
                     },
                 ]
-                if num_add_event > 0:
-                    registration_items.append(
-                        {
-                            "price": price_dict["color_event"],
-                            "quantity": num_add_event,
-                        },
-                    )
+            if num_add_event > 0:
+                registration_items.append(
+                    {
+                        "price": price_dict["addl_event"],
+                        "quantity": num_add_event,
+                    },
+                )
         else:
             registration_items = [
                 {
@@ -143,7 +137,7 @@ def handle_form():
                 line_items=registration_items,
                 mode="payment",
                 success_url=f'{app.config["URL"]}/success',
-                cancel_url=f'{app.config["URL"]}',
+                cancel_url=f'{app.config["URL"]}/register',
                 expires_at=int(checkout_timeout.timestamp()),
             )
         except Exception as e:
