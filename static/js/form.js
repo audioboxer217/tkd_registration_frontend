@@ -181,8 +181,8 @@ function formatPhoneNumber(input) {
   document.getElementById("inputPhone").value = phoneNumFormatted;
 }
 function updateCostDetails() {
-  var blackBelt = "The first event for Black Belts is $100 and each additional event is $25"
-  var colorBelt = "The first event for Color Belts is $90 and each additional event is $20"
+  var blackBelt = "The first event for Black Belts is $115 and each additional event is $30"
+  var colorBelt = "The first event for Color Belts is $100 and each additional event is $30"
   if (document.getElementById('blackBelt').checked) {
     document.getElementById("costDetail").innerHTML = blackBelt;
   }
@@ -209,11 +209,11 @@ function updateTotal() {
       document.querySelectorAll('input[name="events"]:checked').length > 0
     ) {
       if (document.getElementById('blackBelt').checked) {
-        var eventPrice = 25
-        var total = 75
+        var eventPrice = 30
+        var total = 85
       }
       else {
-        var eventPrice = 20
+        var eventPrice = 30
         var total = 70
       }
       total += eventPrice * document.querySelectorAll('input[name="events"]:checked').length
@@ -230,7 +230,7 @@ function updateTotal() {
     }
   }
   else {
-    document.getElementById("total").value = "$200"
+    document.getElementById("total").value = "$35"
   }
 }
 function convertWeight(amount, unit) {
