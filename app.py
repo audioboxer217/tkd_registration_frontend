@@ -277,8 +277,8 @@ def competitors_page():
             dict(
                 src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js",
                 integrity="sha384-T6YQaHyTPTbybQQV23jtlugHCneQYjePXdcEU+KMWGQY8EUQygBW9pRx0zpSU0/i",
-            )
-            # dict(src=url_for("static", filename="js/competitors.js")),
+            ),
+            dict(src=url_for("static", filename="js/competitors.js")),
         ],
     )
 
