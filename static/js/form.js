@@ -171,7 +171,7 @@ function updateTotal() {
     }
   }
   else {
-    document.getElementById("total").value = "$35"
+    document.getElementById("total").value = "$0"
   }
 }
 function convertWeight(amount, unit) {
