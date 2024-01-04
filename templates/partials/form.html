@@ -321,7 +321,7 @@
   <div class="row g-3 mt-3 p-3 mb-2 mt-2">
     <div class="col-md-8">
       <label class="form-check-label h2" for="demonstration">Your Total</label>
-      <input class="form-control-plaintext form-control-lg" type="text" id="total" aria-label="Total" value="{{ '$200' if reg_type=='coach' else '' }}" readonly required>
+      <input class="form-control-plaintext form-control-lg" type="text" id="total" aria-label="Total" value="{{ '$0' if reg_type=='coach' else '' }}" readonly required>
     </div>
   </div>
   <input class="form-control" type="text" name="eventList" id="eventList" hidden>
