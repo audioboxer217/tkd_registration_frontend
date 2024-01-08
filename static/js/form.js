@@ -122,8 +122,8 @@ function formatPhoneNumber(input) {
   document.getElementById("inputPhone").value = phoneNumFormatted;
 }
 function updateCostDetails() {
-  var blackBelt = "The first event for Black Belts is $115 and each additional event is $30"
-  var colorBelt = "The first event for Color Belts is $100 and each additional event is $30"
+  var blackBelt = "The first event for Black Belts is $115 and each additional event is $30<br>After February 4th, prices increase $10"
+  var colorBelt = "The first event for Color Belts is $100 and each additional event is $30<br>After February 4th, prices increase $10"
   if (document.getElementById('blackBelt').checked) {
     document.getElementById("costDetail").innerHTML = blackBelt;
   }
