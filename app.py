@@ -57,7 +57,9 @@ def handle_form():
 
         if "Item" in pk_exists:
             print("registration exists")
-            return redirect(f'{app.config["URL"]}/registration_error')
+            return redirect(
+                f'{app.config["URL"]}/registration_error?reg_type={reg_type}'
+            )
 
         # Base Form Data
         form_data = dict(
@@ -304,6 +306,7 @@ def success_page():
 
 @app.route("/registration_error", methods=["GET"])
 def error_page():
+    reg_type = request.args.get("reg_type")
     return render_template(
         "registration_error.html",
         title="Registration Error",
@@ -311,6 +314,7 @@ def error_page():
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
         email=os.getenv("CONTACT_EMAIL"),
+        reg_type=reg_type,
     )
 
 
