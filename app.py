@@ -31,7 +31,7 @@ def index_page():
         "index.html",
         title=os.getenv("COMPETITION_NAME"),
         email=os.getenv("CONTACT_EMAIL"),
-        org=os.getenv("COMPETITION_NAME"),
+        competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
         poster_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/registration_poster.jpg',
@@ -166,6 +166,7 @@ def handle_form():
             "form.html",
             title="Registration",
             favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+            information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
             reg_type=reg_type,
@@ -203,7 +204,9 @@ def schedule_page():
     return render_template(
         "schedule.html",
         title="Schedule",
+        competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
     )
 
 
@@ -212,7 +215,9 @@ def events_page():
     return render_template(
         "placeholder.html",
         title="Page to be Created",
+        competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
     )
 
 
@@ -225,7 +230,9 @@ def competitors_page():
     return render_template(
         "competitors.html",
         title="Competitors",
+        competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
         competitor_dict=json.loads(competitor_json),
         additional_stylesheets=[
             dict(
@@ -288,9 +295,10 @@ def success_page():
     return render_template(
         "success.html",
         title="Registration Submitted",
+        competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
         email=os.getenv("CONTACT_EMAIL"),
-        org=os.getenv("COMPETITION_NAME"),
     )
 
 
@@ -299,9 +307,10 @@ def error_page():
     return render_template(
         "registration_error.html",
         title="Registration Error",
+        competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
         email=os.getenv("CONTACT_EMAIL"),
-        org=os.getenv("COMPETITION_NAME"),
     )
 
 
