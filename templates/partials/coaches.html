@@ -1,0 +1,28 @@
+<div class="col-md-12 center-block" align="center">
+  <h1>Coaches</h1>
+  <sub>note: this table updates once a day.</sub>
+</div>
+<div class="table-responsive">
+  <table id="coaches" class="display table table-striped table-hover dt-responsive">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>School</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in coaches_dict %}
+      <tr>
+          <td>{{ c.name }}</td>
+          <td>{{ c.school }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th>Name</th>
+        <th>School</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
