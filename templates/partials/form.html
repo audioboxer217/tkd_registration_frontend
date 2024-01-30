@@ -265,13 +265,25 @@
         <label for="events" class="form-check-label h5">Events</label>
       </div>
       <div class="row">
-        <div class="col-sm-6">
+        <div class="col-sm-6" id="sparring-b">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring-bgn" onclick="updateEventList()">
+            <label class="form-check-label" for="sparring">Sparring - Beginner</label>
+          </div>
+        </div>
+        <div class="col-sm-6" id="sparring-a">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring-adv" onclick="updateEventList()">
+            <label class="form-check-label" for="gr-sparring">Sparring - Advanced</label>
+          </div>
+        </div>
+        <div class="col-sm-6" id="sparring-gr" hidden>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" name="events" id="sparring-gr" onclick="updateEventList()">
             <label class="form-check-label" for="sparring">Sparring - Grass Roots</label>
           </div>
         </div>
-        <div class="col-sm-6">
+        <div class="col-sm-6" id="sparring-wc" hidden>
           <div class="form-check">
             <input class="form-check-input" type="checkbox" name="events" id="sparring-wc" onclick="updateEventList()">
             <label class="form-check-label" for="gr-sparring">Sparring - World Class</label>
@@ -301,6 +313,15 @@
             <label class="form-check-label" for="team poomsae">Team Poomsae</label>
           </div>
         </div>
+      </div>
+    </div>
+    <div class="col-md-2"></div>
+    <div class="col-md-6">
+      <div class="row g-2 mt-2">
+        <p id="sparDetail" hidden>
+          <b>Beginner Sparring</b> is for competitors with <i>little to no</i> tournament experience.<br>
+          <b>Advanced Sparring</b> is for competitors that have competed in other tournments before.
+        </p>
       </div>
     </div>
   </div>

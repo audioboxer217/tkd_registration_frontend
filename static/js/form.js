@@ -126,11 +126,22 @@ function updateCostDetails() {
   var colorBelt = "The first event for Color Belts is $100 and each additional event is $30<br>After February 4th, prices increase $10"
   if (document.getElementById('blackBelt').checked) {
     document.getElementById("costDetail").innerHTML = blackBelt;
+    document.getElementById("sparring-b").hidden = true;
+    document.getElementById("sparring-a").hidden = true;
+    document.getElementById("sparring-gr").hidden = false;
+    document.getElementById("sparring-wc").hidden = false;
+    document.getElementById("sparDetail").hidden = true;
   }
   else {
     document.getElementById("costDetail").innerHTML = colorBelt;
+    document.getElementById("sparring-b").hidden = false;
+    document.getElementById("sparring-a").hidden = false;
+    document.getElementById("sparring-gr").hidden = true;
+    document.getElementById("sparring-wc").hidden = true;
+    document.getElementById("sparDetail").hidden = false;
   }
   document.getElementById("costDetail").classList = "bg-secondary text-white"
+  document.getElementById("sparDetail").classList = "bg-secondary text-white"
   updateTotal()
 }
 function updateEventList() {
