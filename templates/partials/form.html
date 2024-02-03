@@ -124,7 +124,7 @@
         <div class="col-md-8">
           <label class="form-check-label h5" for="date">Birthday</label>
           <div class="input-group date" id="datepicker">
-            <input class="form-control" type="text" name="birthdate" id="birthdate" placeholder="MM/DD/YYYY" onchange="calculateAge(this.value)">
+            <input class="form-control" type="text" name="birthdate" id="birthdate" placeholder="MM/DD/YYYY" onchange="calculateAge(this.value)" {{ "required" if reg_type=='competitor' else "" }}>
             <span class="input-group-append">
               <span class="input-group-text bg-light d-block">
                 <i class="fa fa-calendar"></i>
@@ -146,7 +146,7 @@
       <div class="row">
         <div class="col">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="gender" id="genderMale" value="male">
+            <input class="form-check-input" type="radio" name="gender" id="genderMale" value="male" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="genderMale">Male</label>
           </div>
         </div>
@@ -154,7 +154,7 @@
       <div class="row">
         <div class="col">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="gender" id="genderFemale" value="female">
+            <input class="form-check-input" type="radio" name="gender" id="genderFemale" value="female" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="genderFemale">Female</label>
           </div>
         </div>
@@ -167,7 +167,7 @@
             <input class="form-control" type="number" step="0.01" id="weightLbs" placeholder="lbs" onchange="convertWeight(this.value,'lbs')">
         </div>
         <div class="col-md-4">
-          <input class="form-control" type="number" step="0.01" name="weight" id="weightKgs" placeholder="kgs"onchange="convertWeight(this.value,'kgs')">
+          <input class="form-control" type="number" step="0.01" name="weight" id="weightKgs" placeholder="kgs" onchange="convertWeight(this.value,'kgs')" {{ "required" if reg_type=='competitor' else "" }}>
         </div>
       </div>
     </div>
@@ -175,7 +175,7 @@
   <div class="row g-3 mt-0" id="profile" {{ "" if reg_type=='competitor' else "hidden" }}>
     <div class="col-md-6">
       <label class="form-check-label h5" for="profilePic">Profile Photo</label>
-      <input type="file" class="form-control" name="profilePic" id="profilePic" accept="image/*" onchange="upload_img(this.files)">
+      <input type="file" class="form-control" name="profilePic" id="profilePic" accept="image/png, image/jpeg" onchange="upload_img(this.files)" {{ "required" if reg_type=='competitor' else "" }}>
       <p>
         A photo is required to create a badge id. <br>
         Please make sure photo is croped showing only an above the shoulder picture. <br>
@@ -193,7 +193,7 @@
     </div>
     <div class="col-md-6" id="coachSection" {{ "" if reg_type=='competitor' else "hidden" }}>
       <label for="inputCoach" class="form-check-label h5">Taekwondo Instructor / Coach</label>
-      <input type="text" class="form-control" name="coach" id="inputCoach">
+      <input type="text" class="form-control" name="coach" id="inputCoach" {{ "required" if reg_type=='competitor' else "" }}>
     </div>
   </div>
   <div class="row" id="beltSection" {{ "" if reg_type=='competitor' else "hidden" }}>
@@ -204,49 +204,49 @@
       <div class="row">
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="blackBelt" value="black" onclick="updateCostDetails()">
+            <input class="form-check-input" type="radio" name="beltRank" id="blackBelt" value="black" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="blackBelt">Black</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="brownBelt" value="brown" onclick="updateCostDetails()">
+            <input class="form-check-input" type="radio" name="beltRank" id="brownBelt" value="brown" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="brownBelt">Brown</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="redBelt" value="red" onclick="updateCostDetails()">
+            <input class="form-check-input" type="radio" name="beltRank" id="redBelt" value="red" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="redBelt">Red</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="blueBelt" value="blue" onclick="updateCostDetails()">
+            <input class="form-check-input" type="radio" name="beltRank" id="blueBelt" value="blue" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="blueBelt">Blue</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="greenBelt" value="green" onclick="updateCostDetails()">
+            <input class="form-check-input" type="radio" name="beltRank" id="greenBelt" value="green" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="greenBelt">Green</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="orangeBelt" value="orange" onclick="updateCostDetails()">
+            <input class="form-check-input" type="radio" name="beltRank" id="orangeBelt" value="orange" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="orangeBelt">Orange</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="yellowBelt" value="yellow" onclick="updateCostDetails()">
+            <input class="form-check-input" type="radio" name="beltRank" id="yellowBelt" value="yellow" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="yellowBelt">Yellow</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="whiteBelt" value="white" onclick="updateCostDetails()">
+            <input class="form-check-input" type="radio" name="beltRank" id="whiteBelt" value="white" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="whiteBelt">White</label>
           </div>
         </div>
@@ -267,49 +267,49 @@
       <div class="row">
         <div class="col-sm-6" id="sparring">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="sparring" onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring"  onclick="updateEventList()">
             <label class="form-check-label" for="sparring">Sparring</label>
           </div>
         </div>
         <div class="col-sm-6" id="sparring-gr" hidden>
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="sparring-gr" onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring-gr"  onclick="updateEventList()">
             <label class="form-check-label" for="sparring-gr">Sparring - Grass Roots</label>
           </div>
         </div>
         <div class="col-sm-6" id="sparring-wc" hidden>
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="sparring-wc" onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring-wc"  onclick="updateEventList()">
             <label class="form-check-label" for="sparring-wc">Sparring - World Class</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="breaking" onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="breaking"  onclick="updateEventList()">
             <label class="form-check-label" for="breaking">Breaking</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="poomsae" onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="poomsae"  onclick="updateEventList()">
             <label class="form-check-label" for="poomsae">Poomsae</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="pair poomsae"onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="pair poomsae" onclick="updateEventList()">
             <label class="form-check-label" for="pair poomsae">Pair Poomsae</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="team poomsae"onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="team poomsae" onclick="updateEventList()">
             <label class="form-check-label" for="team poomsae">Team Poomsae</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="family poomsae"onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="family poomsae" onclick="updateEventList()">
             <label class="form-check-label" for="family poomsae">Family Poomsae</label>
           </div>
         </div>
@@ -336,7 +336,7 @@
   </div>
   <div class="col-sm-6" id="liabilityAcceptSection" {{ "" if reg_type=='competitor' else "hidden" }}>
     <div class="form-check">
-      <input class="form-check-input" type="checkbox" name="liability" id="liability">
+      <input class="form-check-input" type="checkbox" name="liability" id="liability" {{ "required" if reg_type=='competitor' else "" }}>
       <label class="form-check-label" for="liability">I hereby agree to all terms and conditions of the liability waiver above</label>
     </div>
   </div>

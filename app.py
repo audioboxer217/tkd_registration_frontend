@@ -76,12 +76,19 @@ def handle_form():
 
         # Add Competitor Form Data
         if reg_type == "competitor":
-            msg = "Please go back and accept the Liability Waiver Conditions"
             if request.form.get("liability") != "on":
+                msg = "Please go back and accept the Liability Waiver Conditions"
                 abort(400, msg)
 
             profileImg = request.files["profilePic"]
             imageExt = os.path.splitext(profileImg.filename)[1]
+            if profileImg.content_type == "" or imageExt == "":
+                msg = "There was an error uploading your profile pic. Please go back and try again."
+                abort(400, msg)
+
+            if request.form.get("eventList") == "":
+                msg = "You must choose at least one event"
+                abort(400, msg)
 
             form_data.update(
                 dict(
