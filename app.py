@@ -41,12 +41,15 @@ def index_page():
 def handle_form():
     if request.method == "POST":
         reg_type = request.form.get("regType")
-        school = request.form.get("school").replace(" ", "-")
+        school = request.form.get("school").strip().replace(" ", "-")
 
         # Name
-        fname = request.form.get("fname")
-        lname = request.form.get("lname")
+        fname = request.form.get("fname").strip()
+        lname = request.form.get("lname").strip()
         fullName = f"{fname}_{lname}"
+
+        school = request.form.get("school").strip()
+        coach = request.form.get("coach").strip()
 
         # Check if registration already exists
         pk_exists = dynamodb.get_item(
@@ -70,7 +73,7 @@ def handle_form():
             city={"S": request.form.get("city")},
             state={"S": request.form.get("state")},
             zip={"S": request.form.get("zip")},
-            school={"S": request.form.get("school")},
+            school={"S": school},
             reg_type={"S": request.form.get("regType")},
         )
 
@@ -97,7 +100,7 @@ def handle_form():
                     gender={"S": request.form.get("gender")},
                     weight={"N": request.form.get("weight")},
                     imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
-                    coach={"S": request.form.get("coach")},
+                    coach={"S": coach},
                     beltRank={"S": request.form.get("beltRank")},
                     events={"S": request.form.get("eventList")},
                 )
