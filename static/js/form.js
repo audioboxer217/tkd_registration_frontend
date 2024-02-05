@@ -122,8 +122,8 @@ function formatPhoneNumber(input) {
   document.getElementById("inputPhone").value = phoneNumFormatted;
 }
 function updateCostDetails() {
-  var blackBelt = "The first event for Black Belts is $115 and each additional event is $30<br>After February 17th, prices increase $10"
-  var colorBelt = "The first event for Color Belts is $100 and each additional event is $30<br>After February 17th, prices increase $10"
+  var blackBelt = "The first event for Black Belts is $" + window.okgp.price_dict.black_belt + " and each additional event is $" + window.okgp.price_dict.addl_event + "<br>After February 17th, prices increase $10"
+  var colorBelt = "The first event for Color Belts is $" + window.okgp.price_dict.color_belt + "  and each additional event is $" + window.okgp.price_dict.addl_event + "<br>After February 17th, prices increase $10"
   if (document.getElementById('blackBelt').checked) {
     document.getElementById("costDetail").innerHTML = blackBelt;
     document.getElementById("sparring").hidden = true;
@@ -156,14 +156,14 @@ function updateTotal() {
       document.querySelectorAll('input[name="events"]:checked').length > 0
     ) {
       if (document.getElementById('blackBelt').checked) {
-        var eventPrice = 30
-        var total = 85
+        var eventPrice = parseInt(window.okgp.price_dict.addl_event)
+        var total = parseInt(window.okgp.price_dict.black_belt)
       }
       else {
-        var eventPrice = 30
-        var total = 70
+        var eventPrice = parseInt(window.okgp.price_dict.addl_event)
+        var total = parseInt(window.okgp.price_dict.color_belt)
       }
-      total += eventPrice * document.querySelectorAll('input[name="events"]:checked').length
+      total += eventPrice * (document.querySelectorAll('input[name="events"]:checked').length - 1)
       document.getElementById("total").value = "$" + total
     }
     else if (
@@ -177,7 +177,7 @@ function updateTotal() {
     }
   }
   else {
-    document.getElementById("total").value = "$0"
+    document.getElementById("total").value = "$" + window.okgp.price_dict.coach
   }
 }
 function convertWeight(amount, unit) {

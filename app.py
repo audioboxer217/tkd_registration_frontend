@@ -18,11 +18,13 @@ sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
 
 # Price Details
-price_json = s3.get_object(
-    Bucket=app.config["configBucket"],
-    Key="stripe_prices.json",
-)["Body"].read()
-price_dict = json.loads(price_json)
+price_dict = {
+    product.name: {"price_id": product.default_price}
+    for product in stripe.Product.list().data
+}
+for k, v in price_dict.items():
+    price_detail = stripe.Price.retrieve(v["price_id"])
+    price_dict[k]["price"] = f"{int(price_detail.unit_amount/100)}"
 
 
 @app.route("/")
@@ -116,28 +118,28 @@ def handle_form():
             if form_data["beltRank"]["S"] == "black":
                 registration_items = [
                     {
-                        "price": price_dict["black_reg"],
+                        "price": price_dict["Black Belt Registration"]["price_id"],
                         "quantity": 1,
                     },
                 ]
             else:
                 registration_items = [
                     {
-                        "price": price_dict["color_reg"],
+                        "price": price_dict["Color Belt Registration"]["price_id"],
                         "quantity": 1,
                     },
                 ]
             if num_add_event > 0:
                 registration_items.append(
                     {
-                        "price": price_dict["addl_event"],
+                        "price": price_dict["Additional Event"]["price_id"],
                         "quantity": num_add_event,
                     },
                 )
         else:
             registration_items = [
                 {
-                    "price": price_dict["coach"],
+                    "price": price_dict["Coach Registration"]["price_id"],
                     "quantity": 1,
                 }
             ]
@@ -179,6 +181,7 @@ def handle_form():
             favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
+            price_dict=price_dict,
             reg_type=reg_type,
             additional_stylesheets=[
                 dict(
