@@ -181,6 +181,8 @@ def handle_form():
             favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
+            early_reg_date=os.getenv("EARLY_REG_DATE"),
+            late_reg_price_increase="10",
             price_dict=price_dict,
             reg_type=reg_type,
             additional_stylesheets=[

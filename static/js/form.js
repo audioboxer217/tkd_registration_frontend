@@ -122,16 +122,25 @@ function formatPhoneNumber(input) {
   document.getElementById("inputPhone").value = phoneNumFormatted;
 }
 function updateCostDetails() {
-  var blackBelt = "The first event for Black Belts is $" + window.okgp.price_dict.black_belt + " and each additional event is $" + window.okgp.price_dict.addl_event + "<br>After February 17th, prices increase $10"
-  var colorBelt = "The first event for Color Belts is $" + window.okgp.price_dict.color_belt + "  and each additional event is $" + window.okgp.price_dict.addl_event + "<br>After February 17th, prices increase $10"
+  const today = new Date()
+  const early_reg_date = window.okgp.early_reg_date
+  const blackBelt = "The first event for Black Belts is $" + window.okgp.price_dict.black_belt + " and each additional event is $" + window.okgp.price_dict.addl_event
+  const colorBelt = "The first event for Color Belts is $" + window.okgp.price_dict.color_belt + "  and each additional event is $" + window.okgp.price_dict.addl_event
+  var early_reg_warn = ""
+
+  if (today < early_reg_date) {
+    var early_reg_date_pretty = early_reg_date.toLocaleDateString('en-us', { month:"long", day:"numeric"}) 
+    var early_reg_warn = "<br>After " + early_reg_date_pretty + ", prices increase $" + window.okgp.late_reg_increase
+  }
+
   if (document.getElementById('blackBelt').checked) {
-    document.getElementById("costDetail").innerHTML = blackBelt;
+    document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn;
     document.getElementById("sparring").hidden = true;
     document.getElementById("sparring-gr").hidden = false;
     document.getElementById("sparring-wc").hidden = false;
   }
   else {
-    document.getElementById("costDetail").innerHTML = colorBelt;
+    document.getElementById("costDetail").innerHTML = colorBelt + early_reg_warn
     document.getElementById("sparring").hidden = false;
     document.getElementById("sparring-gr").hidden = true;
     document.getElementById("sparring-wc").hidden = true;
