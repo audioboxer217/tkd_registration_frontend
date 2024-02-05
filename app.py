@@ -150,7 +150,7 @@ def handle_form():
                 line_items=registration_items,
                 mode="payment",
                 success_url=f'{app.config["URL"]}/success',
-                cancel_url=f'{app.config["URL"]}/register',
+                cancel_url=f'{app.config["URL"]}/register?reg_type={reg_type}',
                 expires_at=int(checkout_timeout.timestamp()),
             )
         except Exception as e:
