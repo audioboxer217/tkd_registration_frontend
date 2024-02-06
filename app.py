@@ -1,5 +1,5 @@
 from flask import Flask, render_template, redirect, request, abort, url_for
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import boto3
 import json
 import os
@@ -18,13 +18,21 @@ sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
 
 # Price Details
-price_dict = {
-    product.name: {"price_id": product.default_price}
-    for product in stripe.Product.list().data
-}
+early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y").date()
+today = date.today()
+price_dict = {"Additional Event": "addl_event", "Coach Registration": "coach_reg"}
+if today < early_reg_date + timedelta(days=1):
+    price_dict["Color Belt Registration"] = "color_early_reg"
+    price_dict["Black Belt Registration"] = "black_early_reg"
+else:
+    price_dict["Color Belt Registration"] = "color_late_reg"
+    price_dict["Black Belt Registration"] = "black_late_reg"
 for k, v in price_dict.items():
-    price_detail = stripe.Price.retrieve(v["price_id"])
-    price_dict[k]["price"] = f"{int(price_detail.unit_amount/100)}"
+    price_detail = stripe.Price.list(lookup_keys=[v]).data[0]
+    price_dict[k] = {
+        "price_id": price_detail.id,
+        "price": f"{int(price_detail.unit_amount/100)}",
+    }
 
 
 @app.route("/")
