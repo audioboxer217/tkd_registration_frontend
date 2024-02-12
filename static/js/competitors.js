@@ -65,7 +65,21 @@ $(document).ready(function() {
           header: 'Events',
           options: [
             {
-              label: 'Sparring',
+              label: 'Sparring - World Class',
+              value: function(rowData, rowIdx){
+                events_arr = rowData[6].split(',').map(s => s.trim());
+                return events_arr.includes('sparring-wc')
+              }
+            },
+            {
+              label: 'Sparring - Grass Roots',
+              value: function(rowData, rowIdx){
+                events_arr = rowData[6].split(',').map(s => s.trim());
+                return events_arr.includes('sparring-gr')
+              }
+            },
+            {
+              label: 'Sparring - Color Belt',
               value: function(rowData, rowIdx){
                 events_arr = rowData[6].split(',').map(s => s.trim());
                 return events_arr.includes('sparring')
