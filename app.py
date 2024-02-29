@@ -49,6 +49,17 @@ def index_page():
 
 @app.route("/register", methods=["GET", "POST"])
 def handle_form():
+    if (
+        date.today()
+        > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date()
+    ):
+        return render_template(
+            "disabled.html",
+            title="Registration Closed",
+            favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+            competition_name=os.getenv("COMPETITION_NAME"),
+            email=os.getenv("CONTACT_EMAIL"),
+        )
     if request.method == "POST":
         reg_type = request.form.get("regType")
         school = request.form.get("school").strip().replace(" ", "-")
