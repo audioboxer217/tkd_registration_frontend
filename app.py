@@ -42,6 +42,8 @@ def index_page():
         title=os.getenv("COMPETITION_NAME"),
         email=os.getenv("CONTACT_EMAIL"),
         competition_name=os.getenv("COMPETITION_NAME"),
+        early_reg_date=os.getenv("EARLY_REG_DATE"),
+        reg_close_date=os.getenv("REG_CLOSE_DATE"),
         favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
         poster_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/registration_poster.jpg',
     )
