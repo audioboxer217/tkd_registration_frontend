@@ -13,6 +13,8 @@ app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["table_name"] = os.getenv("DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
+maps_api_key = os.getenv("MAPS_API_KEY")
+aws_region = os.getenv("AWS_REGION")
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
@@ -44,8 +46,8 @@ def index_page():
         competition_name=os.getenv("COMPETITION_NAME"),
         early_reg_date=os.getenv("EARLY_REG_DATE"),
         reg_close_date=os.getenv("REG_CLOSE_DATE"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
-        poster_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/registration_poster.jpg',
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        poster_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/registration_poster.jpg',
     )
 
 
@@ -58,7 +60,7 @@ def handle_form():
         return render_template(
             "disabled.html",
             title="Registration Closed",
-            favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+            favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
             competition_name=os.getenv("COMPETITION_NAME"),
             email=os.getenv("CONTACT_EMAIL"),
         )
@@ -199,7 +201,7 @@ def handle_form():
         return render_template(
             "form.html",
             title="Registration",
-            favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+            favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
             early_reg_date=os.getenv("EARLY_REG_DATE"),
@@ -214,7 +216,8 @@ def handle_form():
             ],
             additional_scripts=[
                 dict(
-                    src=f'https://maps.googleapis.com/maps/api/js?key={os.getenv("MAPS_API_KEY")}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
+                    src=f'https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
+                    # src=f'https://maps.googleapis.com/maps/api/js?key={os.getenv("MAPS_API_KEY")}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
                     async_bool="true",
                     defer="true",
                 ),
@@ -241,7 +244,7 @@ def schedule_page():
         "schedule.html",
         title="Schedule",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
     )
 
 
@@ -251,7 +254,7 @@ def events_page():
         "placeholder.html",
         title="Page to be Created",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
     )
 
 
@@ -261,9 +264,9 @@ def info_page():
         "information.html",
         title="Information",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
-        information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/information_booklet.pdf',
-        icross_img_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/icross_info.png',
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/information_booklet.pdf',
+        icross_img_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/icross_info.png',
     )
 
 
@@ -277,7 +280,7 @@ def coaches_page():
         "coaches.html",
         title="Coaches",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
         coaches_dict=json.loads(coaches_json),
         additional_stylesheets=[
             dict(
@@ -345,7 +348,7 @@ def competitors_page():
         "competitors.html",
         title="Competitors",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
         competitor_dict=json.loads(competitor_json),
         additional_stylesheets=[
             dict(
@@ -409,7 +412,7 @@ def success_page():
         "success.html",
         title="Registration Submitted",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
         email=os.getenv("CONTACT_EMAIL"),
     )
 
@@ -421,7 +424,7 @@ def error_page():
         "registration_error.html",
         title="Registration Error",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.us-east-2.amazonaws.com/favicon.png',
+        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
         email=os.getenv("CONTACT_EMAIL"),
         reg_type=reg_type,
     )
