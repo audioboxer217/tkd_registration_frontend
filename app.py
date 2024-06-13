@@ -21,6 +21,7 @@ dynamodb = boto3.client("dynamodb")
 favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png'
 visitor_info_url=os.getenv("VISITOR_INFO_URL")
 visitor_info_text=os.getenv("VISITOR_INFO_TEXT")
+button_style=os.getenv("BUTTON_STYLE","btn-primary")
 
 # Price Details
 early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y").date()
@@ -52,6 +53,7 @@ def index_page():
         favicon_url=favicon_url,
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
+        button_style=button_style,
         poster_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/registration_poster.jpg',
     )
 
@@ -68,6 +70,7 @@ def handle_form():
             favicon_url=favicon_url,
             visitor_info_url=visitor_info_url,
             visitor_info_text=visitor_info_text,
+            button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             email=os.getenv("CONTACT_EMAIL"),
         )
@@ -211,6 +214,7 @@ def handle_form():
             favicon_url=favicon_url,
             visitor_info_url=visitor_info_url,
             visitor_info_text=visitor_info_text,
+            button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
             early_reg_date=os.getenv("EARLY_REG_DATE"),
@@ -256,6 +260,7 @@ def schedule_page():
         favicon_url=favicon_url,
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
+        button_style=button_style,
     )
 
 
@@ -268,6 +273,7 @@ def events_page():
         favicon_url=favicon_url,
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
+        button_style=button_style,
     )
 
 
@@ -280,6 +286,7 @@ def info_page():
         favicon_url=favicon_url,
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
+        button_style=button_style,
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/information_booklet.pdf',
         icross_img_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/icross_info.png',
     )
@@ -298,6 +305,7 @@ def coaches_page():
         favicon_url=favicon_url,
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
+        button_style=button_style,
         coaches_dict=json.loads(coaches_json),
         additional_stylesheets=[
             dict(
@@ -368,6 +376,7 @@ def competitors_page():
         favicon_url=favicon_url,
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
+        button_style=button_style,
         competitor_dict=json.loads(competitor_json),
         additional_stylesheets=[
             dict(
@@ -434,6 +443,7 @@ def success_page():
         favicon_url=favicon_url,
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
+        button_style=button_style,
         email=os.getenv("CONTACT_EMAIL"),
     )
 
@@ -448,6 +458,7 @@ def error_page():
         favicon_url=favicon_url,
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
+        button_style=button_style,
         email=os.getenv("CONTACT_EMAIL"),
         reg_type=reg_type,
     )
