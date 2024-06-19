@@ -14,7 +14,7 @@ app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["table_name"] = os.getenv("DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 maps_api_key = os.getenv("MAPS_API_KEY")
-aws_region = os.getenv("AWS_REGION")
+aws_region = os.getenv("AWS_REGION", "us-east-1")
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
@@ -294,7 +294,7 @@ def info_page():
         visitor_info_text=visitor_info_text,
         button_style=button_style,
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/information_booklet.pdf',
-        icross_img_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/icross_info.png',
+        additional_imgs=[],
     )
 
 
