@@ -18,10 +18,12 @@ aws_region = os.getenv("AWS_REGION")
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
-favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png'
-visitor_info_url=os.getenv("VISITOR_INFO_URL")
-visitor_info_text=os.getenv("VISITOR_INFO_TEXT")
-button_style=os.getenv("BUTTON_STYLE","btn-primary")
+favicon_url = (
+    f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png'
+)
+visitor_info_url = os.getenv("VISITOR_INFO_URL")
+visitor_info_text = os.getenv("VISITOR_INFO_TEXT")
+button_style = os.getenv("BUTTON_STYLE", "btn-primary")
 
 # Price Details
 early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y").date()
@@ -229,7 +231,7 @@ def handle_form():
             ],
             additional_scripts=[
                 dict(
-                    src=f'https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
                     # src=f'https://maps.googleapis.com/maps/api/js?key={os.getenv("MAPS_API_KEY")}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
                     async_bool="true",
                     defer="true",
