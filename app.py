@@ -255,6 +255,9 @@ def handle_form():
 
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
+    schedule_dict = json.load(
+        s3.get_object(Bucket=app.config["configBucket"], Key="schedule.json")["Body"]
+    )
     return render_template(
         "schedule.html",
         title="Schedule",
@@ -263,6 +266,7 @@ def schedule_page():
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
         button_style=button_style,
+        schedule_dict=schedule_dict,
     )
 
 

@@ -2,68 +2,28 @@
   <h1>Schedule</h1>
 </div>
 <div class="table-responsive">
-    <table class="table table-striped table-bordered">
-      <thead>
-        <tr>
-          <th class="table-danger" scope="col" colspan="4"><h4>Friday, March 1, 2024</h4></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <th scope="row" class="table-primary">5:00pm-7:00pm</th>
-          <td>Volunteer Meeting</td>
-          <td class="table-warning text-center align-middle"><a href="https://maps.app.goo.gl/irmtRUtFCT3RAhcm9" target="_blank">UMAC Tulsa Gymnasium</a></td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">4:00pm-6:00pm</th>
-          <td>Credential Pick Up</td>
-          <td rowspan="3" class="table-warning text-center align-middle"><a href="https://maps.app.goo.gl/qwnHzqHyuLBjksF48" target="_blank">Golden Dragon TKD - Tulsa</a></td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">5:00pm-7:00pm</th>
-          <td>Referee Seminar</td>
-        </tr>
-      </tbody>
-      <thead>
-        <tr>
-          <th class="table-danger" scope="col" colspan=4><h4>Saturday, March 2, 2024</h4></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <th scope="row" class="table-primary">7:00am</th>
-          <td>Meeting for Volunteers</td>
-          <td rowspan="8" class="table-warning text-center align-middle"><a href="https://maps.app.goo.gl/irmtRUtFCT3RAhcm9" target="_blank">UMAC Tulsa Gymnasium</a></td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">8:00am</th>
-          <td>Doors Open for Spectators</td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">8:00am-9:00am</th>
-          <td>Coaches Meeting</td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">9:00am-11:00am</th>
-          <td class="table-warning"><b>Poomsae</b> and <b>Breaking</b> For All Ranks And Age</td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">10:00am-12:00pm</th>
-          <td class="table-warning"><b>Weigh-in</b> for Black Belt Sparring</td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">11:00am-12:00pm</th>
-          <td>Open Ceremony<br/>
-            Demo Team Special Event</td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">12:00pm-12:30pm</th>
-          <td>Lunch Break</td>
-        </tr>
-        <tr>
-          <th scope="row" class="table-primary">12:30pm-Finish</th>
-          <td class="table-warning"><b>Sparring</b> - All Divisions</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <table class="table table-striped table-bordered">
+    {% for day in schedule_dict %}
+    <thead>
+      <tr>
+        <th class="{{ day.class }}" scope="col" colspan="{{ day.colspan }}">
+          <h4>{{day.date}}</h4>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in day['items'] %}
+      <tr>
+        <th scope="row" class="table-primary">{{ item.time }}</th>
+        <td {% if item.title_class is defined -%}class="{{item.title_class}}" {%endif%}>{{ item.title | safe }}</td>
+        {% if item.location is defined %}
+        <td {% if item.location.class is defined -%}class="{{item.location.class}}" {%endif%}{% if item.location.rowspan
+          is defined %}rowspan="{{item.location.rowspan}}" {%endif%}><a href="{{item.location.link}}" target="_blank">{{
+            item.location.name }}</a></td>
+        {%endif%}
+      </tr>
+      {%endfor%}
+    </tbody>
+    {%endfor%}
+  </table>
+</div>
