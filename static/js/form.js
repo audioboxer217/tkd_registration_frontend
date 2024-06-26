@@ -172,6 +172,7 @@ function updateEventOptions() {
         document.getElementById("sparring-grInput").hidden = false;
         document.getElementById("sparring-wcInput").hidden = false;
         document.getElementById("blackBeltDanSection").hidden = false;
+        document.getElementById("blackBeltDan").required = true;
       }
       else {
         document.getElementById("sparringInput").hidden = false;
@@ -180,6 +181,7 @@ function updateEventOptions() {
         document.getElementById("sparring-wcInput").hidden = true;
         document.getElementById("sparring-wc").checked = false;
         document.getElementById("blackBeltDanSection").hidden = true;
+        document.getElementById("blackBeltDan").required = false;
       }
     }
   }
