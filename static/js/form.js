@@ -205,6 +205,10 @@ function updateEventList(clickedEvent) {
   }
   document.getElementById("eventList").value = eventList.join()
   updateTotal()
+  getPoomsaeForms("poomsae")
+  getPoomsaeForms("pair poomsae")
+  getPoomsaeForms("team poomsae")
+  getPoomsaeForms("family poomsae")
 }
 function updateTotal(eventType="competitive") {
   const today = new Date()
@@ -265,6 +269,20 @@ function updateTotal(eventType="competitive") {
   else {
     document.getElementById("total").value = "$" + window.okgp.price_dict.coach
   }
+}
+function getPoomsaeForms(fieldName) {
+  sectionName = fieldName + 'FormSection'
+  inputName = fieldName + ' form'
+  if (document.getElementById(fieldName).checked) {
+    document.getElementById(sectionName).hidden = false;
+    document.getElementById(inputName).required = true;
+  }
+  else {
+    document.getElementById(sectionName).hidden = true;
+    document.getElementById(inputName).required = false;
+  }
+
+  
 }
 function convertWeight(amount, unit) {
   if (unit == 'lbs') {
