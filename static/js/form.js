@@ -220,21 +220,21 @@ function updateTotal(eventType="competitive") {
         var total = parseInt(window.okgp.price_dict.registration)
         if (document.getElementById('sparring-wc').checked) {
           total += parseInt(window.okgp.price_dict.world_class);
-          if (eventCount > 0){
-            eventCount -= 1;
-          }
-          else {
-            total -= eventPrice
-          }
+          // if (eventCount > 0){
+          //   eventCount -= 1;
+          // }
+          // else {
+          //   total -= eventPrice
+          // }
         }
         if (document.getElementById('breaking').checked) {
           total += parseInt(window.okgp.price_dict.breaking);
-          if (eventCount > 0){
-            eventCount -= 1;
-          }
-          else {
-            total -= eventPrice
-          }
+          // if (eventCount > 0){
+          //   eventCount -= 1;
+          // }
+          // else {
+          //   total -= eventPrice
+          // }
         }
         total += eventPrice * eventCount;
         if (today < early_reg_date) {
