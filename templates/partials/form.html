@@ -32,6 +32,13 @@
       <input type="text" class="form-control" name="lname" placeholder="Last name" aria-label="Last name" required>
     </div>
   </div>
+  <div class="row mt-2" {{ "" if reg_type=='competitor' else "hidden" }}>
+    <div class="col">
+      <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
+      <input type="text" class="form-control" name="inputParentName" id="inputParentName"
+        placeholder="Parent's full name" aria-label="Parent's name" required>
+    </div>
+  </div>
   <div class="row mt-3">
     <div class="col">
       <label for="inputEmail" class="form-check-label h5">Email</label>
@@ -42,7 +49,7 @@
       <input type="phone" class="form-control" name="phone" id="inputPhone" pattern="^\d{3}-\d{3}-\d{4}$" oninvalid="setCustomValidity('Please enter a valid phone number.')" oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>
     </div>
   </div>
-  <div class="row g-3 mt-0">
+  <!-- <div class="row g-3 mt-0">
     <div class="col-12">
       <label for="location-input" class="form-check-label h5">Address</label>
       <input type="text" class="form-control" name="address1" id="location-input" placeholder="1234 Main St" required autocomplete="off">
@@ -117,7 +124,7 @@
       <label for="postal_code-input" class="form-check-label h5">Zip</label>
       <input type="text" class="form-control" name="zip" id="postal_code-input" required>
     </div>
-  </div>
+  </div> -->
   <div class="row g-3 mt-1" id="classSection" {{ "" if reg_type=='competitor' else "hidden" }}>
     <div class="col-md-6">
       <div class="row g-3">
@@ -161,18 +168,20 @@
       </div>
     </div>
     <div class="col-md-4">
-      <label class="form-check-label h5">Weight</label>
       <div class="row mt-1">
         <div class="col-md-4">
-            <input class="form-control" type="number" step="0.01" id="weightLbs" placeholder="lbs" onchange="convertWeight(this.value,'lbs')">
+          <label class="form-check-label h5" for="weightLbs">Weight</label>
+          <input class="form-control" type="number" step="0.01" id="weightLbs" placeholder="lbs" {{ "required" if reg_type=='competitor' else "" }}>
         </div>
         <div class="col-md-4">
-          <input class="form-control" type="number" step="0.01" name="weight" id="weightKgs" placeholder="kgs" onchange="convertWeight(this.value,'kgs')" {{ "required" if reg_type=='competitor' else "" }}>
+          <label class="form-check-label h5" for="height">Height</label>
+          <input class="form-control" type="number" step="0.01" name="heightFt" id="heightFt" placeholder="ft" {{ "required" if reg_type=='competitor' else "" }}>
+          <input class="form-control" type="number" step="0.01" name="heightIn" id="heightIn" placeholder="in" {{ "required" if reg_type=='competitor' else "" }}>
         </div>
       </div>
     </div>
   </div>
-  <div class="row g-3 mt-0" id="profile" {{ "" if reg_type=='competitor' else "hidden" }}>
+  <!-- <div class="row g-3 mt-0" id="profile" {{ "" if reg_type=='competitor' else "hidden" }}>
     <div class="col-md-6">
       <label class="form-check-label h5" for="profilePic">Profile Photo</label>
       <input type="file" class="form-control" name="profilePic" id="profilePic" accept="image/png, image/jpeg" onchange="upload_img(this.files)" {{ "required" if reg_type=='competitor' else "" }}>
@@ -185,7 +194,7 @@
     <div class="col-md-6">
       <img id="profileImg">
     </div>
-  </div>
+  </div>-->
   <div class="row g-3 mt-1">
     <div class="col-md-6">
       <label for="inputSchool" class="form-check-label h5">Taekwondo School Or Club</label>
@@ -196,7 +205,7 @@
       <input type="text" class="form-control" name="coach" id="inputCoach" {{ "required" if reg_type=='competitor' else "" }}>
     </div>
   </div>
-  <div class="row" id="beltSection" {{ "" if reg_type=='competitor' else "hidden" }}>
+  <div class="row" id="beltSection" hidden>
     <div class="col-md-4">
       <div class="row g-3 mt-0">
         <label for="belt" class="form-check-label h5">Belt Rank</label>
@@ -204,49 +213,49 @@
       <div class="row">
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="blackBelt" value="black" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
+            <input class="form-check-input" type="radio" name="beltRank" id="blackBelt" value="black" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="blackBelt">Black</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="brownBelt" value="brown" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
+            <input class="form-check-input" type="radio" name="beltRank" id="brownBelt" value="brown" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="brownBelt">Brown</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="redBelt" value="red" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
+            <input class="form-check-input" type="radio" name="beltRank" id="redBelt" value="red" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="redBelt">Red</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="blueBelt" value="blue" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
+            <input class="form-check-input" type="radio" name="beltRank" id="blueBelt" value="blue" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="blueBelt">Blue</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="greenBelt" value="green" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
+            <input class="form-check-input" type="radio" name="beltRank" id="greenBelt" value="green" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="greenBelt">Green</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="orangeBelt" value="orange" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
+            <input class="form-check-input" type="radio" name="beltRank" id="orangeBelt" value="orange" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="orangeBelt">Orange</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="yellowBelt" value="yellow" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
+            <input class="form-check-input" type="radio" name="beltRank" id="yellowBelt" value="yellow" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="yellowBelt">Yellow</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="whiteBelt" value="white" onclick="updateCostDetails()" {{ "required" if reg_type=='competitor' else "" }}>
+            <input class="form-check-input" type="radio" name="beltRank" id="whiteBelt" value="white" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
             <label class="form-check-label" for="whiteBelt">White</label>
           </div>
         </div>
@@ -259,58 +268,80 @@
       </div>
     </div>
   </div>
-  <div class="row" id="eventSection" {{ "" if reg_type=='competitor' else "hidden" }}>
+  <div class="row" id="eventSection" hidden>
     <div class="col-md-4">
       <div class="row g-3 mt-0">
         <label for="events" class="form-check-label h5">Events</label>
       </div>
       <div class="row">
-        <div class="col-sm-6" id="sparring">
+        <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="sparring"  onclick="updateEventList()">
+            <input class="form-check-input" type="radio" name="eventType" id="little_tiger" onchange="updateEventOptions()" disabled>
+            <label class="form-check-label" for="competitor">Little Tiger Showcase</label>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="eventType" id="competitive" onchange="updateEventOptions()" checked>
+            <label class="form-check-label" for="coach">Competitive Events</label>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <div class="row" id="competitiveEventsSection">
+        <div class="col-sm-6" id="sparringInput">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring" onclick="updateEventList(this.id)">
             <label class="form-check-label" for="sparring">Sparring</label>
           </div>
         </div>
-        <div class="col-sm-6" id="sparring-gr" hidden>
+        <div class="col-sm-6" id="sparring-grInput" hidden>
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="sparring-gr"  onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring-gr" onclick="updateEventList(this.id)">
             <label class="form-check-label" for="sparring-gr">Sparring - Grass Roots</label>
           </div>
         </div>
-        <div class="col-sm-6" id="sparring-wc" hidden>
+        <div class="col-sm-6" id="sparring-wcInput" hidden>
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="sparring-wc"  onclick="updateEventList()">
-            <label class="form-check-label" for="sparring-wc">Sparring - World Class</label>
+            <input class="form-check-input" type="checkbox" name="events" id="sparring-wc" onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="sparring-wc">Sparring - World Class (Additional ${{ price_dict['World Class']['price'] }})</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="breaking"  onclick="updateEventList()">
-            <label class="form-check-label" for="breaking">Breaking</label>
+            <input class="form-check-input" type="checkbox" name="events" id="breaking" onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="breaking">Breaking (Additional ${{ price_dict['Breaking']['price'] }})</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="poomsae"  onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="poomsae" onclick="updateEventList(this.id)">
             <label class="form-check-label" for="poomsae">Poomsae</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="pair poomsae" onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="pair poomsae" onclick="updateEventList(this.id)">
             <label class="form-check-label" for="pair poomsae">Pair Poomsae</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="team poomsae" onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="team poomsae" onclick="updateEventList(this.id)">
             <label class="form-check-label" for="team poomsae">Team Poomsae</label>
           </div>
         </div>
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="events" id="family poomsae" onclick="updateEventList()">
+            <input class="form-check-input" type="checkbox" name="events" id="family poomsae" onclick="updateEventList(this.id)">
             <label class="form-check-label" for="family poomsae">Family Poomsae</label>
+          </div>
+        </div>
+        <div class="col-sm-6">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="freestyle poomsae"
+              onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="Freestyle poomsae">Freestyle Poomsae</label>
           </div>
         </div>
       </div>
@@ -347,17 +378,19 @@
     </div>
   </div>
   <input class="form-control" type="text" name="eventList" id="eventList" hidden>
-  <input class="form-control" type="text" name="regType" id="regType" value="{{ reg_type }}"hidden required>
+  <input class="form-control" type="text" name="regType" id="regType" value="{{ reg_type }}" hidden required>
   <button type="submit" class="btn {{ button_style }}">Register</button>
 </form>
 <script>
   window.okgp = {}
   window.okgp.early_reg_date = new Date("{{ early_reg_date }} 23:59:59")
-  window.okgp.late_reg_increase = "{{ late_reg_price_increase }}"
   window.okgp.price_dict = {
     addl_event: "{{ price_dict['Additional Event']['price'] }}",
-    black_belt: "{{ price_dict['Black Belt Registration']['price'] }}",
-    color_belt: "{{ price_dict['Color Belt Registration']['price'] }}",
-    coach: "{{ price_dict['Coach Registration']['price'] }}"
+    little_tiger: "{{ price_dict['Little Tiger Showcase']['price'] }}",
+    registration: "{{ price_dict['Registration']['price'] }}",
+    world_class: "{{ price_dict['World Class']['price'] }}",
+    breaking: "{{ price_dict['Breaking']['price'] }}",
+    coach: "{{ price_dict['Coach Registration']['price'] }}",
+    coupon: "{{ early_reg_coupon_amount }}"
   }
 </script>

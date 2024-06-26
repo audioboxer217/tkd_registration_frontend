@@ -26,21 +26,33 @@ visitor_info_text = os.getenv("VISITOR_INFO_TEXT")
 button_style = os.getenv("BUTTON_STYLE", "btn-primary")
 
 # Price Details
-early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y").date()
-today = date.today()
-price_dict = {"Additional Event": "addl_event", "Coach Registration": "coach_reg"}
-if today < early_reg_date + timedelta(days=1):
-    price_dict["Color Belt Registration"] = "color_early_reg"
-    price_dict["Black Belt Registration"] = "black_early_reg"
-else:
-    price_dict["Color Belt Registration"] = "color_late_reg"
-    price_dict["Black Belt Registration"] = "black_late_reg"
-for k, v in price_dict.items():
-    price_detail = stripe.Price.list(lookup_keys=[v]).data[0]
-    price_dict[k] = {
+price_dict = {}
+products = stripe.Product.list()
+for p in products:
+    price_detail = stripe.Price.retrieve(p.default_price)
+    price_dict[p.name] = {
         "price_id": price_detail.id,
         "price": f"{int(price_detail.unit_amount/100)}",
     }
+early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
+# ...     price=stripe.Price.retrieve(p.default_price)
+# ...     print(f"{p.name}: ${price.unit_amount/100}")
+
+# early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y").date()
+# today = date.today()
+# price_dict = {"Additional Event": "addl_event", "Coach Registration": "coach_reg"}
+# if today < early_reg_date + timedelta(days=1):
+#     price_dict["Color Belt Registration"] = "color_early_reg"
+#     price_dict["Black Belt Registration"] = "black_early_reg"
+# else:
+#     price_dict["Color Belt Registration"] = "color_late_reg"
+#     price_dict["Black Belt Registration"] = "black_late_reg"
+# for k, v in price_dict.items():
+#     price_detail = stripe.Price.list(lookup_keys=[v]).data[0]
+#     price_dict[k] = {
+#         "price_id": price_detail.id,
+#         "price": f"{int(price_detail.unit_amount/100)}",
+#     }
 
 
 @app.route("/")
@@ -184,6 +196,7 @@ def handle_form():
             checkout_session = stripe.checkout.Session.create(
                 line_items=registration_items,
                 mode="payment",
+                discounts=[{"coupon": early_reg_coupon["id"]}],
                 success_url=f'{app.config["URL"]}/success',
                 cancel_url=f'{app.config["URL"]}/register?reg_type={reg_type}',
                 expires_at=int(checkout_timeout.timestamp()),
@@ -220,7 +233,7 @@ def handle_form():
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
             early_reg_date=os.getenv("EARLY_REG_DATE"),
-            late_reg_price_increase="10",
+            early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
             price_dict=price_dict,
             reg_type=reg_type,
             additional_stylesheets=[
