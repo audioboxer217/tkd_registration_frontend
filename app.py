@@ -149,7 +149,7 @@ def handle_form():
                     age={"N": request.form.get("age")},
                     gender={"S": request.form.get("gender")},
                     weight={"N": request.form.get("weight")},
-                    height={"N": height},
+                    height={"N": str(height)},
                     # imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
                     coach={"S": coach},
                     beltRank={"S": belt},
