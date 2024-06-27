@@ -35,25 +35,6 @@ for p in products:
         "price": f"{int(price_detail.unit_amount/100)}",
     }
 early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
-# ...     price=stripe.Price.retrieve(p.default_price)
-# ...     print(f"{p.name}: ${price.unit_amount/100}")
-
-# early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y").date()
-# today = date.today()
-# price_dict = {"Additional Event": "addl_event", "Coach Registration": "coach_reg"}
-# if today < early_reg_date + timedelta(days=1):
-#     price_dict["Color Belt Registration"] = "color_early_reg"
-#     price_dict["Black Belt Registration"] = "black_early_reg"
-# else:
-#     price_dict["Color Belt Registration"] = "color_late_reg"
-#     price_dict["Black Belt Registration"] = "black_late_reg"
-# for k, v in price_dict.items():
-#     price_detail = stripe.Price.list(lookup_keys=[v]).data[0]
-#     price_dict[k] = {
-#         "price_id": price_detail.id,
-#         "price": f"{int(price_detail.unit_amount/100)}",
-#     }
-
 
 @app.route("/")
 def index_page():
