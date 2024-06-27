@@ -115,13 +115,9 @@ def handle_form():
         # Base Form Data
         form_data = dict(
             full_name={"S": f"{fname} {lname}"},
+            parent={"S": request.form.get("parentName")},
             email={"S": request.form.get("email")},
             phone={"S": request.form.get("phone")},
-            address1={"S": request.form.get("address1")},
-            address2={"S": request.form.get("address2")},
-            city={"S": request.form.get("city")},
-            state={"S": request.form.get("state")},
-            zip={"S": request.form.get("zip")},
             school={"S": school},
             reg_type={"S": request.form.get("regType")},
         )
@@ -132,56 +128,81 @@ def handle_form():
                 msg = "Please go back and accept the Liability Waiver Conditions"
                 abort(400, msg)
 
-            profileImg = request.files["profilePic"]
-            imageExt = os.path.splitext(profileImg.filename)[1]
-            if profileImg.content_type == "" or imageExt == "":
-                msg = "There was an error uploading your profile pic. Please go back and try again."
-                abort(400, msg)
+            # profileImg = request.files["profilePic"]
+            # imageExt = os.path.splitext(profileImg.filename)[1]
+            # if profileImg.content_type == "" or imageExt == "":
+            #     msg = "There was an error uploading your profile pic. Please go back and try again."
+            #     abort(400, msg)
 
-            if request.form.get("eventList") == "":
-                msg = "You must choose at least one event"
-                abort(400, msg)
 
+            height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
+            belt = request.form.get("beltRank")
+            if belt == 'black':
+                dan = request.form.get("blackBeltDan")
+                if dan == '4':
+                    belt = "Master"
+                else:
+                    belt = f"{dan} degree {belt}"
+            if request.form.get("eventType") == 'little_tiger':
+                eventList = "Little Tiger Showcase"
+                registration_items = [
+                    {
+                        "price": price_dict["Little Tiger Showcase"]["price_id"],
+                        "quantity": 1,
+                    },
+                ]
+            else:
+                eventList = request.form.get("eventList")
+                if eventList == "":
+                    msg = "You must choose at least one event"
+                    abort(400, msg)
+                registration_items = [
+                    {
+                        "price": price_dict['Registration']["price_id"],
+                        "quantity": 1,
+                    },
+                ]
             form_data.update(
                 dict(
                     birthdate={"S": request.form.get("birthdate")},
                     age={"N": request.form.get("age")},
                     gender={"S": request.form.get("gender")},
                     weight={"N": request.form.get("weight")},
-                    imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
+                    height={"N": height},
+                    # imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
                     coach={"S": coach},
-                    beltRank={"S": request.form.get("beltRank")},
-                    events={"S": request.form.get("eventList")},
+                    beltRank={"S": belt},
+                    events={"S": eventList},
                 )
             )
 
-            s3.upload_fileobj(
-                profileImg,
-                app.config["profilePicBucket"],
-                form_data["imgFilename"]["S"],
-            )
+            # s3.upload_fileobj(
+            #     profileImg,
+            #     app.config["profilePicBucket"],
+            #     form_data["imgFilename"]["S"],
+            # )
 
             num_add_event = len(form_data["events"]["S"].split(",")) - 1
-            if form_data["beltRank"]["S"] == "black":
-                registration_items = [
-                    {
-                        "price": price_dict["Black Belt Registration"]["price_id"],
-                        "quantity": 1,
-                    },
-                ]
-            else:
-                registration_items = [
-                    {
-                        "price": price_dict["Color Belt Registration"]["price_id"],
-                        "quantity": 1,
-                    },
-                ]
             if num_add_event > 0:
                 registration_items.append(
                     {
                         "price": price_dict["Additional Event"]["price_id"],
                         "quantity": num_add_event,
                     },
+                )
+            if 'breaking' in request.form.get("eventList"):
+                registration_items.append(
+                    {
+                        "price": price_dict["Breaking"]["price_id"],
+                        "quantity": 1
+                    }
+                )
+            if 'sparring-wc' in request.form.get("eventList"):
+                registration_items.append(
+                    {
+                        "price": price_dict["World Class"]["price_id"],
+                        "quantity": 1
+                    }
                 )
         else:
             registration_items = [
@@ -219,6 +240,20 @@ def handle_form():
         )
 
         return redirect(checkout_session.url, code=303)
+    
+        ## For Testing Form Data
+        # return render_template(
+        #     "success.html",
+        #     title="Registration Submitted",
+        #     competition_name=os.getenv("COMPETITION_NAME"),
+        #     favicon_url=favicon_url,
+        #     visitor_info_url=visitor_info_url,
+        #     visitor_info_text=visitor_info_text,
+        #     button_style=button_style,
+        #     email=os.getenv("CONTACT_EMAIL"),
+        #     reg_detail = form_data,
+        #     cost_detail = registration_items
+        # )
 
     else:
         reg_type = request.args.get("reg_type")
