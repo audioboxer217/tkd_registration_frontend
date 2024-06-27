@@ -60,7 +60,7 @@ function updateFields() {
     document.getElementById("inputAge").required = true;
     document.getElementById("genderMale").required = true;
     document.getElementById("genderFemale").required = true;
-    document.getElementById("weightKgs").required = true;
+    document.getElementById("weight").required = true;
 
     document.getElementById("profile").hidden = false;
     document.getElementById("profilePic").required = true;
@@ -86,7 +86,7 @@ function updateFields() {
     document.getElementById("inputAge").required = false;
     document.getElementById("genderMale").required = false;
     document.getElementById("genderFemale").required = false;
-    document.getElementById("weightKgs").required = false;
+    document.getElementById("weight").required = false;
 
     document.getElementById("profile").hidden = true;
     document.getElementById("profilePic").required = false;
