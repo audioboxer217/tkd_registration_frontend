@@ -36,7 +36,7 @@
     <div class="col">
       <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
       <input type="text" class="form-control" name="parentName" id="inputParentName"
-        placeholder="Parent's full name" aria-label="Parent's name" required>
+        placeholder="Parent's full name" aria-label="Parent's name" {{ "required" if reg_type=='competitor' else "" }}>
     </div>
   </div>
   <div class="row mt-3">

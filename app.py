@@ -96,7 +96,6 @@ def handle_form():
         # Base Form Data
         form_data = dict(
             full_name={"S": f"{fname} {lname}"},
-            parent={"S": request.form.get("parentName")},
             email={"S": request.form.get("email")},
             phone={"S": request.form.get("phone")},
             school={"S": school},
@@ -145,6 +144,7 @@ def handle_form():
                 ]
             form_data.update(
                 dict(
+                    parent={"S": request.form.get("parentName")},
                     birthdate={"S": request.form.get("birthdate")},
                     age={"N": request.form.get("age")},
                     gender={"S": request.form.get("gender")},
@@ -194,14 +194,26 @@ def handle_form():
             ]
 
         try:
-            checkout_timeout = datetime.utcnow() + timedelta(minutes=30)
+            early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), '%B %d, %Y')+timedelta(days=1)
+            current_time = datetime.now()
+            checkout_timeout = current_time + timedelta(minutes=30)
+            checkout_details = {
+                "line_items": registration_items,
+                "mode": "payment",
+                "discounts": [],
+                "success_url": f'{app.config["URL"]}/success',
+                "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
+                "expires_at": int(checkout_timeout.timestamp()),
+            }
+            if reg_type == "competitor" and current_time < early_reg_date:
+                checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
             checkout_session = stripe.checkout.Session.create(
-                line_items=registration_items,
-                mode="payment",
-                discounts=[{"coupon": early_reg_coupon["id"]}],
-                success_url=f'{app.config["URL"]}/success',
-                cancel_url=f'{app.config["URL"]}/register?reg_type={reg_type}',
-                expires_at=int(checkout_timeout.timestamp()),
+                line_items=checkout_details['line_items'],
+                mode=checkout_details['mode'],
+                discounts=checkout_details['discounts'],
+                success_url=checkout_details['success_url'],
+                cancel_url=checkout_details['cancel_url'],
+                expires_at=checkout_details['expires_at'],
             )
         except Exception as e:
             return str(e)
@@ -259,12 +271,11 @@ def handle_form():
                 )
             ],
             additional_scripts=[
-                dict(
-                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
-                    # src=f'https://maps.googleapis.com/maps/api/js?key={os.getenv("MAPS_API_KEY")}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
-                    async_bool="true",
-                    defer="true",
-                ),
+                # dict(
+                    # src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
+                    # async_bool="true",
+                    # defer="true",
+                # ),
                 dict(
                     src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
                     integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
