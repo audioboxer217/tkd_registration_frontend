@@ -198,6 +198,17 @@ function updateEventList(clickedEvent) {
   else if (clickedEvent == 'sparring-gr') {
     document.getElementById("sparring-wc").checked = false;
   }
+  else if (clickedEvent.endsWith('poomsae') && clickedEvent != 'freestyle poomsae') {
+    eventElement = document.getElementById(clickedEvent)
+    choicesElement = document.getElementById(clickedEvent + " form")
+    if (eventElement.clicked == true) {
+      choicesElement.required = true;
+    }
+    else {
+      choicesElement.required = false;
+      choicesElement.value = '';
+    }
+  }
 
   var checked_items = document.querySelectorAll('input[name="events"]:checked')
   for (i = 0; i < checked_items.length; i++) {
