@@ -13,7 +13,7 @@ app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["table_name"] = os.getenv("DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
-maps_api_key = os.getenv("MAPS_API_KEY")
+# maps_api_key = os.getenv("MAPS_API_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
@@ -254,6 +254,9 @@ def handle_form():
 
     else:
         reg_type = request.args.get("reg_type")
+        school_list = json.load(
+            s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]
+        )
         # Display the form
         return render_template(
             "form.html",
@@ -268,6 +271,7 @@ def handle_form():
             early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
             price_dict=price_dict,
             reg_type=reg_type,
+            schools=school_list,
             additional_stylesheets=[
                 dict(
                     href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",

@@ -198,7 +198,12 @@
   <div class="row g-3 mt-1">
     <div class="col-md-6">
       <label for="inputSchool" class="form-check-label h5">Taekwondo School Or Club</label>
-      <input type="text" class="form-control" name="school" id="inputSchool" required>
+      <input type="text" class="form-control" name="school" id="inputSchool" list="schoolnames" required>
+      <datalist id="schoolnames">
+        {% for school in schools %}
+        <option value="{{ school }}" \>
+        {% endfor %}
+      </datalist>
     </div>
     <div class="col-md-6" id="coachSection" {{ "" if reg_type=='competitor' else "hidden" }}>
       <label for="inputCoach" class="form-check-label h5">Taekwondo Instructor / Coach</label>
