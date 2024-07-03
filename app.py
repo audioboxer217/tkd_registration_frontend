@@ -189,6 +189,13 @@ def handle_form():
                         "quantity": 1
                     }
                 )
+            ### Code to have 'convenience fee' transfered to separate acct ###
+            # registration_items.append(
+            #     {
+            #         "price": price_dict["Convenience Fee"]["price_id"],
+            #         "quantity": 1
+            #     }
+            # )
         else:
             registration_items = [
                 {
@@ -206,6 +213,7 @@ def handle_form():
                 "mode": "payment",
                 "discounts": [],
                 "success_url": f'{app.config["URL"]}/success',
+                # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}', ### Code to have 'convenience fee' transfered to separate acct ###
                 "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
                 "expires_at": int(checkout_timeout.timestamp()),
             }
@@ -490,6 +498,15 @@ def competitors_page():
 
 @app.route("/success", methods=["GET"])
 def success_page():
+    ### Code to have 'convenience fee' transfered to separate acct ###
+    # session = stripe.checkout.Session.retrieve(request.args.get('session_id'))
+    # paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
+    # stripe.Transfer.create(
+    #     amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+    #     currency="usd",
+    #     source_transaction=paymentIntent.latest_charge,
+    #     destination='acct_1PYYvBGhUvudnYnE'
+    # )
     return render_template(
         "success.html",
         title="Registration Submitted",
