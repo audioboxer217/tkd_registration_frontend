@@ -350,6 +350,15 @@ function calculateAge(dateString) {
   else {
     document.getElementById("ageClass").innerHTML = "Age Group is <b>" + ageClass + "</b>"
   }
+  if (age < 18) {
+    document.getElementById("inputParentName").required = true;
+    document.getElementById("parentNameSection").hidden = false;
+  }
+  else {
+    document.getElementById("inputParentName").required = false;
+    document.getElementById("inputParentName").value = '';
+    document.getElementById("parentNameSection").hidden = true;
+  }
   updateEventOptions()
 }
 $(function () {
