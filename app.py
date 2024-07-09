@@ -142,6 +142,19 @@ def handle_form():
                         "quantity": 1,
                     },
                 ]
+
+            medical_form = dict(
+                contacts=request.form.get("contacts"),
+                medicalConditions=request.form.get("medicalConditionsList").split(','),
+            )
+            if request.form.get("allergies") == "Y":
+                medical_form['allergies'] = request.form.get("allergy_list").split("\r\n")
+            else:
+                medical_form['allergies'] = "None"
+            if request.form.get("medications") == "Y":
+                medical_form['medications'] = request.form.get("meds_list").split("\r\n")
+            else:
+                medical_form['medications'] = "None"
             form_data.update(
                 dict(
                     parent={"S": request.form.get("parentName")},
@@ -158,6 +171,7 @@ def handle_form():
                     pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                     team_poomsae_form={"S": request.form.get("team poomsae form")},
                     family_poomsae_form={"S": request.form.get("family poomsae form")},
+                    medical_form={"S": json.dumps(medical_form)}
                 )
             )
 

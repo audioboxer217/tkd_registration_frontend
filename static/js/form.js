@@ -221,6 +221,15 @@ function updateEventList(clickedEvent) {
   getPoomsaeForms("team poomsae")
   getPoomsaeForms("family poomsae")
 }
+function updateMedicalConditionsList() {
+  var conditionList = []
+
+  var checked_items = document.querySelectorAll('input[name="medicalConditions"]:checked')
+  for (i = 0; i < checked_items.length; i++) {
+    conditionList.push(checked_items[i].id)
+  }
+  document.getElementById("medicalConditionsList").value = conditionList.join()
+}
 function updateTotal(eventType="competitive") {
   const today = new Date()
   const early_reg_date = window.okgp.early_reg_date
@@ -360,6 +369,30 @@ function calculateAge(dateString) {
     document.getElementById("parentNameSection").hidden = true;
   }
   updateEventOptions()
+}
+function toggleAllergyList() {
+  allergies = document.querySelectorAll('input[name="allergies"]:checked')[0].id
+  if (allergies == "allergyYes") {
+    document.getElementById("allergyListSection").hidden = false;
+    document.getElementById("allergy_list").required = true;
+  }
+  else {
+    document.getElementById("allergyListSection").hidden = true;
+    document.getElementById("allergy_list").required = false;
+    document.getElementById("allergy_list").value = '';
+  }
+}
+function toggleMedsList() {
+  allergies = document.querySelectorAll('input[name="medications"]:checked')[0].id
+  if (allergies == "medsYes") {
+    document.getElementById("medsListSection").hidden = false;
+    document.getElementById("meds_list").required = true;
+  }
+  else {
+    document.getElementById("medsListSection").hidden = true;
+    document.getElementById("meds_list").required = false;
+    document.getElementById("meds_list").value = '';
+  }
 }
 $(function () {
   $('#datepicker').datepicker();

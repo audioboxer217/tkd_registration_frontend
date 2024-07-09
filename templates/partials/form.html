@@ -458,6 +458,145 @@
       <input class="form-control-plaintext form-control-lg" type="text" id="total" aria-label="Total" value="{{ '$0' if reg_type=='coach' else '' }}" readonly required>
     </div>
   </div>
+  <div class="row g-3 mt-0" id="medicalSection" {{ "" if reg_type=='competitor' else "hidden" }}>
+    <label class="form-check-label h2">Medical Questionaire</label>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="allergies" class="form-check-label">Do you have any allergies to any medications?</label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-1">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="allergies" id="allergyYes" value="Y" onclick="toggleAllergyList()">
+          <label class="form-check-label" for="allergyYes">Yes</label>
+        </div>
+      </div>
+      <div class="col-sm-1">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="allergies" id="allergyNo" value="N" onclick="toggleAllergyList()">
+          <label class="form-check-label" for="allergyNo">No</label>
+        </div>
+      </div>
+    </div>
+    <div class="row mt-2" id="allergyListSection" hidden>
+      <label class="form-control-label" for="allergy_list">Please indicate which medications (one per line).</label>
+      <div class="col-md-4">
+          <textarea class="form-control" name="allergy_list" id="allergy_list" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="medications" class="form-check-label">Do you take any medications regularly?</label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-1">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="medications" id="medsYes" value="Y" onclick="toggleMedsList()">
+          <label class="form-check-label" for="medsYes">Yes</label>
+        </div>
+      </div>
+      <div class="col-sm-1">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="medications" id="medsNo" value="N" onclick="toggleMedsList()">
+          <label class="form-check-label" for="medsNo">No</label>
+        </div>
+      </div>
+    </div>
+    <div class="row mt-2" id="medsListSection" hidden>
+      <label class="form-control-label" for="meds_list">Please indicate which medications (one per line).</label>
+      <div class="col-md-4">
+          <textarea class="form-control" name="meds_list" id="meds_list" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="contacts" class="form-check-label">Do you wear contact lenses?</label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-1">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="contacts" id="contactsYes" value="Y">
+          <label class="form-check-label" for="contactsYes">Yes</label>
+        </div>
+      </div>
+      <div class="col-sm-1">
+        <div class="form-check">
+          <input class="form-check-input" type="radio" name="contacts" id="contactsNo" value="N">
+          <label class="form-check-label" for="contactsNo">No</label>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="conditions" class="form-check-label">Do you have a history of any of the following conditions?</label>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <p class="p-3 mb-2 bg-light text-dark">
+          By checking these boxes, I hereby state that I am under the care of a physician for the treatment of the indicated conditions and that I have been medically cleared by that physician to participate in this tournament.
+        </p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="medicalConditions" id="epilepsy" onclick="updateMedicalConditionsList()">
+          <label class="form-check-label" for="epilepsy">Epilepsy (seizures)</label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="medicalConditions" id="lungDisease" onclick="updateMedicalConditionsList()">
+            <label class="form-check-label" for="lungDisease">Lung Disease</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="medicalConditions" id="heartDisease" onclick="updateMedicalConditionsList()">
+          <label class="form-check-label" for="heartDisease">Heart Disease</label>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="medicalConditions" id="diabetes" onclick="updateMedicalConditionsList()">
+          <label class="form-check-label" for="diabetes">Diabetes</label>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="medicalConditions" id="highBp" onclick="updateMedicalConditionsList()">
+          <label class="form-check-label" for="highBp">High Blood Pressure</label>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-sm-6">
+        <p>
+          <strong>Please read carefully before accepting:</strong>
+        </p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-6">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="medicalWaiver" id="medicalWaiver" {{ "required" if reg_type=='competitor' else "" }}>
+          <label class="form-check-label" for="medicalWaiver">I hereby certify that the above information is true and accurate to the best of my knowledge.</label>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="row g-3 mt-0" id="liabilityTextSection" {{ "" if reg_type=='competitor' else "hidden" }}>
     <div class="col-md-5">
       <div class="row g-3 mt-0">
@@ -476,7 +615,6 @@
         and cooperative for the successful operation of the championships.
         </p>
       </div>
- 
       <div class="form-check">
         <input class="form-check-input" type="checkbox" name="liability" id="liability" {{ "required" if reg_type=='competitor' else "" }}>
         <label class="form-check-label" for="liability">I hereby agree to all terms and conditions of the liability waiver above</label>
@@ -486,6 +624,7 @@
   <div class="row g-3 mt-2">
     <div class="col-sm-2">
       <input class="form-control" type="text" name="eventList" id="eventList" hidden>
+      <input class="form-control" type="text" name="medicalConditionsList" id="medicalConditionsList" hidden>
       <input class="form-control" type="text" name="regType" id="regType" value="{{ reg_type }}" hidden required>
       <button type="submit" class="btn {{ button_style }}">Register</button>
     </div>
