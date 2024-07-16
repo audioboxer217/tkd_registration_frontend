@@ -13,29 +13,28 @@ app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["table_name"] = os.getenv("DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
-maps_api_key = os.getenv("MAPS_API_KEY")
-aws_region = os.getenv("AWS_REGION")
+# maps_api_key = os.getenv("MAPS_API_KEY")
+aws_region = os.getenv("AWS_REGION", "us-east-1")
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
+favicon_url = (
+    f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png'
+)
+visitor_info_url = os.getenv("VISITOR_INFO_URL")
+visitor_info_text = os.getenv("VISITOR_INFO_TEXT")
+button_style = os.getenv("BUTTON_STYLE", "btn-primary")
 
 # Price Details
-early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y").date()
-today = date.today()
-price_dict = {"Additional Event": "addl_event", "Coach Registration": "coach_reg"}
-if today < early_reg_date + timedelta(days=1):
-    price_dict["Color Belt Registration"] = "color_early_reg"
-    price_dict["Black Belt Registration"] = "black_early_reg"
-else:
-    price_dict["Color Belt Registration"] = "color_late_reg"
-    price_dict["Black Belt Registration"] = "black_late_reg"
-for k, v in price_dict.items():
-    price_detail = stripe.Price.list(lookup_keys=[v]).data[0]
-    price_dict[k] = {
+price_dict = {}
+products = stripe.Product.list()
+for p in products:
+    price_detail = stripe.Price.retrieve(p.default_price)
+    price_dict[p.name] = {
         "price_id": price_detail.id,
         "price": f"{int(price_detail.unit_amount/100)}",
     }
-
+early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
 
 @app.route("/")
 def index_page():
@@ -46,7 +45,10 @@ def index_page():
         competition_name=os.getenv("COMPETITION_NAME"),
         early_reg_date=os.getenv("EARLY_REG_DATE"),
         reg_close_date=os.getenv("REG_CLOSE_DATE"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
         poster_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/registration_poster.jpg',
     )
 
@@ -60,7 +62,10 @@ def handle_form():
         return render_template(
             "disabled.html",
             title="Registration Closed",
-            favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+            favicon_url=favicon_url,
+            visitor_info_url=visitor_info_url,
+            visitor_info_text=visitor_info_text,
+            button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             email=os.getenv("CONTACT_EMAIL"),
         )
@@ -93,11 +98,6 @@ def handle_form():
             full_name={"S": f"{fname} {lname}"},
             email={"S": request.form.get("email")},
             phone={"S": request.form.get("phone")},
-            address1={"S": request.form.get("address1")},
-            address2={"S": request.form.get("address2")},
-            city={"S": request.form.get("city")},
-            state={"S": request.form.get("state")},
-            zip={"S": request.form.get("zip")},
             school={"S": school},
             reg_type={"S": request.form.get("regType")},
         )
@@ -108,50 +108,80 @@ def handle_form():
                 msg = "Please go back and accept the Liability Waiver Conditions"
                 abort(400, msg)
 
-            profileImg = request.files["profilePic"]
-            imageExt = os.path.splitext(profileImg.filename)[1]
-            if profileImg.content_type == "" or imageExt == "":
-                msg = "There was an error uploading your profile pic. Please go back and try again."
-                abort(400, msg)
+            # profileImg = request.files["profilePic"]
+            # imageExt = os.path.splitext(profileImg.filename)[1]
+            # if profileImg.content_type == "" or imageExt == "":
+            #     msg = "There was an error uploading your profile pic. Please go back and try again."
+            #     abort(400, msg)
 
-            if request.form.get("eventList") == "":
-                msg = "You must choose at least one event"
-                abort(400, msg)
 
-            form_data.update(
-                dict(
-                    birthdate={"S": request.form.get("birthdate")},
-                    age={"N": request.form.get("age")},
-                    gender={"S": request.form.get("gender")},
-                    weight={"N": request.form.get("weight")},
-                    imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
-                    coach={"S": coach},
-                    beltRank={"S": request.form.get("beltRank")},
-                    events={"S": request.form.get("eventList")},
-                )
-            )
-
-            s3.upload_fileobj(
-                profileImg,
-                app.config["profilePicBucket"],
-                form_data["imgFilename"]["S"],
-            )
-
-            num_add_event = len(form_data["events"]["S"].split(",")) - 1
-            if form_data["beltRank"]["S"] == "black":
+            height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
+            belt = request.form.get("beltRank")
+            if belt == 'black':
+                dan = request.form.get("blackBeltDan")
+                if dan == '4':
+                    belt = "Master"
+                else:
+                    belt = f"{dan} degree {belt}"
+            if request.form.get("eventType") == 'little_tiger':
+                eventList = "Little Tiger Showcase"
                 registration_items = [
                     {
-                        "price": price_dict["Black Belt Registration"]["price_id"],
+                        "price": price_dict["Little Tiger Showcase"]["price_id"],
                         "quantity": 1,
                     },
                 ]
             else:
+                eventList = request.form.get("eventList")
+                if eventList == "":
+                    msg = "You must choose at least one event"
+                    abort(400, msg)
                 registration_items = [
                     {
-                        "price": price_dict["Color Belt Registration"]["price_id"],
+                        "price": price_dict['Registration']["price_id"],
                         "quantity": 1,
                     },
                 ]
+
+            medical_form = dict(
+                contacts=request.form.get("contacts"),
+                medicalConditions=request.form.get("medicalConditionsList").split(','),
+            )
+            if request.form.get("allergies") == "Y":
+                medical_form['allergies'] = request.form.get("allergy_list").split("\r\n")
+            else:
+                medical_form['allergies'] = "None"
+            if request.form.get("medications") == "Y":
+                medical_form['medications'] = request.form.get("meds_list").split("\r\n")
+            else:
+                medical_form['medications'] = "None"
+            form_data.update(
+                dict(
+                    parent={"S": request.form.get("parentName")},
+                    birthdate={"S": request.form.get("birthdate")},
+                    age={"N": request.form.get("age")},
+                    gender={"S": request.form.get("gender")},
+                    weight={"N": request.form.get("weight")},
+                    height={"N": str(height)},
+                    # imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
+                    coach={"S": coach},
+                    beltRank={"S": belt},
+                    events={"S": eventList},
+                    poomsae_form={"S": request.form.get("poomsae form")},
+                    pair_poomsae_form={"S": request.form.get("pair poomsae form")},
+                    team_poomsae_form={"S": request.form.get("team poomsae form")},
+                    family_poomsae_form={"S": request.form.get("family poomsae form")},
+                    medical_form={"S": json.dumps(medical_form)}
+                )
+            )
+
+            # s3.upload_fileobj(
+            #     profileImg,
+            #     app.config["profilePicBucket"],
+            #     form_data["imgFilename"]["S"],
+            # )
+
+            num_add_event = len(form_data["events"]["S"].split(",")) - 1
             if num_add_event > 0:
                 registration_items.append(
                     {
@@ -159,6 +189,27 @@ def handle_form():
                         "quantity": num_add_event,
                     },
                 )
+            if 'breaking' in request.form.get("eventList"):
+                registration_items.append(
+                    {
+                        "price": price_dict["Breaking"]["price_id"],
+                        "quantity": 1
+                    }
+                )
+            if 'sparring-wc' in request.form.get("eventList"):
+                registration_items.append(
+                    {
+                        "price": price_dict["World Class"]["price_id"],
+                        "quantity": 1
+                    }
+                )
+            ### Code to have 'convenience fee' transfered to separate acct ###
+            # registration_items.append(
+            #     {
+            #         "price": price_dict["Convenience Fee"]["price_id"],
+            #         "quantity": 1
+            #     }
+            # )
         else:
             registration_items = [
                 {
@@ -168,13 +219,27 @@ def handle_form():
             ]
 
         try:
-            checkout_timeout = datetime.utcnow() + timedelta(minutes=30)
+            early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), '%B %d, %Y')+timedelta(days=1)
+            current_time = datetime.now()
+            checkout_timeout = current_time + timedelta(minutes=30)
+            checkout_details = {
+                "line_items": registration_items,
+                "mode": "payment",
+                "discounts": [],
+                "success_url": f'{app.config["URL"]}/success',
+                # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}', ### Code to have 'convenience fee' transfered to separate acct ###
+                "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
+                "expires_at": int(checkout_timeout.timestamp()),
+            }
+            if reg_type == "competitor" and current_time < early_reg_date:
+                checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
             checkout_session = stripe.checkout.Session.create(
-                line_items=registration_items,
-                mode="payment",
-                success_url=f'{app.config["URL"]}/success',
-                cancel_url=f'{app.config["URL"]}/register?reg_type={reg_type}',
-                expires_at=int(checkout_timeout.timestamp()),
+                line_items=checkout_details['line_items'],
+                mode=checkout_details['mode'],
+                discounts=checkout_details['discounts'],
+                success_url=checkout_details['success_url'],
+                cancel_url=checkout_details['cancel_url'],
+                expires_at=checkout_details['expires_at'],
             )
         except Exception as e:
             return str(e)
@@ -194,20 +259,41 @@ def handle_form():
         )
 
         return redirect(checkout_session.url, code=303)
+    
+        ## For Testing Form Data
+        # return render_template(
+        #     "success.html",
+        #     title="Registration Submitted",
+        #     competition_name=os.getenv("COMPETITION_NAME"),
+        #     favicon_url=favicon_url,
+        #     visitor_info_url=visitor_info_url,
+        #     visitor_info_text=visitor_info_text,
+        #     button_style=button_style,
+        #     email=os.getenv("CONTACT_EMAIL"),
+        #     reg_detail = form_data,
+        #     cost_detail = registration_items
+        # )
 
     else:
         reg_type = request.args.get("reg_type")
+        school_list = json.load(
+            s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]
+        )
         # Display the form
         return render_template(
             "form.html",
             title="Registration",
-            favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+            favicon_url=favicon_url,
+            visitor_info_url=visitor_info_url,
+            visitor_info_text=visitor_info_text,
+            button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
             early_reg_date=os.getenv("EARLY_REG_DATE"),
-            late_reg_price_increase="10",
+            early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
             price_dict=price_dict,
             reg_type=reg_type,
+            schools=school_list,
             additional_stylesheets=[
                 dict(
                     href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",
@@ -215,12 +301,11 @@ def handle_form():
                 )
             ],
             additional_scripts=[
-                dict(
-                    src=f'https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
-                    # src=f'https://maps.googleapis.com/maps/api/js?key={os.getenv("MAPS_API_KEY")}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA',
-                    async_bool="true",
-                    defer="true",
-                ),
+                # dict(
+                    # src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
+                    # async_bool="true",
+                    # defer="true",
+                # ),
                 dict(
                     src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
                     integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
@@ -240,11 +325,18 @@ def handle_form():
 
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
+    schedule_dict = json.load(
+        s3.get_object(Bucket=app.config["configBucket"], Key="schedule.json")["Body"]
+    )
     return render_template(
         "schedule.html",
         title="Schedule",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
+        schedule_dict=schedule_dict,
     )
 
 
@@ -254,7 +346,10 @@ def events_page():
         "placeholder.html",
         title="Page to be Created",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
     )
 
 
@@ -264,9 +359,12 @@ def info_page():
         "information.html",
         title="Information",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/information_booklet.pdf',
-        icross_img_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/icross_info.png',
+        additional_imgs=[],
     )
 
 
@@ -280,7 +378,10 @@ def coaches_page():
         "coaches.html",
         title="Coaches",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
         coaches_dict=json.loads(coaches_json),
         additional_stylesheets=[
             dict(
@@ -348,7 +449,10 @@ def competitors_page():
         "competitors.html",
         title="Competitors",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
         competitor_dict=json.loads(competitor_json),
         additional_stylesheets=[
             dict(
@@ -408,11 +512,23 @@ def competitors_page():
 
 @app.route("/success", methods=["GET"])
 def success_page():
+    ### Code to have 'convenience fee' transfered to separate acct ###
+    # session = stripe.checkout.Session.retrieve(request.args.get('session_id'))
+    # paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
+    # stripe.Transfer.create(
+    #     amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+    #     currency="usd",
+    #     source_transaction=paymentIntent.latest_charge,
+    #     destination='acct_1PYYvBGhUvudnYnE'
+    # )
     return render_template(
         "success.html",
         title="Registration Submitted",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
         email=os.getenv("CONTACT_EMAIL"),
     )
 
@@ -424,7 +540,10 @@ def error_page():
         "registration_error.html",
         title="Registration Error",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png',
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
         email=os.getenv("CONTACT_EMAIL"),
         reg_type=reg_type,
     )

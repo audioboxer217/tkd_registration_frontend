@@ -26,26 +26,26 @@
     <div class="row justify-content-md-center">
       <div class="col-sm-3">
         <div class="row g-1 mb-1">
-          <a class="btn btn-danger" href="/register?reg_type=competitor" role="button">Competitor Registration</a>
+          <a class="btn {{ button_style }}" href="/register?reg_type=competitor" role="button">Competitor Registration</a>
         </div>
         <div class="row g-1 mb-1">
-          <a class="btn btn-danger" href="/register?reg_type=coach" role="button">Coach Registration</a>
+          <a class="btn {{ button_style }}" href="/register?reg_type=coach" role="button">Coach Registration</a>
         </div>
       </div>
       <div class="col-sm-3">
         <div class="row g-1 mb-1">
-          <a class="btn btn-danger" href="/schedule" role="button">Schedule of Events</a>
+          <a class="btn {{ button_style }}" href="/schedule" role="button">Schedule of Events</a>
         </div>
         <!-- <div class="row g-1 mb-1">
-          <a class="btn btn-danger" href="/competitors" role="button">Events & Divisions</a>
+          <a class="btn {{ button_style }}" href="/competitors" role="button">Events & Divisions</a>
         </div> -->
       </div>
       <div class="col-sm-3">
         <div class="row g-1 mb-1">
-          <a class="btn btn-danger" href="/information" role="button">Information</a>
+          <a class="btn {{ button_style }}" href="/information" role="button">Information</a>
         </div>
         <div class="row g-1 mb-1">
-          <a class="btn btn-danger" href="https://www.visittulsa.com" role="button" target="_blank">Things to do in Tulsa</a>
+          <a class="btn {{ button_style }}" href="{{ visitor_info_url }}" role="button" target="_blank">{{ visitor_info_text }}</a>
         </div>
       </div>
     </div>

@@ -60,7 +60,7 @@ function updateFields() {
     document.getElementById("inputAge").required = true;
     document.getElementById("genderMale").required = true;
     document.getElementById("genderFemale").required = true;
-    document.getElementById("weightKgs").required = true;
+    document.getElementById("weight").required = true;
 
     document.getElementById("profile").hidden = false;
     document.getElementById("profilePic").required = true;
@@ -86,7 +86,7 @@ function updateFields() {
     document.getElementById("inputAge").required = false;
     document.getElementById("genderMale").required = false;
     document.getElementById("genderFemale").required = false;
-    document.getElementById("weightKgs").required = false;
+    document.getElementById("weight").required = false;
 
     document.getElementById("profile").hidden = true;
     document.getElementById("profilePic").required = false;
@@ -121,65 +121,166 @@ function formatPhoneNumber(input) {
 
   document.getElementById("inputPhone").value = phoneNumFormatted;
 }
-function updateCostDetails() {
+function updateEventOptions() {
   const today = new Date()
   const early_reg_date = window.okgp.early_reg_date
-  const blackBelt = "The first event for Black Belts is $" + window.okgp.price_dict.black_belt + " and each additional event is $" + window.okgp.price_dict.addl_event
-  const colorBelt = "The first event for Color Belts is $" + window.okgp.price_dict.color_belt + "  and each additional event is $" + window.okgp.price_dict.addl_event
+  const little_tiger_msg = "Little Tiger Showcase Registration is $" + window.okgp.price_dict.little_tiger
+  const competitive_msg = "The first event is $" + window.okgp.price_dict.registration + "  and each additional event is $" + window.okgp.price_dict.addl_event
   var early_reg_warn = ""
 
   if (today < early_reg_date) {
     var early_reg_date_pretty = early_reg_date.toLocaleDateString('en-us', { month:"long", day:"numeric"}) 
-    var early_reg_warn = "<br>After " + early_reg_date_pretty + ", prices increase $" + window.okgp.late_reg_increase
+    var early_reg_warn = "<br>Register before " + early_reg_date_pretty + " to get a $" + window.okgp.price_dict.coupon + " discount on registration."
   }
 
-  if (document.getElementById('blackBelt').checked) {
-    document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn;
-    document.getElementById("sparring").hidden = true;
-    document.getElementById("sparring-gr").hidden = false;
-    document.getElementById("sparring-wc").hidden = false;
+  if (
+    document.getElementById("inputAge").value == '' || 
+    document.getElementById("inputAge").value < 4
+  ) {
+    document.getElementById("beltSection").hidden = true;
+    document.getElementById("eventSection").hidden = true;
   }
   else {
-    document.getElementById("costDetail").innerHTML = colorBelt + early_reg_warn
-    document.getElementById("sparring").hidden = false;
-    document.getElementById("sparring-gr").hidden = true;
-    document.getElementById("sparring-wc").hidden = true;
+    document.getElementById("beltSection").hidden = false;
+    document.getElementById("eventSection").hidden = false;
+    document.getElementById("little_tiger").disabled = true;
+    document.getElementById("competitive").disabled = true;
+
+    if (document.getElementById("inputAge").value <= 7) {
+      document.getElementById("little_tiger").disabled = false;
+      document.getElementById("competitive").disabled = false;
+    }
+    else {
+      document.getElementById("little_tiger").disabled = true;
+      document.getElementById("competitive").checked = true;
+      document.getElementById("competitive").disabled = false;
+    }
+
+    eventType = document.querySelectorAll('input[name="eventType"]:checked')[0].id
+    if (eventType == "little_tiger") {
+      document.getElementById("costDetail").innerHTML = little_tiger_msg + early_reg_warn;
+      document.getElementById("competitiveEventsSection").hidden = true;
+      updateTotal(eventType)
+    }
+    else if (eventType == "competitive") {
+      document.getElementById("costDetail").innerHTML = competitive_msg + early_reg_warn;
+      document.getElementById("competitiveEventsSection").hidden = false;
+    
+      if (document.getElementById('blackBelt').checked) {
+        document.getElementById("sparringInput").hidden = true;
+        document.getElementById("sparring").checked = false;
+        document.getElementById("sparring-grInput").hidden = false;
+        document.getElementById("sparring-wcInput").hidden = false;
+        document.getElementById("blackBeltDanSection").hidden = false;
+        document.getElementById("blackBeltDan").required = true;
+      }
+      else {
+        document.getElementById("sparringInput").hidden = false;
+        document.getElementById("sparring-grInput").hidden = true;
+        document.getElementById("sparring-gr").checked = false;
+        document.getElementById("sparring-wcInput").hidden = true;
+        document.getElementById("sparring-wc").checked = false;
+        document.getElementById("blackBeltDanSection").hidden = true;
+        document.getElementById("blackBeltDan").required = false;
+      }
+    }
   }
+
   document.getElementById("costDetail").classList = "bg-secondary text-white"
-  updateTotal()
+  updateTotal(eventType)
 }
-function updateEventList() {
+function updateEventList(clickedEvent) {
   var eventList = []
+
+  if (clickedEvent == 'sparring-wc') {
+    document.getElementById("sparring-gr").checked = false;
+  }
+  else if (clickedEvent == 'sparring-gr') {
+    document.getElementById("sparring-wc").checked = false;
+  }
+  else if (clickedEvent.endsWith('poomsae') && clickedEvent != 'freestyle poomsae') {
+    eventElement = document.getElementById(clickedEvent)
+    choicesElement = document.getElementById(clickedEvent + " form")
+    if (eventElement.clicked == true) {
+      choicesElement.required = true;
+    }
+    else {
+      choicesElement.required = false;
+      choicesElement.value = '';
+    }
+  }
+
   var checked_items = document.querySelectorAll('input[name="events"]:checked')
   for (i = 0; i < checked_items.length; i++) {
     eventList.push(checked_items[i].id)
   }
   document.getElementById("eventList").value = eventList.join()
   updateTotal()
+  getPoomsaeForms("poomsae")
+  getPoomsaeForms("pair poomsae")
+  getPoomsaeForms("team poomsae")
+  getPoomsaeForms("family poomsae")
 }
-function updateTotal() {
-  regChoice = document.querySelectorAll('input[name="regChoice"]:checked')[0].id
+function updateMedicalConditionsList() {
+  var conditionList = []
+
+  var checked_items = document.querySelectorAll('input[name="medicalConditions"]:checked')
+  for (i = 0; i < checked_items.length; i++) {
+    conditionList.push(checked_items[i].id)
+  }
+  document.getElementById("medicalConditionsList").value = conditionList.join()
+}
+function updateTotal(eventType="competitive") {
+  const today = new Date()
+  const early_reg_date = window.okgp.early_reg_date
+
+  var regChoice = document.querySelectorAll('input[name="regChoice"]:checked')[0].id
   if (regChoice == "competitor") {
-    if (
-      document.querySelectorAll('input[name="beltRank"]:checked').length > 0 &&
-      document.querySelectorAll('input[name="events"]:checked').length > 0
-    ) {
-      if (document.getElementById('blackBelt').checked) {
+    if (eventType == "competitive") {
+      if (
+        document.querySelectorAll('input[name="beltRank"]:checked').length > 0 &&
+        document.querySelectorAll('input[name="events"]:checked').length > 0
+      ) {
+        var eventCount = document.querySelectorAll('input[name="events"]:checked').length - 1
         var eventPrice = parseInt(window.okgp.price_dict.addl_event)
-        var total = parseInt(window.okgp.price_dict.black_belt)
+        var total = parseInt(window.okgp.price_dict.registration)
+        if (document.getElementById('sparring-wc').checked) {
+          total += parseInt(window.okgp.price_dict.world_class);
+          // if (eventCount > 0){
+          //   eventCount -= 1;
+          // }
+          // else {
+          //   total -= eventPrice
+          // }
+        }
+        if (document.getElementById('breaking').checked) {
+          total += parseInt(window.okgp.price_dict.breaking);
+          // if (eventCount > 0){
+          //   eventCount -= 1;
+          // }
+          // else {
+          //   total -= eventPrice
+          // }
+        }
+        total += eventPrice * eventCount;
+        if (today < early_reg_date) {
+          total -= parseInt(window.okgp.price_dict.coupon);
+        }
+        document.getElementById("total").value = "$" + total;
       }
-      else {
-        var eventPrice = parseInt(window.okgp.price_dict.addl_event)
-        var total = parseInt(window.okgp.price_dict.color_belt)
+      else if (
+        document.querySelectorAll('input[name="beltRank"]:checked').length == 0 &&
+        document.querySelectorAll('input[name="events"]:checked').length > 0
+      ) {
+        alert("Please choose a Belt Rank to get your Total")
       }
-      total += eventPrice * (document.querySelectorAll('input[name="events"]:checked').length - 1)
-      document.getElementById("total").value = "$" + total
     }
-    else if (
-      document.querySelectorAll('input[name="beltRank"]:checked').length == 0 &&
-      document.querySelectorAll('input[name="events"]:checked').length > 0
-    ) {
-      alert("Please choose a Belt Rank to get your Total")
+    else if (eventType == "little_tiger") {
+      var total = parseInt(window.okgp.price_dict.little_tiger)
+      if (today < early_reg_date) {
+        total -= parseInt(window.okgp.price_dict.coupon);
+      }
+      document.getElementById("total").value = "$" + total
     }
     else {
       document.getElementById("total").value = ""
@@ -188,6 +289,20 @@ function updateTotal() {
   else {
     document.getElementById("total").value = "$" + window.okgp.price_dict.coach
   }
+}
+function getPoomsaeForms(fieldName) {
+  sectionName = fieldName + 'FormSection'
+  inputName = fieldName + ' form'
+  if (document.getElementById(fieldName).checked) {
+    document.getElementById(sectionName).hidden = false;
+    document.getElementById(inputName).required = true;
+  }
+  else {
+    document.getElementById(sectionName).hidden = true;
+    document.getElementById(inputName).required = false;
+  }
+
+  
 }
 function convertWeight(amount, unit) {
   if (unit == 'lbs') {
@@ -206,11 +321,11 @@ function calculateAge(dateString) {
   console.log(birthdate)
   var age = today.getFullYear() - birthdate.getFullYear()//dateString.split('/')[2]
   document.getElementById("inputAge").value = age
-  if (age <= 5) {
-    var ageClass = "Titan"
+  if (age < 4) {
+    var ageClass = ""
   }
-  else if (age > 5 && age <= 7) {
-    var ageClass = "Tiger"
+  else if (age >= 4 && age <= 7) {
+    var ageClass = "Little Tiger"
   }
   else if (age > 7 && age <= 9) {
     var ageClass = "Dragon"
@@ -237,7 +352,47 @@ function calculateAge(dateString) {
   });
   $('#datepicker').datepicker('update', formattedBirthdate);
   document.getElementById("birthdate").value = formattedBirthdate
-  document.getElementById("ageClass").innerHTML = "Age Group is <b>" + ageClass + "</b>"
+
+  if (ageClass == "") {
+    document.getElementById("ageClass").innerHTML = "<b style='color:red;'>Competitors must be at least 4 years old!</b>"
+  }
+  else {
+    document.getElementById("ageClass").innerHTML = "Age Group is <b>" + ageClass + "</b>"
+  }
+  if (age < 18) {
+    document.getElementById("inputParentName").required = true;
+    document.getElementById("parentNameSection").hidden = false;
+  }
+  else {
+    document.getElementById("inputParentName").required = false;
+    document.getElementById("inputParentName").value = '';
+    document.getElementById("parentNameSection").hidden = true;
+  }
+  updateEventOptions()
+}
+function toggleAllergyList() {
+  allergies = document.querySelectorAll('input[name="allergies"]:checked')[0].id
+  if (allergies == "allergyYes") {
+    document.getElementById("allergyListSection").hidden = false;
+    document.getElementById("allergy_list").required = true;
+  }
+  else {
+    document.getElementById("allergyListSection").hidden = true;
+    document.getElementById("allergy_list").required = false;
+    document.getElementById("allergy_list").value = '';
+  }
+}
+function toggleMedsList() {
+  allergies = document.querySelectorAll('input[name="medications"]:checked')[0].id
+  if (allergies == "medsYes") {
+    document.getElementById("medsListSection").hidden = false;
+    document.getElementById("meds_list").required = true;
+  }
+  else {
+    document.getElementById("medsListSection").hidden = true;
+    document.getElementById("meds_list").required = false;
+    document.getElementById("meds_list").value = '';
+  }
 }
 $(function () {
   $('#datepicker').datepicker();
