@@ -140,12 +140,6 @@
       <div class="row g-3">
         <p id="ageClass"></p>
       </div>
-      <div class="row mt-2" id="parentNameSection" hidden>
-        <div class="col">
-          <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
-          <input type="text" class="form-control" name="parentName" id="inputParentName" placeholder="Parent's full name" aria-label="Parent's name">
-        </div>
-      </div>
     </div>
     <div class="col-md-2">
       <label class="form-check-label h5">Gender</label>
@@ -178,6 +172,12 @@
           <input class="form-control" type="number" step="1" min="0" max="11" name="heightIn" id="heightIn" placeholder="in" {{ "required" if reg_type=='competitor' else "" }}>
         </div>
       </div>
+    </div>
+  </div>
+  <div class="row mt-2" id="parentNameSection" hidden>
+    <div class="col-md-6">
+      <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
+      <input type="text" class="form-control" name="parentName" id="inputParentName" placeholder="Parent's full name" aria-label="Parent's name">
     </div>
   </div>
   <!-- <div class="row g-3 mt-0" id="profile" {{ "" if reg_type=='competitor' else "hidden" }}>
