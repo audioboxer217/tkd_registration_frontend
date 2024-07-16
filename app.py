@@ -84,9 +84,10 @@ def handle_form():
         coach = request.form.get("coach").strip()
 
         # Check if registration already exists
+        pk_school_name = school.replace(" ", "_")
         pk_exists = dynamodb.get_item(
             TableName=app.config["table_name"],
-            Key={"pk": {"S": f"{school}-{reg_type}-{fullName}"}},
+            Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
         )
 
         if "Item" in pk_exists:
