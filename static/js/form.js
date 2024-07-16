@@ -221,6 +221,16 @@ function updateEventList(clickedEvent) {
   getPoomsaeForms("team poomsae")
   getPoomsaeForms("family poomsae")
 }
+function checkForUnlisted(school) {
+  if (school == "unlisted") {
+    document.getElementById("unlistedSchoolSection").hidden = false;
+    document.getElementById("inputUnlistedSchool").required = true;
+  }
+  else {
+    document.getElementById("unlistedSchoolSection").hidden = true;
+    document.getElementById("inputUnlistedSchool").required = false;
+  }
+}
 function updateMedicalConditionsList() {
   var conditionList = []
 

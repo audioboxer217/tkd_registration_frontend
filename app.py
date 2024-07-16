@@ -78,7 +78,9 @@ def handle_form():
         lname = request.form.get("lname").strip()
         fullName = f"{fname}_{lname}"
 
-        school = request.form.get("school").strip()
+        school = request.form.get("school")
+        if school == 'unlisted':
+            school = request.form.get("unlistedSchool").strip()
         coach = request.form.get("coach").strip()
 
         # Check if registration already exists
