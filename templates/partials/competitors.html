@@ -1,6 +1,5 @@
 <div class="col-md-12 center-block" align="center">
   <h1>Events & Divisions</h1>
-  <sub>note: this table updates once a day.</sub>
 </div>
 <div class="table-responsive">
   <table id="competitors" class="display table table-striped table-hover dt-responsive">
@@ -16,15 +15,19 @@
       </tr>
     </thead>
     <tbody>
-      {% for c in competitor_dict %}
+      {% for e in entries %}
       <tr>
-          <td>{{ c.name }}</td>
-          <td>{{ c.gender }}</td>
-          <td>{{ c.belt }}</td>
-          <td>{{ c.age }}</td>
-          <td>{{ c.weight_class }}</td>
-          <td>{{ c.school }}</td>
-          <td>{{ c.events | replace(",", ", ") }}</td>
+          <td>{{ e.full_name.S }}</td>
+          <td>{{ e.gender.S }}</td>
+          {% if 'black' in e.beltRank.S %}
+          <td>black</td>
+          {% else %}
+          <td>{{ e.beltRank.S }}</td>
+          {% endif %}
+          <td>{{ e.age.N }}</td>
+          <td>{{ e.weight_class }}</td>
+          <td>{{ e.school.S }}</td>
+          <td>{{ e.events.S | replace(",", ", ") }}</td>
       </tr>
       {% endfor %}
     </tbody>

@@ -370,10 +370,15 @@ def info_page():
 
 @app.route("/coaches", methods=["GET"])
 def coaches_page():
-    coaches_json = s3.get_object(
-        Bucket=app.config["configBucket"],
-        Key="coaches.json",
-    )["Body"].read()
+    entries = dynamodb.scan(
+            TableName=app.config["table_name"],
+            FilterExpression="reg_type = :type",
+            ExpressionAttributeValues={
+            ":type": {
+                "S": "coach",
+            },
+        },
+        )['Items']
     return render_template(
         "coaches.html",
         title="Coaches",
@@ -382,7 +387,7 @@ def coaches_page():
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
         button_style=button_style,
-        coaches_dict=json.loads(coaches_json),
+        entries=entries,
         additional_stylesheets=[
             dict(
                 href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css",
@@ -439,12 +444,56 @@ def coaches_page():
     )
 
 
+def get_age_group(entry):
+    age_groups = {
+        "dragon": [5, 6, 7],
+        "tiger": [8, 9],
+        "youth": [10, 11],
+        "cadet": [12, 13, 14],
+        "junior": [15, 16],
+        "senior": list(range(17, 33)),
+        "ultra": list(range(33, 100)),
+    }
+
+    age_group = next(
+        (group for group, ages in age_groups.items() if int(entry["age"]["N"]) in ages)
+    )
+
+    return age_group
+
+
+def set_weight_class(entries):
+    s3 = boto3.client("s3")
+    weight_classes = json.load(
+            s3.get_object(Bucket=app.config["configBucket"], Key="weight_classes.json")["Body"]
+        )
+    updated_entries = []
+    for entry in entries:
+        age_group = get_age_group(entry)
+        weight_class_ranges = weight_classes[age_group][entry["gender"]["S"]]
+        entry["weight_class"] = next(
+            weight_class
+            for weight_class, weights in weight_class_ranges.items()
+            if float(entry["weight"]["N"]) >= float(weights[0])
+            and float(entry["weight"]["N"]) < float(weights[1])
+        )
+        updated_entries.append(entry)
+
+    return updated_entries
+
+
 @app.route("/competitors", methods=["GET"])
 def competitors_page():
-    competitor_json = s3.get_object(
-        Bucket=app.config["configBucket"],
-        Key="entries.json",
-    )["Body"].read()
+    entries = dynamodb.scan(
+            TableName=app.config["table_name"],
+            FilterExpression="reg_type = :type",
+            ExpressionAttributeValues={
+            ":type": {
+                "S": "competitor",
+            },
+        },
+        )['Items']
+    entries = set_weight_class(entries)
     return render_template(
         "competitors.html",
         title="Competitors",
@@ -453,7 +502,7 @@ def competitors_page():
         visitor_info_url=visitor_info_url,
         visitor_info_text=visitor_info_text,
         button_style=button_style,
-        competitor_dict=json.loads(competitor_json),
+        entries=entries,
         additional_stylesheets=[
             dict(
                 href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css",
