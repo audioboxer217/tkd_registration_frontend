@@ -297,6 +297,8 @@ def handle_form():
             price_dict=price_dict,
             reg_type=reg_type,
             schools=school_list,
+            enable_badges=os.getenv("ENABLE_BADGES", False),
+            enable_address=os.getenv("ENABLE_ADDRESS", False),
             additional_stylesheets=[
                 dict(
                     href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",

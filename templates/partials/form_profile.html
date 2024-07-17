@@ -1,0 +1,14 @@
+  <div class="row g-3 mt-0" id="profile" {{ "" if reg_type=='competitor' else "hidden" }}>
+    <div class="col-md-6">
+      <label class="form-check-label h5" for="profilePic">Profile Photo</label>
+      <input type="file" class="form-control" name="profilePic" id="profilePic" accept="image/png, image/jpeg" onchange="upload_img(this.files)" {{ "required" if reg_type=='competitor' else "" }}>
+      <p>
+        A photo is required to create a badge id. <br>
+        Please make sure photo is croped showing only an above the shoulder picture. <br>
+        You can use <a href="https://www.simpleimageresizer.com/resize-image-to-2-mb" target="_blank">this image resizer site</a> if you need to compress your image.
+      </p>
+    </div>
+    <div class="col-md-6">
+      <img id="profileImg">
+    </div>
+  </div>
