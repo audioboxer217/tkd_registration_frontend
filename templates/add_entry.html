@@ -1,0 +1,36 @@
+{% extends "base.html" -%}
+{% block content -%}
+  <div class="row justify-content-md-center">
+    <div class="col-md-12 center-block" align="center">
+      <h1>Add {{ reg_type|capitalize }} Registration</h1>
+    </div>
+  </div>
+  <form action="/add_entry?reg_type={{ reg_type }}" method="post" enctype=multipart/form-data id="eventRegistration">
+    {% include "partials/form_common.html" %}
+    {% if reg_type == 'competitor' %}
+      {% if enable_address %}
+        {% include "partials/form_address.html" %}
+      {% endif %}
+      {% include "partials/form_class.html" %}
+      {% include "partials/form_parent.html" %}
+      {% if enable_badges %}
+        {% include "partials/form_profile.html" %}
+      {% endif %}
+    {% endif %}
+    {% include "partials/form_school.html" %}
+    {% if reg_type == 'competitor' %}
+      {% include "partials/form_belt.html" %}
+      {% include "partials/form_events.html" %}
+      {% include "partials/form_medical_manual.html" %}
+    {% endif %}
+    <div hidden>
+      {% include "partials/form_total.html" %}
+    </div>
+    <div class="row g-3 mt-2">
+      <div class="col-sm-2">
+        <button type="submit" class="btn {{ button_style }}">Register</button>
+      </div>
+    </div>
+  </form>
+  {% include "partials/script_okc_prices.html" %}
+{%- endblock content %}

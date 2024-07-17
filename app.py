@@ -773,5 +773,185 @@ def edit_entry_page():
         )
 
 
+@app.route("/add_entry", methods=["GET", "POST"])
+def add_entry():
+    if request.method == "POST":
+        reg_type = request.form.get("regType")
+
+        # Name
+        fname = request.form.get("fname").strip()
+        lname = request.form.get("lname").strip()
+        fullName = f"{fname}_{lname}"
+
+        school = request.form.get("school")
+        coach = request.form.get("coach").strip()
+
+        # Check if registration already exists
+        if not os.getenv("FLASK_DEBUG"):
+            pk_school_name = school.replace(" ", "_")
+            pk_exists = dynamodb.get_item(
+                TableName=app.config["table_name"],
+                Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
+            )
+
+            if "Item" in pk_exists:
+                print("registration exists")
+                return redirect(
+                    f'{app.config["URL"]}/registration_error?reg_type={reg_type}'
+                )
+
+        # Base Form Data
+        form_data = dict(
+            full_name={"S": f"{fname} {lname}"},
+            email={"S": request.form.get("email")},
+            phone={"S": request.form.get("phone")},
+            school={"S": school},
+            reg_type={"S": request.form.get("regType")},
+        )
+
+        # Add Competitor Form Data
+        if reg_type == "competitor":
+            height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
+            belt = request.form.get("beltRank")
+            if belt == 'black':
+                dan = request.form.get("blackBeltDan")
+                if dan == '4':
+                    belt = "Master"
+                else:
+                    belt = f"{dan} degree {belt}"
+            if request.form.get("eventType") == 'little_tiger':
+                eventList = "Little Tiger Showcase"
+            else:
+                eventList = request.form.get("eventList")
+                if eventList == "":
+                    msg = "You must choose at least one event"
+                    abort(400, msg)
+
+            medical_form = dict(
+                contacts=request.form.get("contacts"),
+                medicalConditions=request.form.get("medicalConditionsList").split(','),
+            )
+            if request.form.get("allergies") == "Y":
+                medical_form['allergies'] = request.form.get("allergy_list").split("\r\n")
+            else:
+                medical_form['allergies'] = "None"
+            if request.form.get("medications") == "Y":
+                medical_form['medications'] = request.form.get("meds_list").split("\r\n")
+            else:
+                medical_form['medications'] = "None"
+            form_data.update(
+                dict(
+                    parent={"S": request.form.get("parentName")},
+                    birthdate={"S": request.form.get("birthdate")},
+                    age={"N": request.form.get("age")},
+                    gender={"S": request.form.get("gender")},
+                    weight={"N": request.form.get("weight")},
+                    height={"N": str(height)},
+                    coach={"S": coach},
+                    beltRank={"S": belt},
+                    events={"S": eventList},
+                    poomsae_form={"S": request.form.get("poomsae form")},
+                    pair_poomsae_form={"S": request.form.get("pair poomsae form")},
+                    team_poomsae_form={"S": request.form.get("team poomsae form")},
+                    family_poomsae_form={"S": request.form.get("family poomsae form")},
+                    medical_form={"S": json.dumps(medical_form)}
+                )
+            )
+            if badges_enabled:
+                profileImg = request.files["profilePic"]
+                imageExt = os.path.splitext(profileImg.filename)[1]
+                if profileImg.content_type == "" or imageExt == "":
+                    msg = "There was an error uploading your profile pic. Please go back and try again."
+                    abort(400, msg)
+
+                form_data.update(dict(imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"}))
+
+                s3.upload_fileobj(
+                    profileImg,
+                    app.config["profilePicBucket"],
+                    form_data["imgFilename"]["S"],
+                )
+
+        if os.getenv("FLASK_DEBUG"):
+            ## For Testing Form Data
+            return render_template(
+                "success.html",
+                title="Registration Submitted",
+                competition_name=os.getenv("COMPETITION_NAME"),
+                favicon_url=favicon_url,
+                visitor_info_url=visitor_info_url,
+                visitor_info_text=visitor_info_text,
+                button_style=button_style,
+                email=os.getenv("CONTACT_EMAIL"),
+                reg_detail=form_data,
+            )
+        else:
+            form_data.update(dict(checkout={"S": "manual_entry"}))
+            sqs.send_message(
+                QueueUrl=app.config["SQS_QUEUE_URL"],
+                DelaySeconds=120,
+                MessageAttributes={
+                    "Name": {"DataType": "String", "StringValue": fullName},
+                    "Transaction": {
+                        "DataType": "String",
+                        "StringValue": "manual_entry",
+                    },
+                },
+                MessageBody=json.dumps(form_data),
+            )
+
+            return redirect(f'{app.config["URL"]}/success', code=303)
+
+    else:
+        reg_type = request.args.get("reg_type")
+        school_list = json.load(
+            s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]
+        )
+        # Display the form
+        return render_template(
+            "add_entry.html",
+            title="Registration",
+            favicon_url=favicon_url,
+            visitor_info_url=visitor_info_url,
+            visitor_info_text=visitor_info_text,
+            button_style=button_style,
+            competition_name=os.getenv("COMPETITION_NAME"),
+            competition_year=os.getenv("COMPETITION_YEAR"),
+            early_reg_date=os.getenv("EARLY_REG_DATE"),
+            early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
+            price_dict=price_dict,
+            reg_type=reg_type,
+            schools=school_list,
+            enable_badges=badges_enabled,
+            enable_address=address_enabled,
+            additional_stylesheets=[
+                dict(
+                    href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",
+                    integrity="sha384-5IbgsdqrjF6rAX1mxBZkKRyUOgEr0/xCGkteJIaRKpvW0Ag0tf6lru4oL2ZhcMvo",
+                )
+            ],
+            additional_scripts=[
+                dict(
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
+                    async_bool="true",
+                    defer="true",
+                ),
+                dict(
+                    src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
+                    integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
+                ),
+                dict(
+                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
+                    integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
+                ),
+                dict(
+                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js",
+                    integrity="sha384-duAtk5RV7s42V6Zuw+tRBFcqD8RjRKw6RFnxmxIj1lUGAQJyum/vtcUQX8lqKQjp",
+                ),
+                dict(src=url_for("static", filename="js/form.js")),
+            ],
+        )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0")
