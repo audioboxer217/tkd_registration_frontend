@@ -14,7 +14,7 @@ app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["table_name"] = os.getenv("DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
-# maps_api_key = os.getenv("MAPS_API_KEY")
+maps_api_key = os.getenv("MAPS_API_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
@@ -25,6 +25,8 @@ favicon_url = (
 visitor_info_url = os.getenv("VISITOR_INFO_URL")
 visitor_info_text = os.getenv("VISITOR_INFO_TEXT")
 button_style = os.getenv("BUTTON_STYLE", "btn-primary")
+badges_enabled = os.getenv("ENABLE_BADGES", False)
+address_enabled = os.getenv("ENABLE_ADDRESS", False)
 
 # Price Details
 price_dict = {}
@@ -84,17 +86,18 @@ def handle_form():
         coach = request.form.get("coach").strip()
 
         # Check if registration already exists
-        pk_school_name = school.replace(" ", "_")
-        pk_exists = dynamodb.get_item(
-            TableName=app.config["table_name"],
-            Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
-        )
-
-        if "Item" in pk_exists:
-            print("registration exists")
-            return redirect(
-                f'{app.config["URL"]}/registration_error?reg_type={reg_type}'
+        if not os.getenv("FLASK_DEBUG"):
+            pk_school_name = school.replace(" ", "_")
+            pk_exists = dynamodb.get_item(
+                TableName=app.config["table_name"],
+                Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
             )
+
+            if "Item" in pk_exists:
+                print("registration exists")
+                return redirect(
+                    f'{app.config["URL"]}/registration_error?reg_type={reg_type}'
+                )
 
         # Base Form Data
         form_data = dict(
@@ -110,12 +113,6 @@ def handle_form():
             if request.form.get("liability") != "on":
                 msg = "Please go back and accept the Liability Waiver Conditions"
                 abort(400, msg)
-
-            # profileImg = request.files["profilePic"]
-            # imageExt = os.path.splitext(profileImg.filename)[1]
-            # if profileImg.content_type == "" or imageExt == "":
-            #     msg = "There was an error uploading your profile pic. Please go back and try again."
-            #     abort(400, msg)
 
             height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
             belt = request.form.get("beltRank")
@@ -165,7 +162,6 @@ def handle_form():
                     gender={"S": request.form.get("gender")},
                     weight={"N": request.form.get("weight")},
                     height={"N": str(height)},
-                    # imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"},
                     coach={"S": coach},
                     beltRank={"S": belt},
                     events={"S": eventList},
@@ -176,12 +172,20 @@ def handle_form():
                     medical_form={"S": json.dumps(medical_form)}
                 )
             )
+            if badges_enabled:
+                profileImg = request.files["profilePic"]
+                imageExt = os.path.splitext(profileImg.filename)[1]
+                if profileImg.content_type == "" or imageExt == "":
+                    msg = "There was an error uploading your profile pic. Please go back and try again."
+                    abort(400, msg)
 
-            # s3.upload_fileobj(
-            #     profileImg,
-            #     app.config["profilePicBucket"],
-            #     form_data["imgFilename"]["S"],
-            # )
+                form_data.update(dict(imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"}))
+
+                s3.upload_fileobj(
+                    profileImg,
+                    app.config["profilePicBucket"],
+                    form_data["imgFilename"]["S"],
+                )
 
             num_add_event = len(form_data["events"]["S"].split(",")) - 1
             if num_add_event > 0:
@@ -220,62 +224,63 @@ def handle_form():
                 }
             ]
 
-        try:
-            early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), '%B %d, %Y') + timedelta(days=1)
-            current_time = datetime.now()
-            checkout_timeout = current_time + timedelta(minutes=30)
-            checkout_details = {
-                "line_items": registration_items,
-                "mode": "payment",
-                "discounts": [],
-                "success_url": f'{app.config["URL"]}/success',
-                ### Code to have 'convenience fee' transfered to separate acct ###
-                # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
-                "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
-                "expires_at": int(checkout_timeout.timestamp()),
-            }
-            if reg_type == "competitor" and current_time < early_reg_date:
-                checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
-            checkout_session = stripe.checkout.Session.create(
-                line_items=checkout_details['line_items'],
-                mode=checkout_details['mode'],
-                discounts=checkout_details['discounts'],
-                success_url=checkout_details['success_url'],
-                cancel_url=checkout_details['cancel_url'],
-                expires_at=checkout_details['expires_at'],
+        if os.getenv("FLASK_DEBUG"):
+            ## For Testing Form Data
+            return render_template(
+                "success.html",
+                title="Registration Submitted",
+                competition_name=os.getenv("COMPETITION_NAME"),
+                favicon_url=favicon_url,
+                visitor_info_url=visitor_info_url,
+                visitor_info_text=visitor_info_text,
+                button_style=button_style,
+                email=os.getenv("CONTACT_EMAIL"),
+                reg_detail=form_data,
+                cost_detail=registration_items
             )
-        except Exception as e:
-            return str(e)
+        else:
+            try:
+                early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), '%B %d, %Y') + timedelta(days=1)
+                current_time = datetime.now()
+                checkout_timeout = current_time + timedelta(minutes=30)
+                checkout_details = {
+                    "line_items": registration_items,
+                    "mode": "payment",
+                    "discounts": [],
+                    "success_url": f'{app.config["URL"]}/success',
+                    ### Code to have 'convenience fee' transfered to separate acct ###
+                    # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
+                    "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
+                    "expires_at": int(checkout_timeout.timestamp()),
+                }
+                if reg_type == "competitor" and current_time < early_reg_date:
+                    checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
+                checkout_session = stripe.checkout.Session.create(
+                    line_items=checkout_details['line_items'],
+                    mode=checkout_details['mode'],
+                    discounts=checkout_details['discounts'],
+                    success_url=checkout_details['success_url'],
+                    cancel_url=checkout_details['cancel_url'],
+                    expires_at=checkout_details['expires_at'],
+                )
+            except Exception as e:
+                return str(e)
 
-        form_data.update(dict(checkout={"S": checkout_session.id}))
-        sqs.send_message(
-            QueueUrl=app.config["SQS_QUEUE_URL"],
-            DelaySeconds=120,
-            MessageAttributes={
-                "Name": {"DataType": "String", "StringValue": fullName},
-                "Transaction": {
-                    "DataType": "String",
-                    "StringValue": checkout_session.id,
+            form_data.update(dict(checkout={"S": checkout_session.id}))
+            sqs.send_message(
+                QueueUrl=app.config["SQS_QUEUE_URL"],
+                DelaySeconds=120,
+                MessageAttributes={
+                    "Name": {"DataType": "String", "StringValue": fullName},
+                    "Transaction": {
+                        "DataType": "String",
+                        "StringValue": checkout_session.id,
+                    },
                 },
-            },
-            MessageBody=json.dumps(form_data),
-        )
+                MessageBody=json.dumps(form_data),
+            )
 
-        return redirect(checkout_session.url, code=303)
-
-        ## For Testing Form Data
-        # return render_template(
-        #     "success.html",
-        #     title="Registration Submitted",
-        #     competition_name=os.getenv("COMPETITION_NAME"),
-        #     favicon_url=favicon_url,
-        #     visitor_info_url=visitor_info_url,
-        #     visitor_info_text=visitor_info_text,
-        #     button_style=button_style,
-        #     email=os.getenv("CONTACT_EMAIL"),
-        #     reg_detail = form_data,
-        #     cost_detail = registration_items
-        # )
+            return redirect(checkout_session.url, code=303)
 
     else:
         reg_type = request.args.get("reg_type")
@@ -297,8 +302,8 @@ def handle_form():
             price_dict=price_dict,
             reg_type=reg_type,
             schools=school_list,
-            enable_badges=os.getenv("ENABLE_BADGES", False),
-            enable_address=os.getenv("ENABLE_ADDRESS", False),
+            enable_badges=badges_enabled,
+            enable_address=address_enabled,
             additional_stylesheets=[
                 dict(
                     href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",
@@ -306,11 +311,11 @@ def handle_form():
                 )
             ],
             additional_scripts=[
-                # dict(
-                    # src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
-                    # async_bool="true",
-                    # defer="true",
-                # ),
+                dict(
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
+                    async_bool="true",
+                    defer="true",
+                ),
                 dict(
                     src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
                     integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
