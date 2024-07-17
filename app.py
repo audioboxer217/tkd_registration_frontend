@@ -36,6 +36,7 @@ for p in products:
     }
 early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
 
+
 @app.route("/")
 def index_page():
     return render_template(
@@ -56,8 +57,7 @@ def index_page():
 @app.route("/register", methods=["GET", "POST"])
 def handle_form():
     if (
-        date.today()
-        > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date()
+        date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date()
     ):
         return render_template(
             "disabled.html",
@@ -71,7 +71,6 @@ def handle_form():
         )
     if request.method == "POST":
         reg_type = request.form.get("regType")
-        school = request.form.get("school").strip().replace(" ", "-")
 
         # Name
         fname = request.form.get("fname").strip()
@@ -116,7 +115,6 @@ def handle_form():
             # if profileImg.content_type == "" or imageExt == "":
             #     msg = "There was an error uploading your profile pic. Please go back and try again."
             #     abort(400, msg)
-
 
             height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
             belt = request.form.get("beltRank")
@@ -222,7 +220,7 @@ def handle_form():
             ]
 
         try:
-            early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), '%B %d, %Y')+timedelta(days=1)
+            early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), '%B %d, %Y') + timedelta(days=1)
             current_time = datetime.now()
             checkout_timeout = current_time + timedelta(minutes=30)
             checkout_details = {
@@ -230,7 +228,8 @@ def handle_form():
                 "mode": "payment",
                 "discounts": [],
                 "success_url": f'{app.config["URL"]}/success',
-                # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}', ### Code to have 'convenience fee' transfered to separate acct ###
+                ### Code to have 'convenience fee' transfered to separate acct ###
+                # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
                 "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
                 "expires_at": int(checkout_timeout.timestamp()),
             }
@@ -262,7 +261,7 @@ def handle_form():
         )
 
         return redirect(checkout_session.url, code=303)
-    
+
         ## For Testing Form Data
         # return render_template(
         #     "success.html",
@@ -374,14 +373,14 @@ def info_page():
 @app.route("/coaches", methods=["GET"])
 def coaches_page():
     entries = dynamodb.scan(
-            TableName=app.config["table_name"],
-            FilterExpression="reg_type = :type",
-            ExpressionAttributeValues={
+        TableName=app.config["table_name"],
+        FilterExpression="reg_type = :type",
+        ExpressionAttributeValues={
             ":type": {
                 "S": "coach",
             },
         },
-        )['Items']
+    )['Items']
     return render_template(
         "coaches.html",
         title="Coaches",
@@ -468,8 +467,8 @@ def get_age_group(entry):
 def set_weight_class(entries):
     s3 = boto3.client("s3")
     weight_classes = json.load(
-            s3.get_object(Bucket=app.config["configBucket"], Key="weight_classes.json")["Body"]
-        )
+        s3.get_object(Bucket=app.config["configBucket"], Key="weight_classes.json")["Body"]
+    )
     updated_entries = []
     for entry in entries:
         age_group = get_age_group(entry)
@@ -477,8 +476,7 @@ def set_weight_class(entries):
         entry["weight_class"] = next(
             weight_class
             for weight_class, weights in weight_class_ranges.items()
-            if float(entry["weight"]["N"]) >= float(weights[0])
-            and float(entry["weight"]["N"]) < float(weights[1])
+            if float(entry["weight"]["N"]) >= float(weights[0]) and float(entry["weight"]["N"]) < float(weights[1])
         )
         updated_entries.append(entry)
 
@@ -488,14 +486,14 @@ def set_weight_class(entries):
 @app.route("/competitors", methods=["GET"])
 def competitors_page():
     entries = dynamodb.scan(
-            TableName=app.config["table_name"],
-            FilterExpression="reg_type = :type",
-            ExpressionAttributeValues={
+        TableName=app.config["table_name"],
+        FilterExpression="reg_type = :type",
+        ExpressionAttributeValues={
             ":type": {
                 "S": "competitor",
             },
         },
-        )['Items']
+    )['Items']
     entries = set_weight_class(entries)
     return render_template(
         "competitors.html",
