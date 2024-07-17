@@ -167,19 +167,19 @@ function updateEventOptions() {
       document.getElementById("competitiveEventsSection").hidden = false;
     
       if (document.getElementById('blackBelt').checked) {
-        document.getElementById("sparringInput").hidden = true;
-        document.getElementById("sparring").checked = false;
-        document.getElementById("sparring-grInput").hidden = false;
-        document.getElementById("sparring-wcInput").hidden = false;
+        // document.getElementById("sparringInput").hidden = true;
+        // document.getElementById("sparring").checked = false;
+        // document.getElementById("sparring-grInput").hidden = false;
+        // document.getElementById("sparring-wcInput").hidden = false;
         document.getElementById("blackBeltDanSection").hidden = false;
         document.getElementById("blackBeltDan").required = true;
       }
       else {
-        document.getElementById("sparringInput").hidden = false;
-        document.getElementById("sparring-grInput").hidden = true;
-        document.getElementById("sparring-gr").checked = false;
-        document.getElementById("sparring-wcInput").hidden = true;
-        document.getElementById("sparring-wc").checked = false;
+        // document.getElementById("sparringInput").hidden = false;
+        // document.getElementById("sparring-grInput").hidden = true;
+        // document.getElementById("sparring-gr").checked = false;
+        // document.getElementById("sparring-wcInput").hidden = true;
+        // document.getElementById("sparring-wc").checked = false;
         document.getElementById("blackBeltDanSection").hidden = true;
         document.getElementById("blackBeltDan").required = false;
       }
