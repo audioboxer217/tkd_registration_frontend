@@ -50,6 +50,17 @@
       </div>
     </div>
     <hr/>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+        <div class="row justify-content-md-center flashes">
+          <div class="col-md-12 center-block" align="center">
+            <h3 class="{{ category }}">{{ message }}</h3>
+          </div>
+        </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
     {% block content %}{% endblock content %}
   </div>
 </body>

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, request, abort, url_for
+from flask import Flask, flash, render_template, redirect, request, abort, url_for
 from datetime import datetime, timedelta, date
 import boto3
 import json
@@ -6,6 +6,7 @@ import os
 import stripe
 
 app = Flask(__name__)
+app.secret_key = os.urandom(12)
 app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
 app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
 app.config["mediaBucket"] = os.getenv("PUBLIC_MEDIA_BUCKET")
@@ -597,6 +598,172 @@ def error_page():
         email=os.getenv("CONTACT_EMAIL"),
         reg_type=reg_type,
     )
+
+
+@app.route("/admin")
+def admin_page():
+    entries = dynamodb.scan(
+        TableName=app.config["table_name"],
+    )['Items']
+    return render_template(
+        "admin.html",
+        title="Administration",
+        competition_name=os.getenv("COMPETITION_NAME"),
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
+        entries=entries,
+        additional_stylesheets=[
+            dict(
+                href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css",
+                integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM",
+            ),
+            dict(
+                href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css",
+                integrity="sha384-ok3J6xA9oQqai5C9ytYveFsBeKgoGk4T+NExsr6hoIKjZdv9SJcmx2mafwUWRNf9",
+            ),
+            dict(
+                href="https://cdn.datatables.net/searchpanes/2.2.0/css/searchPanes.bootstrap5.min.css",
+                integrity="sha384-sSvv6aRPZo6vPaGdGfO1YzjvkZXlAUTygB+HHYd8C6DPz0BYxpd/K+iPavXPNy1u",
+            ),
+            dict(
+                href="https://cdn.datatables.net/select/1.7.0/css/select.bootstrap5.min.css",
+                integrity="sha384-BQuA/IRHdZd4G0fkajPKOBOE6lIuKmN2G95L52+ULcI1T/NGKY+gWsB/qDn6xxv7",
+            ),
+        ],
+        additional_scripts=[
+            dict(
+                src="https://code.jquery.com/jquery-3.7.0.js",
+                integrity="sha384-ogycHROOTGA//2Q8YUfjz1Sr7xMOJTUmY2ucsPVuXAg4CtpgQJQzGZsX768KqetU",
+            ),
+            dict(
+                src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js",
+                integrity="sha384-cjmdOgDzOE22dUheI5E6Gzd3upfmReW8N1y/4jwKQE50KYcvFKZJA9JxWgQOzqwQ",
+            ),
+            dict(
+                src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js",
+                integrity="sha384-PgPBH0hy6DTJwu7pTf6bkRqPlf/+pjUBExpr/eIfzszlGYFlF9Wi9VTAJODPhgCO",
+            ),
+            dict(
+                src="https://cdn.datatables.net/searchpanes/2.2.0/js/dataTables.searchPanes.min.js",
+                integrity="sha384-j4rbW9ZgUxkxeMU1PIa5BaTj0qDOc/BV0zkbRqPAGPkIvaOzwTSVlDGGXw+XQ4uW",
+            ),
+            dict(
+                src="https://cdn.datatables.net/searchpanes/2.2.0/js/searchPanes.bootstrap5.min.js",
+                integrity="sha384-JTAq4Zc/HXNcaOy1Hv04w4mpSr7ouMGXxlXwTuwov0Wzv62QwPey9T58VPE1rVSf",
+            ),
+            dict(
+                src="https://cdn.datatables.net/select/1.7.0/js/dataTables.select.min.js",
+                integrity="sha384-5UUEYV/x07jNYpizRK5+tnFvFPDDq5s5wVr5mc802xveN8Ve7kuFu4Ym6mN+QcmZ",
+            ),
+            dict(
+                src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js",
+                integrity="sha384-VUnyCeQcqiiTlSM4AISHjJWKgLSM5VSyOeipcD9S/ybCKR3OhChZrPPjjrLfVV0y",
+            ),
+            dict(
+                src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js",
+                integrity="sha384-T6YQaHyTPTbybQQV23jtlugHCneQYjePXdcEU+KMWGQY8EUQygBW9pRx0zpSU0/i",
+            ),
+
+            dict(src=url_for("static", filename="js/admin.js")),
+        ],
+    )
+
+
+@app.route("/edit", methods=["GET", "POST"])
+def edit_entry_page():
+    if request.method == "POST":
+        form_data = dict(
+            full_name={"S": request.form.get("full_name")},
+            email={"S": request.form.get("email")},
+            phone={"S": request.form.get("phone")},
+            school={"S": request.form.get("school")},
+            reg_type={"S": request.form.get("regType")},
+        )
+        if form_data["reg_type"]["S"] == "competitor":
+            belt = request.form.get("beltRank")
+            if belt == 'black':
+                dan = request.form.get("blackBeltDan")
+                if dan == '4':
+                    belt = "Master"
+                else:
+                    belt = f"{dan} degree {belt}"
+            form_data.update(
+                dict(
+                    parent={"S": request.form.get("parentName")},
+                    birthdate={"S": request.form.get("birthdate")},
+                    age={"N": request.form.get("age")},
+                    gender={"S": request.form.get("gender")},
+                    weight={"N": request.form.get("weight")},
+                    height={"N": request.form.get("height")},
+                    coach={"S": request.form.get("coach").strip()},
+                    beltRank={"S": belt},
+                    poomsae_form={"S": request.form.get("poomsae form")},
+                    pair_poomsae_form={"S": request.form.get("pair poomsae form")},
+                    team_poomsae_form={"S": request.form.get("team poomsae form")},
+                    family_poomsae_form={"S": request.form.get("family poomsae form")},
+                )
+            )
+            update_expression = 'SET {}'.format(','.join(f'#{k}=:{k}' for k in form_data))
+            expression_attribute_values = {f':{k}': v for k, v in form_data.items()}
+            expression_attribute_names = {f'#{k}': k for k in form_data}
+
+            dynamodb.update_item(
+                TableName=app.config["table_name"],
+                Key={
+                    'pk': {"S": request.args.get("pk")},
+                },
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_attribute_values,
+                ExpressionAttributeNames=expression_attribute_names,
+                ReturnValues='UPDATED_NEW',
+            )
+
+        flash(f'{form_data["full_name"]["S"]} updated successfully!', 'success')
+        # return redirect(f'{app.config["URL"]}/admin', code=303)
+        return redirect('http://127.0.0.1:5001/admin', code=303)
+    else:
+        pk = request.args.get("pk")
+        entry = dynamodb.get_item(
+            TableName=app.config["table_name"],
+            Key={"pk": {"S": pk}},
+        )['Item']
+        school_list = json.load(
+            s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]
+        )
+        return render_template(
+            "edit.html",
+            title="Edit Entry",
+            competition_name=os.getenv("COMPETITION_NAME"),
+            favicon_url=favicon_url,
+            visitor_info_url=visitor_info_url,
+            visitor_info_text=visitor_info_text,
+            button_style=button_style,
+            schools=school_list,
+            entry=entry,
+            additional_stylesheets=[
+                dict(
+                    href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",
+                    integrity="sha384-5IbgsdqrjF6rAX1mxBZkKRyUOgEr0/xCGkteJIaRKpvW0Ag0tf6lru4oL2ZhcMvo",
+                )
+            ],
+            additional_scripts=[
+                dict(
+                    src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
+                    integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
+                ),
+                dict(
+                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
+                    integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
+                ),
+                dict(
+                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js",
+                    integrity="sha384-duAtk5RV7s42V6Zuw+tRBFcqD8RjRKw6RFnxmxIj1lUGAQJyum/vtcUQX8lqKQjp",
+                ),
+                dict(src=url_for("static", filename="js/form.js")),
+            ],
+        )
 
 
 if __name__ == "__main__":
