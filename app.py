@@ -14,7 +14,10 @@ app.secret_key = os.urandom(12)
 app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
 app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
 app.config["mediaBucket"] = os.getenv("PUBLIC_MEDIA_BUCKET")
-app.config["URL"] = os.getenv("REG_URL")
+if os.getenv("FLASK_DEBUG"):
+    app.config["URL"] = "http://127.0.0.1:5001"
+else:
+    app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["table_name"] = os.getenv("DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
@@ -833,8 +836,7 @@ def edit_entry_page():
             )
 
         flash(f'{form_data["full_name"]["S"]} updated successfully!', 'success')
-        # return redirect(f'{app.config["URL"]}/admin', code=303)
-        return redirect('http://127.0.0.1:5001/admin', code=303)
+        return redirect(f'{app.config["URL"]}/admin', code=303)
     else:
         pk = request.args.get("pk")
         entry = dynamodb.get_item(
