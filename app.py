@@ -1,5 +1,9 @@
 from flask import Flask, flash, render_template, redirect, request, abort, url_for
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
+from boto3.dynamodb.conditions import Key
 from datetime import datetime, timedelta, date
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
 import boto3
 import json
 import os
@@ -19,6 +23,7 @@ aws_region = os.getenv("AWS_REGION", "us-east-1")
 s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
+dynamodb_res = boto3.resource("dynamodb")
 favicon_url = (
     f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/favicon.png'
 )
@@ -27,6 +32,21 @@ visitor_info_text = os.getenv("VISITOR_INFO_TEXT")
 button_style = os.getenv("BUTTON_STYLE", "btn-primary")
 badges_enabled = os.getenv("ENABLE_BADGES", False)
 address_enabled = os.getenv("ENABLE_ADDRESS", False)
+
+# Login
+login_manager = LoginManager()
+login_manager.login_view = 'login'
+login_manager.init_app(app)
+ph = PasswordHasher()
+
+
+class User(UserMixin):
+    def __init__(self, id, email, name, password):
+        self.id = id
+        self.email = email
+        self.name = name
+        self.password = password
+
 
 # Price Details
 price_dict = {}
@@ -38,6 +58,89 @@ for p in products:
         "price": f"{int(price_detail.unit_amount/100)}",
     }
 early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
+
+
+@login_manager.user_loader
+def loader(user_id):
+    auth_table = dynamodb_res.Table("auth_table_dev")
+    response = auth_table.query(
+        KeyConditionExpression=Key('id').eq(str(user_id))
+    )
+
+    if response["Count"] == 0:
+        return
+    user = User(
+        id=response['Items'][0]["id"],
+        email=response['Items'][0]["email"],
+        name=response['Items'][0]["name"],
+        password=response['Items'][0]["password"]
+    )
+    return user
+
+
+def get_user(email):
+    response = dynamodb.scan(
+        TableName='auth_table_dev',
+        FilterExpression="email = :email",
+        ExpressionAttributeValues={
+            ":email": {
+                "S": email,
+            },
+        },
+    )
+
+    if response["Count"] == 0:
+        return
+    user = User(
+        id=response['Items'][0]["id"]["S"],
+        email=response['Items'][0]["email"]["S"],
+        name=response['Items'][0]["name"]["S"],
+        password=response['Items'][0]["password"]["S"]
+    )
+    return user
+
+
+@app.route('/login')
+def login():
+    return render_template(
+        'login.html',
+        title="Login",
+        favicon_url=favicon_url,
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
+        competition_name=os.getenv("COMPETITION_NAME"),
+    )
+
+
+@app.route('/login', methods=['POST'])
+def login_post():
+    # login code goes here
+    email = request.form.get('email').lower()
+    password = request.form.get('password')
+    remember = True if request.form.get('remember') else False
+
+    user = get_user(email)
+    # check if the user actually exists
+    if not user:
+        flash('Please check your login details and try again.')
+        return redirect(url_for('login'))
+    try:
+        ph.verify(user.password, password)
+    except VerifyMismatchError:
+        flash('Please check your login details and try again.')
+        return redirect(url_for('login'))
+
+    # if the above check passes, then we know the user has the right credentials
+    login_user(user, remember=remember)
+    return redirect(url_for('admin_page'))
+
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(app.config["URL"])
 
 
 @app.route("/")
@@ -608,6 +711,7 @@ def error_page():
 
 
 @app.route("/admin")
+@login_required
 def admin_page():
     entries = dynamodb.scan(
         TableName=app.config["table_name"],
@@ -679,6 +783,7 @@ def admin_page():
 
 
 @app.route("/edit", methods=["GET", "POST"])
+@login_required
 def edit_entry_page():
     if request.method == "POST":
         form_data = dict(
@@ -774,6 +879,7 @@ def edit_entry_page():
 
 
 @app.route("/add_entry", methods=["GET", "POST"])
+@login_required
 def add_entry():
     if request.method == "POST":
         reg_type = request.form.get("regType")
