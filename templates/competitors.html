@@ -1,4 +1,49 @@
 {% extends "base.html" -%}
 {% block content -%}
-{% include "partials/competitors.html" %}
+<div class="col-md-12 center-block" align="center">
+    <h1>Events & Divisions</h1>
+  </div>
+  <div class="table-responsive">
+    <table id="competitors" class="display table table-striped table-hover dt-responsive">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Gender</th>
+          <th>Belt</th>
+          <th>Age</th>
+          <th>Weight Class</th>
+          <th>School</th>
+          <th>Events</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+            <td>{{ e.full_name.S }}</td>
+            <td>{{ e.gender.S }}</td>
+            {% if 'black' in e.beltRank.S %}
+            <td>black</td>
+            {% else %}
+            <td>{{ e.beltRank.S }}</td>
+            {% endif %}
+            <td>{{ e.age.N }}</td>
+            <td>{{ e.weight_class }}</td>
+            <td>{{ e.school.S }}</td>
+            <td>{{ e.events.S | replace(",", ", ") }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Name</th>
+          <th>Gender</th>
+          <th>Belt</th>
+          <th>Age</th>
+          <th>Weight (lbs)</th>
+          <th>School</th>
+          <th>Events</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
 {%- endblock content %}

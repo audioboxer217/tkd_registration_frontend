@@ -1,4 +1,21 @@
 {% extends "base.html" -%}
 {% block content -%}
-{% include "partials/index.html" %}
+<div class="row justify-content-md-center mt-4">
+    <div class="col" align="center">
+      <h2>Early Registration Ends <font color="red">{{early_reg_date}}</font></h2>
+      <h2>Registration Closes <font color="red">{{reg_close_date}}</font></h2>
+    </div>
+  </div>
+  <div class="row justify-content-md-center" align="center">
+    <div class="col-md-12 center-block">
+      <p>
+        You can us at <a href="mailto:{{ email }}">{{ email }}</a> if you have questions or issues.
+      </p>
+    </div>
+  </div>
+  <div class="row justify-content-md-center mt-4">
+    <div class="col" align="center">
+      <img src="{{ poster_url }}" class="img-fluid"/>
+    </div>
+  </div>
 {%- endblock content %}
