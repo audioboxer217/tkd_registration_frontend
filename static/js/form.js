@@ -52,9 +52,7 @@ function upload_img(files) {
   }
 }
 function updateFields() {
-  regChoice = document.querySelectorAll('input[name="regChoice"]:checked')[0].id
-  document.getElementById("regType").value = regChoice
-  if (regChoice == "competitor") {
+  if (document.getElementById('regType').value == "competitor") {
     document.getElementById("classSection").hidden = false;
     document.getElementById("birthdate").required = true;
     document.getElementById("inputAge").required = true;
@@ -123,14 +121,14 @@ function formatPhoneNumber(input) {
 }
 function updateEventOptions() {
   const today = new Date()
-  const early_reg_date = window.okgp.early_reg_date
-  const little_tiger_msg = "Little Tiger Showcase Registration is $" + window.okgp.price_dict.little_tiger
-  const competitive_msg = "The first event is $" + window.okgp.price_dict.registration + "  and each additional event is $" + window.okgp.price_dict.addl_event
+  const early_reg_date = window.tkdreg.early_reg_date
+  const little_tiger_msg = "Little Tiger Showcase Registration is $" + window.tkdreg.price_dict.little_tiger
+  const competitive_msg = "The first event is $" + window.tkdreg.price_dict.registration + "  and each additional event is $" + window.tkdreg.price_dict.addl_event
   var early_reg_warn = ""
 
   if (today < early_reg_date) {
     var early_reg_date_pretty = early_reg_date.toLocaleDateString('en-us', { month:"long", day:"numeric"}) 
-    var early_reg_warn = "<br>Register before " + early_reg_date_pretty + " to get a $" + window.okgp.price_dict.coupon + " discount on registration."
+    var early_reg_warn = "<br>Register before " + early_reg_date_pretty + " to get a $" + window.tkdreg.price_dict.coupon + " discount on registration."
   }
 
   if (
@@ -166,28 +164,31 @@ function updateEventOptions() {
       document.getElementById("costDetail").innerHTML = competitive_msg + early_reg_warn;
       document.getElementById("competitiveEventsSection").hidden = false;
     
-      if (document.getElementById('blackBelt').checked) {
-        document.getElementById("sparringInput").hidden = true;
-        document.getElementById("sparring").checked = false;
-        document.getElementById("sparring-grInput").hidden = false;
-        document.getElementById("sparring-wcInput").hidden = false;
-        document.getElementById("blackBeltDanSection").hidden = false;
-        document.getElementById("blackBeltDan").required = true;
-      }
-      else {
-        document.getElementById("sparringInput").hidden = false;
-        document.getElementById("sparring-grInput").hidden = true;
-        document.getElementById("sparring-gr").checked = false;
-        document.getElementById("sparring-wcInput").hidden = true;
-        document.getElementById("sparring-wc").checked = false;
-        document.getElementById("blackBeltDanSection").hidden = true;
-        document.getElementById("blackBeltDan").required = false;
-      }
+      toggleBlackBeltDanSection()
     }
   }
 
   document.getElementById("costDetail").classList = "bg-secondary text-white"
   updateTotal(eventType)
+}
+function toggleBlackBeltDanSection() {
+  if (document.getElementById('blackBelt').checked) {
+    // document.getElementById("sparringInput").hidden = true;
+    // document.getElementById("sparring").checked = false;
+    // document.getElementById("sparring-grInput").hidden = false;
+    // document.getElementById("sparring-wcInput").hidden = false;
+    document.getElementById("blackBeltDanSection").hidden = false;
+    document.getElementById("blackBeltDan").required = true;
+  }
+  else {
+    // document.getElementById("sparringInput").hidden = false;
+    // document.getElementById("sparring-grInput").hidden = true;
+    // document.getElementById("sparring-gr").checked = false;
+    // document.getElementById("sparring-wcInput").hidden = true;
+    // document.getElementById("sparring-wc").checked = false;
+    document.getElementById("blackBeltDanSection").hidden = true;
+    document.getElementById("blackBeltDan").required = false;
+  }
 }
 function updateEventList(clickedEvent) {
   var eventList = []
@@ -221,6 +222,16 @@ function updateEventList(clickedEvent) {
   getPoomsaeForms("team poomsae")
   getPoomsaeForms("family poomsae")
 }
+function checkForUnlisted(school) {
+  if (school == "unlisted") {
+    document.getElementById("unlistedSchoolSection").hidden = false;
+    document.getElementById("inputUnlistedSchool").required = true;
+  }
+  else {
+    document.getElementById("unlistedSchoolSection").hidden = true;
+    document.getElementById("inputUnlistedSchool").required = false;
+  }
+}
 function updateMedicalConditionsList() {
   var conditionList = []
 
@@ -232,20 +243,19 @@ function updateMedicalConditionsList() {
 }
 function updateTotal(eventType="competitive") {
   const today = new Date()
-  const early_reg_date = window.okgp.early_reg_date
+  const early_reg_date = window.tkdreg.early_reg_date
 
-  var regChoice = document.querySelectorAll('input[name="regChoice"]:checked')[0].id
-  if (regChoice == "competitor") {
+  if (document.getElementById('regType').value == "competitor") {
     if (eventType == "competitive") {
       if (
         document.querySelectorAll('input[name="beltRank"]:checked').length > 0 &&
         document.querySelectorAll('input[name="events"]:checked').length > 0
       ) {
         var eventCount = document.querySelectorAll('input[name="events"]:checked').length - 1
-        var eventPrice = parseInt(window.okgp.price_dict.addl_event)
-        var total = parseInt(window.okgp.price_dict.registration)
+        var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
+        var total = parseInt(window.tkdreg.price_dict.registration)
         if (document.getElementById('sparring-wc').checked) {
-          total += parseInt(window.okgp.price_dict.world_class);
+          total += parseInt(window.tkdreg.price_dict.world_class);
           // if (eventCount > 0){
           //   eventCount -= 1;
           // }
@@ -254,7 +264,7 @@ function updateTotal(eventType="competitive") {
           // }
         }
         if (document.getElementById('breaking').checked) {
-          total += parseInt(window.okgp.price_dict.breaking);
+          total += parseInt(window.tkdreg.price_dict.breaking);
           // if (eventCount > 0){
           //   eventCount -= 1;
           // }
@@ -264,7 +274,7 @@ function updateTotal(eventType="competitive") {
         }
         total += eventPrice * eventCount;
         if (today < early_reg_date) {
-          total -= parseInt(window.okgp.price_dict.coupon);
+          total -= parseInt(window.tkdreg.price_dict.coupon);
         }
         document.getElementById("total").value = "$" + total;
       }
@@ -276,9 +286,9 @@ function updateTotal(eventType="competitive") {
       }
     }
     else if (eventType == "little_tiger") {
-      var total = parseInt(window.okgp.price_dict.little_tiger)
+      var total = parseInt(window.tkdreg.price_dict.little_tiger)
       if (today < early_reg_date) {
-        total -= parseInt(window.okgp.price_dict.coupon);
+        total -= parseInt(window.tkdreg.price_dict.coupon);
       }
       document.getElementById("total").value = "$" + total
     }
@@ -287,7 +297,7 @@ function updateTotal(eventType="competitive") {
     }
   }
   else {
-    document.getElementById("total").value = "$" + window.okgp.price_dict.coach
+    document.getElementById("total").value = "$" + window.tkdreg.price_dict.coach
   }
 }
 function getPoomsaeForms(fieldName) {

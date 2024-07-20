@@ -1,4 +1,17 @@
 {% extends "base.html" -%}
 {% block content -%}
-{% include "partials/disabled.html" %}
+<div class="row justify-content-md-center">
+  <div class="col-md-12 center-block" align="center">
+      <div class="col-md-8" align="left">
+        <h1>Registrations are now closed!</h1>
+        <p>
+          You can email us at <a href="mailto:{{ email }}">{{ email }}</a> if you have questions or issues.
+        </p>
+        <p>
+          Thanks,<br>
+          {{ competition_name }}
+        </p>
+      </div>
+  </div>
+</div>
 {%- endblock content %}

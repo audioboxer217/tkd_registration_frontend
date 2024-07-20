@@ -1,0 +1,47 @@
+{% extends "base.html" -%}
+{% block content -%}
+<div class="col-md-12 center-block" align="center">
+    <h1>Entries</h1>
+  </div>
+  <div class="col-md-12 mb-3" align="right">
+    <a class="btn {{ button_style }}" href="/add_entry?reg_type=competitor" role="button">Add Competitor</a>
+    <a class="btn {{ button_style }}" href="/add_entry?reg_type=coach" role="button">Add Coach</a>
+    <a class="btn {{ button_style }}" href="/logout" role="button">Logout</a>
+  </div>
+  <div class="table-responsive">
+    <table id="entries" class="display table table-striped table-hover dt-responsive">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Type</th>
+          <th>School</th>
+          <th>Edit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+            <td>{{ e.full_name.S }}</td>
+            <td>{{ e.email.S }}</td>
+            <td>{{ e.phone.S }}</td>
+            <td>{{ e.reg_type.S }}</td>
+            <td>{{ e.school.S }}</td>
+            <td><a class="btn {{ button_style }}" href="/edit?pk={{ e.pk.S }}" role="button">Edit</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Type</th>
+          <th>School</th>
+          <th>Edit</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+{%- endblock content %}

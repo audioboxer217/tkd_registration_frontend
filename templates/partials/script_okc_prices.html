@@ -1,0 +1,13 @@
+  <script>
+    window.tkdreg = {}
+    window.tkdreg.early_reg_date = new Date("{{ early_reg_date }} 23:59:59")
+    window.tkdreg.price_dict = {
+      addl_event: "{{ price_dict['Additional Event']['price'] }}",
+      little_tiger: "{{ price_dict['Little Tiger Showcase']['price'] }}",
+      registration: "{{ price_dict['Registration']['price'] }}",
+      world_class: "{{ price_dict['World Class']['price'] }}",
+      breaking: "{{ price_dict['Breaking']['price'] }}",
+      coach: "{{ price_dict['Coach Registration']['price'] }}",
+      coupon: "{{ early_reg_coupon_amount }}"
+    }
+  </script>

@@ -1,4 +1,32 @@
 {% extends "base.html" -%}
 {% block content -%}
-{% include "partials/schedule.html" %}
+<div class="col-md-12 center-block" align="center">
+<h1>Schedule</h1>
+</div>
+<div class="table-responsive">
+    <table class="table table-striped table-bordered">
+        {% for day in schedule_dict %}
+        <thead>
+        <tr>
+            <th class="{{ day.class }}" scope="col" colspan="{{ day.colspan }}">
+            <h4>{{day.date}}</h4>
+            </th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for item in day['items'] %}
+        <tr>
+            <th scope="row" class="table-primary">{{ item.time }}</th>
+            <td {% if item.title_class is defined -%}class="{{item.title_class}}" {%endif%}>{{ item.title | safe }}</td>
+            {% if item.location is defined %}
+            <td {% if item.location.class is defined -%}class="{{item.location.class}}" {%endif%}{% if item.location.rowspan
+            is defined %}rowspan="{{item.location.rowspan}}" {%endif%}><a href="{{item.location.link}}" target="_blank">{{
+                item.location.name }}</a></td>
+            {%endif%}
+        </tr>
+        {%endfor%}
+        </tbody>
+        {%endfor%}
+    </table>
+</div>
 {%- endblock content %}
