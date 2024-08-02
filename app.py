@@ -562,7 +562,7 @@ def coaches_page():
 
 def get_age_group(entry):
     age_groups = {
-        "dragon": [5, 6, 7],
+        "dragon": [4, 5, 6, 7],
         "tiger": [8, 9],
         "youth": [10, 11],
         "cadet": [12, 13, 14],
