@@ -480,7 +480,7 @@ def info_page():
         visitor_info_text=visitor_info_text,
         button_style=button_style,
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/information_booklet.pdf',
-        additional_imgs=[f'https://{app.config["mediaBucket"]}.s3.{aws_region}.s3.amazonaws.com/icross_poster.jpeg'],
+        additional_imgs=[f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/icross_poster.jpeg'],
     )
 
 
