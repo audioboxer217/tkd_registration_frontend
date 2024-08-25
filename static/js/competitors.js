@@ -113,6 +113,13 @@ $(document).ready(function() {
                 return events_arr.includes('breaking')
               }
             },
+            {
+              label: 'Little Tiger Showcase',
+              value: function(rowData, rowIdx){
+                events_arr = rowData[6].split(',').map(s => s.trim());
+                return events_arr.includes('Little Tiger Showcase')
+              }
+            },
           ]
         }
       ],
