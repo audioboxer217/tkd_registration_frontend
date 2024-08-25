@@ -141,35 +141,39 @@ function updateEventOptions() {
   else {
     document.getElementById("beltSection").hidden = false;
     document.getElementById("eventSection").hidden = false;
-    document.getElementById("little_tiger").disabled = true;
-    document.getElementById("competitive").disabled = true;
+    document.getElementById("little_tiger_option").hidden = true;
+    // document.getElementById("competitive").disabled = true;
 
     if (document.getElementById("inputAge").value <= 7) {
-      document.getElementById("little_tiger").disabled = false;
-      document.getElementById("competitive").disabled = false;
+      document.getElementById("little_tiger_option").hidden = false;
+      document.getElementById("costDetail").innerHTML = little_tiger_msg + '<br>' + competitive_msg + early_reg_warn;
+      // document.getElementById("competitive").disabled = false;
     }
     else {
-      document.getElementById("little_tiger").disabled = true;
-      document.getElementById("competitive").checked = true;
-      document.getElementById("competitive").disabled = false;
+      document.getElementById("little_tiger_option").hidden = true;
+      document.getElementById("little_tiger").checked = false;
+      document.getElementById("costDetail").innerHTML = competitive_msg + early_reg_warn;
+      // document.getElementById("competitive").checked = true;
+      // document.getElementById("competitive").disabled = false;
     }
 
-    eventType = document.querySelectorAll('input[name="eventType"]:checked')[0].id
-    if (eventType == "little_tiger") {
-      document.getElementById("costDetail").innerHTML = little_tiger_msg + early_reg_warn;
-      document.getElementById("competitiveEventsSection").hidden = true;
-      updateTotal(eventType)
-    }
-    else if (eventType == "competitive") {
-      document.getElementById("costDetail").innerHTML = competitive_msg + early_reg_warn;
-      document.getElementById("competitiveEventsSection").hidden = false;
+    // eventType = document.querySelectorAll('input[name="eventType"]:checked')[0].id
+    // if (eventType == "little_tiger") {
+    //   document.getElementById("costDetail").innerHTML = little_tiger_msg + early_reg_warn;
+    //   document.getElementById("competitiveEventsSection").hidden = true;
+    //   updateTotal(eventType)
+    // }
+    // else if (eventType == "competitive") {
+    //   document.getElementById("costDetail").innerHTML = competitive_msg + early_reg_warn;
+    //   document.getElementById("competitiveEventsSection").hidden = false;
     
-      toggleBlackBeltDanSection()
-    }
+    //   toggleBlackBeltDanSection()
+    // }
   }
 
+  toggleBlackBeltDanSection()
   document.getElementById("costDetail").classList = "bg-secondary text-white"
-  updateTotal(eventType)
+  updateTotal()
 }
 function toggleBlackBeltDanSection() {
   if (document.getElementById('blackBelt').checked) {
@@ -241,59 +245,56 @@ function updateMedicalConditionsList() {
   }
   document.getElementById("medicalConditionsList").value = conditionList.join()
 }
-function updateTotal(eventType="competitive") {
+function updateTotal() {
   const today = new Date()
   const early_reg_date = window.tkdreg.early_reg_date
 
   if (document.getElementById('regType').value == "competitor") {
-    if (eventType == "competitive") {
-      if (
-        document.querySelectorAll('input[name="beltRank"]:checked').length > 0 &&
-        document.querySelectorAll('input[name="events"]:checked').length > 0
-      ) {
-        var eventCount = document.querySelectorAll('input[name="events"]:checked').length - 1
-        var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
-        var total = parseInt(window.tkdreg.price_dict.registration)
-        if (document.getElementById('sparring-wc').checked) {
-          total += parseInt(window.tkdreg.price_dict.world_class);
-          // if (eventCount > 0){
-          //   eventCount -= 1;
-          // }
-          // else {
-          //   total -= eventPrice
-          // }
-        }
-        if (document.getElementById('breaking').checked) {
-          total += parseInt(window.tkdreg.price_dict.breaking);
-          // if (eventCount > 0){
-          //   eventCount -= 1;
-          // }
-          // else {
-          //   total -= eventPrice
-          // }
-        }
-        total += eventPrice * eventCount;
-        if (today < early_reg_date) {
-          total -= parseInt(window.tkdreg.price_dict.coupon);
-        }
-        document.getElementById("total").value = "$" + total;
+    if (
+      document.querySelectorAll('input[name="beltRank"]:checked').length > 0 &&
+      document.querySelectorAll('input[name="events"]:checked').length > 0
+    ) {
+      var eventCount = document.querySelectorAll('input[name="events"]:checked').length - 1
+      var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
+      var total = parseInt(window.tkdreg.price_dict.registration)
+      if (document.getElementById('sparring-wc').checked) {
+        total += parseInt(window.tkdreg.price_dict.world_class);
+        // if (eventCount > 0){
+        //   eventCount -= 1;
+        // }
+        // else {
+        //   total -= eventPrice
+        // }
       }
-      else if (
-        document.querySelectorAll('input[name="beltRank"]:checked').length == 0 &&
-        document.querySelectorAll('input[name="events"]:checked').length > 0
-      ) {
-        alert("Please choose a Belt Rank to get your Total")
+      if (document.getElementById('breaking').checked) {
+        total += parseInt(window.tkdreg.price_dict.breaking);
+        // if (eventCount > 0){
+        //   eventCount -= 1;
+        // }
+        // else {
+        //   total -= eventPrice
+        // }
       }
-    }
-    else if (eventType == "little_tiger") {
-      var total = parseInt(window.tkdreg.price_dict.little_tiger)
+      if (document.getElementById('little_tiger').checked) {
+        if (eventCount > 0){
+          total += parseInt(window.tkdreg.price_dict.little_tiger);
+          eventCount -= 1;
+        }
+        else {
+          total = parseInt(window.tkdreg.price_dict.little_tiger);
+        }
+      }
+      total += eventPrice * eventCount;
       if (today < early_reg_date) {
         total -= parseInt(window.tkdreg.price_dict.coupon);
       }
-      document.getElementById("total").value = "$" + total
+      document.getElementById("total").value = "$" + total;
     }
-    else {
-      document.getElementById("total").value = ""
+    else if (
+      document.querySelectorAll('input[name="beltRank"]:checked').length == 0 &&
+      document.querySelectorAll('input[name="events"]:checked').length > 0
+    ) {
+      alert("Please choose a Belt Rank to get your Total")
     }
   }
   else {

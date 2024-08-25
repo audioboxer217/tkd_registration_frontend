@@ -228,25 +228,10 @@ def handle_form():
                     belt = "Master"
                 else:
                     belt = f"{dan} degree {belt}"
-            if request.form.get("eventType") == 'little_tiger':
-                eventList = "Little Tiger Showcase"
-                registration_items = [
-                    {
-                        "price": price_dict["Little Tiger Showcase"]["price_id"],
-                        "quantity": 1,
-                    },
-                ]
-            else:
-                eventList = request.form.get("eventList")
-                if eventList == "":
-                    msg = "You must choose at least one event"
-                    abort(400, msg)
-                registration_items = [
-                    {
-                        "price": price_dict['Registration']["price_id"],
-                        "quantity": 1,
-                    },
-                ]
+            eventList = request.form.get("eventList")
+            if eventList == "":
+                msg = "You must choose at least one event"
+                abort(400, msg)
 
             medical_form = dict(
                 contacts=request.form.get("contacts"),
@@ -270,7 +255,7 @@ def handle_form():
                     height={"N": str(height)},
                     coach={"S": coach},
                     beltRank={"S": belt},
-                    events={"S": eventList},
+                    events={"S": eventList.replace("little_tiger", "Little Tiger Showcase")},
                     poomsae_form={"S": request.form.get("poomsae form")},
                     pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                     team_poomsae_form={"S": request.form.get("team poomsae form")},
@@ -293,7 +278,27 @@ def handle_form():
                     form_data["imgFilename"]["S"],
                 )
 
-            num_add_event = len(form_data["events"]["S"].split(",")) - 1
+            events_list = eventList.split(',')
+            registration_items = []
+            if "little_tiger" in events_list:
+                registration_items = [
+                    {
+                        "price": price_dict["Little Tiger Showcase"]["price_id"],
+                        "quantity": 1,
+                    },
+                ]
+                events_list.remove("little_tiger")
+            num_events = len(events_list)
+            if num_events > 0:
+                registration_items += [
+                    {
+                        "price": price_dict['Registration']["price_id"],
+                        "quantity": 1,
+                    },
+                ]
+                num_add_event = num_events - 1
+            else:
+                num_add_event = 0
             if num_add_event > 0:
                 registration_items.append(
                     {
