@@ -123,7 +123,7 @@ function updateEventOptions() {
   const today = new Date()
   const early_reg_date = window.tkdreg.early_reg_date
   const little_tiger_msg = "Little Tiger Showcase Registration is $" + window.tkdreg.price_dict.little_tiger
-  const competitive_msg = "The first event is $" + window.tkdreg.price_dict.registration + "  and each additional event is $" + window.tkdreg.price_dict.addl_event
+  const competitive_msg = "Competitive Events Registration is $" + window.tkdreg.price_dict.registration + "  with 1 event.<br>Each additional event is $" + window.tkdreg.price_dict.addl_event
   var early_reg_warn = ""
 
   if (today < early_reg_date) {
