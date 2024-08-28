@@ -1,4 +1,6 @@
-boto3>=1.28.58
-Flask>=2.0.0
-stripe>=7.0.0
-zappa>=0.58.0
+boto3~=1.35.0
+Flask~=3.0.0
+Flask-Login~=0.6.0
+argon2-cffi~=23.1.0
+stripe~=10.8.0
+zappa~=0.59.0
