@@ -476,6 +476,7 @@ def events_page():
 
 @app.route("/information", methods=["GET"])
 def info_page():
+    s3_addl_images = s3.list_objects(Bucket=app.config["mediaBucket"], Prefix="additional_information_images/")['Contents']
     return render_template(
         "information.html",
         title="Information",
@@ -485,7 +486,7 @@ def info_page():
         visitor_info_text=visitor_info_text,
         button_style=button_style,
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/information_booklet.pdf',
-        additional_imgs=[f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/icross_poster.jpeg'],
+        additional_imgs=[f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/{i["Key"]}' for i in s3_addl_images if i['Size'] > 0],
     )
 
 
