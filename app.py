@@ -423,7 +423,7 @@ def handle_form():
             ],
             additional_scripts=[
                 dict(
-                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA", # noqa
                     async_bool="true",
                     defer="true",
                 ),
@@ -486,7 +486,7 @@ def info_page():
         visitor_info_text=visitor_info_text,
         button_style=button_style,
         information_booklet_url=f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/information_booklet.pdf',
-        additional_imgs=[f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/{i["Key"]}' for i in s3_addl_images if i['Size'] > 0],
+        additional_imgs=[f'https://{app.config["mediaBucket"]}.s3.{aws_region}.amazonaws.com/{i["Key"]}' for i in s3_addl_images if i['Size'] > 0], # noqa
     )
 
 
@@ -1046,7 +1046,7 @@ def add_entry():
             ],
             additional_scripts=[
                 dict(
-                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA", # noqa
                     async_bool="true",
                     defer="true",
                 ),
