@@ -1067,7 +1067,7 @@ def add_entry():
         )
 
 
-@app.route('/print')
+@app.route('/export')
 @login_required
 def generate_csv():
     data = dynamodb.scan(
@@ -1081,11 +1081,11 @@ def generate_csv():
     )['Items']
     entries = sorted(data, key=lambda item: item["full_name"]["S"].split()[-1])
     return render_template(
-        "print.html",
-        title="Print",
+        "export.html",
         competition_year=os.getenv("COMPETITION_YEAR"),
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=favicon_url,
+        button_style=button_style,
         entries=entries,
     )
 
