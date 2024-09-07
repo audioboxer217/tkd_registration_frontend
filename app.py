@@ -1067,5 +1067,28 @@ def add_entry():
         )
 
 
+@app.route('/print')
+@login_required
+def generate_csv():
+    data = dynamodb.scan(
+        TableName=app.config["table_name"],
+        FilterExpression="reg_type = :type",
+        ExpressionAttributeValues={
+            ":type": {
+                "S": "competitor",
+            },
+        },
+    )['Items']
+    entries = sorted(data, key=lambda item: item["full_name"]["S"].split()[-1])
+    return render_template(
+        "print.html",
+        title="Print",
+        competition_year=os.getenv("COMPETITION_YEAR"),
+        competition_name=os.getenv("COMPETITION_NAME"),
+        favicon_url=favicon_url,
+        entries=entries,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0")

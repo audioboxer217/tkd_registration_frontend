@@ -1,13 +1,20 @@
 {% extends "base.html" -%}
 {% block content -%}
-<div class="col-md-12 center-block" align="center">
+<div class="row">
+  <div class="col-md-12 center-block" align="center">
     <h1>Entries</h1>
   </div>
-  <div class="col-md-12 mb-3" align="right">
+</div>
+<div class="row mb-3">
+  <div class="col-md-3" align="left">
+    <a class="btn {{ button_style }}" href="/print" role="button">Print</a>
+  </div>
+  <div class="col-md-9" align="right">
     <a class="btn {{ button_style }}" href="/add_entry?reg_type=competitor" role="button">Add Competitor</a>
     <a class="btn {{ button_style }}" href="/add_entry?reg_type=coach" role="button">Add Coach</a>
     <a class="btn {{ button_style }}" href="/logout" role="button">Logout</a>
   </div>
+</div>
   <div class="table-responsive">
     <table id="entries" class="display table table-striped table-hover dt-responsive">
       <thead>
