@@ -9,9 +9,14 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
   </head>
   <body>
-    <div class="col-md-12" id="buttons" align="right">
-      <a class="btn {{ button_style }}" role="button" onclick="printPage();">Print</a>
-      <a class="btn {{ button_style }}" role="button" onclick="tableToCSV();">Download CSV</a>
+    <div class="row mb-3" id="buttons" >
+      <div class="col-md-3" align="left">
+        <a class="btn {{ button_style }}" href="/admin" role="button">Back</a>
+      </div>
+      <div class="col-md-9" align="right">
+        <a class="btn {{ button_style }}" role="button" onclick="printPage();">Print</a>
+        <a class="btn {{ button_style }}" role="button" onclick="tableToCSV();">Download CSV</a>
+      </div>
     </div>
     <div class="col-md-12 center-block" align="center">
         <h1>{{ competition_year }} {{ competition_name }}</h1>
