@@ -1,0 +1,63 @@
+name: 'Frontend Tests'
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    name: 'Frontend Tests'
+    runs-on: ubuntu-latest
+    environment: Test
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+        role-session-name: BackendTest
+        aws-region: ${{ vars.AWS_DEFAULT_REGION }}
+
+    - name: setup python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest
+
+    - id: execute-process_entries
+      name: Run Tests
+      env:
+        COMPETITION_NAME: "${{ vars.COMPETITION_NAME }}"
+        COMPETITION_YEAR: "${{ vars.COMPETITION_YEAR }}"
+        EARLY_REG_DATE: "${{ vars.EARLY_REG_DATE }}"
+        REG_CLOSE_DATE: "${{ vars.REG_CLOSE_DATE }}"
+        BADGE_BUCKET: "${{ vars.BADGE_BUCKET }}"
+        CONFIG_BUCKET: "${{ vars.CONFIG_BUCKET }}"
+        CONTACT_EMAIL: "${{ vars.CONTACT_EMAIL }}"
+        DB_TABLE: "${{ vars.DB_TABLE }}"
+        MAPS_API_KEY: "${{ secrets.MAPS_API_KEY }}"
+        PROFILE_PIC_BUCKET: "${{ vars.PROFILE_PIC_BUCKET }}"
+        PUBLIC_MEDIA_BUCKET: "${{ vars.PUBLIC_MEDIA_BUCKET }}"
+        REG_URL: "${{ vars.REG_URL }}"
+        SQS_QUEUE_URL: "${{ vars.SQS_QUEUE_URL }}"
+        STRIPE_API_KEY: "${{ secrets.STRIPE_API_KEY }}"
+        VISITOR_INFO_URL: "${{ vars.VISITOR_INFO_URL }}"
+        VISITOR_INFO_TEXT: "${{ vars.VISITOR_INFO_TEXT }}"
+      run: pytest tests.py
