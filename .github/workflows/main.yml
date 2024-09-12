@@ -64,4 +64,3 @@ jobs:
         echo 'results<<EOF' >> $GITHUB_STEP_SUMMARY
         pytest -qrA --tb=no tests.py >> $GITHUB_STEP_SUMMARY
         echo 'EOF' >> $GITHUB_STEP_SUMMARY
-      pytest tests.py
