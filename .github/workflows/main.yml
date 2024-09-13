@@ -27,7 +27,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-        role-session-name: BackendTest
+        role-session-name: FrontendTest
         aws-region: ${{ vars.AWS_DEFAULT_REGION }}
 
     - name: setup python
