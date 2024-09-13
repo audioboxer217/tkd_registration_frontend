@@ -41,8 +41,7 @@ jobs:
         pip install -r requirements.txt
         pip install pytest
 
-    - id: execute-process_entries
-      name: Run Tests
+    - name: Run Tests
       env:
         COMPETITION_NAME: "${{ vars.COMPETITION_NAME }}"
         COMPETITION_YEAR: "${{ vars.COMPETITION_YEAR }}"
