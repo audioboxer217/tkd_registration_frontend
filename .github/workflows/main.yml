@@ -60,4 +60,4 @@ jobs:
         STRIPE_API_KEY: "${{ secrets.STRIPE_API_KEY }}"
         VISITOR_INFO_URL: "${{ vars.VISITOR_INFO_URL }}"
         VISITOR_INFO_TEXT: "${{ vars.VISITOR_INFO_TEXT }}"
-      run: pytest -qrA --tb=no tests.py >> $GITHUB_STEP_SUMMARY
+      run: pytest -qrA --tb=no >> $GITHUB_STEP_SUMMARY
