@@ -41,8 +41,7 @@ jobs:
         pip install -r requirements.txt
         pip install pytest
 
-    - id: execute-process_entries
-      name: Run Tests
+    - name: Run Tests
       env:
         COMPETITION_NAME: "${{ vars.COMPETITION_NAME }}"
         COMPETITION_YEAR: "${{ vars.COMPETITION_YEAR }}"
@@ -60,4 +59,4 @@ jobs:
         STRIPE_API_KEY: "${{ secrets.STRIPE_API_KEY }}"
         VISITOR_INFO_URL: "${{ vars.VISITOR_INFO_URL }}"
         VISITOR_INFO_TEXT: "${{ vars.VISITOR_INFO_TEXT }}"
-      run: pytest tests.py
+      run: pytest -qrA --tb=no >> $GITHUB_STEP_SUMMARY
