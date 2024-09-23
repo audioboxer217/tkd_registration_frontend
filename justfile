@@ -1,7 +1,8 @@
-python_ver := '3.11.5'
+python_ver := '3.10.13'
+python_win_ver := '3.10.11'
 python_subdir := if os_family() == "windows" { "/Scripts" } else { "/bin" }
 python_exec := if os_family() == "windows" { "/python.exe" } else { "/python3" }
-system_python := if os_family() == "windows" { ".pyenv/shims" } else { "${HOME}/.pyenv/versions/" + python_ver + "/bin/python3" }
+system_python := if os_family() == "windows" { "${HOME}/.pyenv/pyenv-win/versions/" + python_win_ver + "/python.exe" } else { "${HOME}/.pyenv/versions/" + python_ver + "/bin/python3" }
 zappa := './.venv/' + python_subdir + '/zappa'
 
 default:
