@@ -1,13 +1,14 @@
-from flask import Flask, flash, render_template, redirect, request, abort, url_for
-from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
-from boto3.dynamodb.conditions import Key
-from datetime import datetime, timedelta, date
-from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
-import boto3
 import json
 import os
+from datetime import date, datetime, timedelta
+
+import boto3
 import stripe
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+from boto3.dynamodb.conditions import Key
+from flask import Flask, abort, flash, redirect, render_template, request, url_for
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
 
 app = Flask(__name__)
 app.secret_key = os.urandom(12)
@@ -417,7 +418,7 @@ def handle_form():
             enable_address=address_enabled,
             additional_scripts=[
                 dict(
-                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA", # noqa
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
                     async_bool="true",
                     defer="true",
                 ),
@@ -1020,7 +1021,7 @@ def add_entry():
             enable_address=address_enabled,
             additional_scripts=[
                 dict(
-                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA", # noqa
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
                     async_bool="true",
                     defer="true",
                 ),
