@@ -3,13 +3,9 @@
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-check-label h5" for="date">Birthday</label>
-          <div class="input-group date" id="datepicker">
-            <input class="form-control" type="text" name="birthdate" id="birthdate" placeholder="MM/DD/YYYY" onchange="calculateAge(this.value)" required>
-            <span class="input-group-append">
-              <span class="input-group-text bg-light d-block">
-                <i class="fa fa-calendar"></i>
-              </span>
-            </span>
+          <div class="input-group date">
+            <input class="form-control" type="date" name="birthdate" id="birthdate" placeholder="MM/DD/YYYY"
+              onchange="calculateAge(this.value)" required>
           </div>
         </div>
         <div class="col-md-2">

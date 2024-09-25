@@ -20,7 +20,9 @@
       </div>
       <div class="col-md-6">
         <label for="inputPhone" class="form-check-label h5">Phone</label>
-        <input type="text" class="form-control" name="phone" id="inputPhone" value="{{ entry.phone.S }}" pattern="^\d{3}-\d{3}-\d{4}$" oninvalid="setCustomValidity('Please enter a valid phone number.')" oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>
+        <input type="tel" class="form-control" name="phone" id="inputPhone" value="{{ entry.phone.S }}"
+          pattern="^\d{3}-\d{3}-\d{4}$" oninvalid="setCustomValidity('Please enter a valid phone number.')"
+          oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>
       </div>
     </div>
     {% if entry.reg_type.S == 'competitor' %}
@@ -30,12 +32,8 @@
           <div class="col-md-8">
             <label class="form-check-label h5" for="date">Birthday</label>
             <div class="input-group date">
-              <input class="form-control" type="text" name="birthdate" id="birthdate" value="{{ entry.birthdate.S }}" data-provide="datepicker" onchange="calculateAge(this.value)" required>
-              <span class="input-group-append">
-                <span class="input-group-text bg-light d-block">
-                  <i class="fa fa-calendar"></i>
-                </span>
-              </span>
+              <input class="form-control" type="date" name="birthdate" id="birthdate" value="{{ entry.birthdate.S }}"
+                onchange="calculateAge(this.value)" required \>
             </div>
           </div>
           <div class="col-md-2">
