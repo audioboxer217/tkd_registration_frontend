@@ -361,8 +361,6 @@ function calculateAge(dateString) {
     day: "2-digit",
     year: "numeric"
   });
-  $('#datepicker').datepicker('update', formattedBirthdate);
-  document.getElementById("birthdate").value = formattedBirthdate
 
   if (ageClass == "") {
     document.getElementById("ageClass").innerHTML = "<b style='color:red;'>Competitors must be at least 4 years old!</b>"
@@ -405,6 +403,3 @@ function toggleMedsList() {
     document.getElementById("meds_list").value = '';
   }
 }
-$(function () {
-  $('#datepicker').datepicker();
-});
