@@ -1,13 +1,14 @@
-from flask import Flask, flash, render_template, redirect, request, abort, url_for
-from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
-from boto3.dynamodb.conditions import Key
-from datetime import datetime, timedelta, date
-from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
-import boto3
 import json
 import os
+from datetime import date, datetime, timedelta
+
+import boto3
 import stripe
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+from boto3.dynamodb.conditions import Key
+from flask import Flask, abort, flash, redirect, render_template, request, url_for
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
 
 app = Flask(__name__)
 app.secret_key = os.urandom(12)
@@ -415,15 +416,9 @@ def handle_form():
             schools=school_list,
             enable_badges=badges_enabled,
             enable_address=address_enabled,
-            additional_stylesheets=[
-                dict(
-                    href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",
-                    integrity="sha384-5IbgsdqrjF6rAX1mxBZkKRyUOgEr0/xCGkteJIaRKpvW0Ag0tf6lru4oL2ZhcMvo",
-                )
-            ],
             additional_scripts=[
                 dict(
-                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA", # noqa
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
                     async_bool="true",
                     defer="true",
                 ),
@@ -434,10 +429,6 @@ def handle_form():
                 dict(
                     src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
                     integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
-                ),
-                dict(
-                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js",
-                    integrity="sha384-duAtk5RV7s42V6Zuw+tRBFcqD8RjRKw6RFnxmxIj1lUGAQJyum/vtcUQX8lqKQjp",
                 ),
                 dict(src=url_for("static", filename="js/form.js")),
             ],
@@ -862,12 +853,6 @@ def edit_entry_page():
             button_style=button_style,
             schools=school_list,
             entry=entry,
-            additional_stylesheets=[
-                dict(
-                    href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",
-                    integrity="sha384-5IbgsdqrjF6rAX1mxBZkKRyUOgEr0/xCGkteJIaRKpvW0Ag0tf6lru4oL2ZhcMvo",
-                )
-            ],
             additional_scripts=[
                 dict(
                     src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
@@ -876,10 +861,6 @@ def edit_entry_page():
                 dict(
                     src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
                     integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
-                ),
-                dict(
-                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js",
-                    integrity="sha384-duAtk5RV7s42V6Zuw+tRBFcqD8RjRKw6RFnxmxIj1lUGAQJyum/vtcUQX8lqKQjp",
                 ),
                 dict(src=url_for("static", filename="js/form.js")),
             ],
@@ -1038,15 +1019,9 @@ def add_entry():
             schools=school_list,
             enable_badges=badges_enabled,
             enable_address=address_enabled,
-            additional_stylesheets=[
-                dict(
-                    href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css",
-                    integrity="sha384-5IbgsdqrjF6rAX1mxBZkKRyUOgEr0/xCGkteJIaRKpvW0Ag0tf6lru4oL2ZhcMvo",
-                )
-            ],
             additional_scripts=[
                 dict(
-                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA", # noqa
+                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
                     async_bool="true",
                     defer="true",
                 ),
@@ -1057,10 +1032,6 @@ def add_entry():
                 dict(
                     src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
                     integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
-                ),
-                dict(
-                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js",
-                    integrity="sha384-duAtk5RV7s42V6Zuw+tRBFcqD8RjRKw6RFnxmxIj1lUGAQJyum/vtcUQX8lqKQjp",
                 ),
                 dict(src=url_for("static", filename="js/form.js")),
             ],
