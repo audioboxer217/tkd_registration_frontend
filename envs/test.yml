@@ -1,7 +1,7 @@
 ---
 dev:
   domain: okchmp24.kseppler.com
-  certificate_arn: arn:aws:acm:us-east-1:799879571353:certificate/08dcf05b-792c-4bea-b7d5-75acc69a5813
+  certificate_arn: arn:aws:acm:us-east-1:799879571353:certificate/b2176a36-73b1-422a-bdb9-3bfef96316df
   app_function: app.app
   aws_region: us-east-1
   profile_name: personal
@@ -15,3 +15,4 @@ dev:
   parameter_depth: 1
   memory_size: 512
   use_precompiled_packages: true
+  slim_handler: true
