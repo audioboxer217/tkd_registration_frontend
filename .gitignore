@@ -2,6 +2,7 @@
 backend.json
 frontend.json
 .environments/*
+static/public_media/*
 
 ## General Items ##
 *.env
