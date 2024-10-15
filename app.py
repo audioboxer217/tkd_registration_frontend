@@ -20,7 +20,8 @@ if os.getenv("FLASK_DEBUG"):
 else:
     app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
-app.config["table_name"] = os.getenv("DB_TABLE")
+app.config["reg_table_name"] = os.getenv("REG_DB_TABLE")
+app.config["auth_table_name"] = os.getenv("AUTH_DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 maps_api_key = os.getenv("MAPS_API_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
@@ -63,10 +64,8 @@ early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
 
 @login_manager.user_loader
 def loader(user_id):
-    auth_table = dynamodb_res.Table("auth_table_dev")
-    response = auth_table.query(
-        KeyConditionExpression=Key('id').eq(str(user_id))
-    )
+    auth_table = dynamodb_res.Table(app.config["auth_table_name"])
+    response = auth_table.query(KeyConditionExpression=Key('id').eq(str(user_id)))
 
     if response["Count"] == 0:
         return
@@ -81,7 +80,7 @@ def loader(user_id):
 
 def get_user(email):
     response = dynamodb.scan(
-        TableName='auth_table_dev',
+        TableName=app.config["auth_table_name"],
         FilterExpression="email = :email",
         ExpressionAttributeValues={
             ":email": {
@@ -208,7 +207,7 @@ def handle_form():
         if not os.getenv("FLASK_DEBUG"):
             pk_school_name = school.replace(" ", "_")
             pk_exists = dynamodb.get_item(
-                TableName=app.config["table_name"],
+                TableName=app.config["reg_table_name"],
                 Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
             )
 
@@ -498,7 +497,7 @@ def info_page():
 @app.route("/coaches", methods=["GET"])
 def coaches_page():
     entries = dynamodb.scan(
-        TableName=app.config["table_name"],
+        TableName=app.config["reg_table_name"],
         FilterExpression="reg_type = :type",
         ExpressionAttributeValues={
             ":type": {
@@ -611,7 +610,7 @@ def set_weight_class(entries):
 @app.route("/competitors", methods=["GET"])
 def competitors_page():
     entries = dynamodb.scan(
-        TableName=app.config["table_name"],
+        TableName=app.config["reg_table_name"],
         FilterExpression="reg_type = :type",
         ExpressionAttributeValues={
             ":type": {
@@ -728,7 +727,7 @@ def error_page():
 @login_required
 def admin_page():
     entries = dynamodb.scan(
-        TableName=app.config["table_name"],
+        TableName=app.config["reg_table_name"],
     )['Items']
     return render_template(
         "admin.html",
@@ -835,7 +834,7 @@ def edit_entry_page():
             expression_attribute_names = {f'#{k}': k for k in form_data}
 
             dynamodb.update_item(
-                TableName=app.config["table_name"],
+                TableName=app.config["reg_table_name"],
                 Key={
                     'pk': {"S": request.args.get("pk")},
                 },
@@ -850,7 +849,7 @@ def edit_entry_page():
     else:
         pk = request.args.get("pk")
         entry = dynamodb.get_item(
-            TableName=app.config["table_name"],
+            TableName=app.config["reg_table_name"],
             Key={"pk": {"S": pk}},
         )['Item']
         school_list = json.load(
@@ -898,7 +897,7 @@ def add_entry():
         if not os.getenv("FLASK_DEBUG"):
             pk_school_name = school.replace(" ", "_")
             pk_exists = dynamodb.get_item(
-                TableName=app.config["table_name"],
+                TableName=app.config["reg_table_name"],
                 Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
             )
 
@@ -1055,7 +1054,7 @@ def add_entry():
 @login_required
 def generate_csv():
     data = dynamodb.scan(
-        TableName=app.config["table_name"],
+        TableName=app.config["reg_table_name"],
         FilterExpression="reg_type = :type",
         ExpressionAttributeValues={
             ":type": {
