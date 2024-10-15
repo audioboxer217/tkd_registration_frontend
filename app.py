@@ -20,7 +20,8 @@ if os.getenv("FLASK_DEBUG"):
 else:
     app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
-app.config["table_name"] = os.getenv("DB_TABLE")
+app.config["reg_table_name"] = os.getenv("REG_DB_TABLE")
+app.config["auth_table_name"] = os.getenv("AUTH_DB_TABLE")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 maps_api_key = os.getenv("MAPS_API_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
@@ -63,10 +64,8 @@ early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
 
 @login_manager.user_loader
 def loader(user_id):
-    auth_table = dynamodb_res.Table("auth_table_dev")
-    response = auth_table.query(
-        KeyConditionExpression=Key('id').eq(str(user_id))
-    )
+    auth_table = dynamodb_res.Table(app.config["auth_table_name"])
+    response = auth_table.query(KeyConditionExpression=Key("id").eq(str(user_id)))
 
     if response["Count"] == 0:
         return
@@ -81,7 +80,7 @@ def loader(user_id):
 
 def get_user(email):
     response = dynamodb.scan(
-        TableName='auth_table_dev',
+        TableName=app.config["auth_table_name"],
         FilterExpression="email = :email",
         ExpressionAttributeValues={
             ":email": {
@@ -93,10 +92,10 @@ def get_user(email):
     if response["Count"] == 0:
         return
     user = User(
-        id=response['Items'][0]["id"]["S"],
-        email=response['Items'][0]["email"]["S"],
-        name=response['Items'][0]["name"]["S"],
-        password=response['Items'][0]["password"]["S"]
+        id=response["Items"][0]["id"]["S"],
+        email=response["Items"][0]["email"]["S"],
+        name=response["Items"][0]["name"]["S"],
+        password=response["Items"][0]["password"]["S"],
     )
     return user
 
@@ -208,7 +207,7 @@ def handle_form():
         if not os.getenv("FLASK_DEBUG"):
             pk_school_name = school.replace(" ", "_")
             pk_exists = dynamodb.get_item(
-                TableName=app.config["table_name"],
+                TableName=app.config["reg_table_name"],
                 Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
             )
 
@@ -333,7 +332,7 @@ def handle_form():
                         "quantity": 1
                     }
                 )
-            ### Code to have 'convenience fee' transfered to separate acct ###
+            # Code to have 'convenience fee' transfered to separate acct ###
             # registration_items.append(
             #     {
             #         "price": price_dict["Convenience Fee"]["price_id"],
@@ -349,7 +348,7 @@ def handle_form():
             ]
 
         if os.getenv("FLASK_DEBUG"):
-            ## For Testing Form Data
+            # For Testing Form Data
             return render_template(
                 "success.html",
                 title="Registration Submitted",
@@ -372,7 +371,7 @@ def handle_form():
                     "mode": "payment",
                     "discounts": [],
                     "success_url": f'{app.config["URL"]}/success',
-                    ### Code to have 'convenience fee' transfered to separate acct ###
+                    # Code to have 'convenience fee' transfered to separate acct ###
                     # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
                     "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
                     "expires_at": int(checkout_timeout.timestamp()),
@@ -498,14 +497,14 @@ def info_page():
 @app.route("/coaches", methods=["GET"])
 def coaches_page():
     entries = dynamodb.scan(
-        TableName=app.config["table_name"],
+        TableName=app.config["reg_table_name"],
         FilterExpression="reg_type = :type",
         ExpressionAttributeValues={
             ":type": {
                 "S": "coach",
             },
         },
-    )['Items']
+    )["Items"]
     return render_template(
         "coaches.html",
         title="Coaches",
@@ -611,14 +610,14 @@ def set_weight_class(entries):
 @app.route("/competitors", methods=["GET"])
 def competitors_page():
     entries = dynamodb.scan(
-        TableName=app.config["table_name"],
+        TableName=app.config["reg_table_name"],
         FilterExpression="reg_type = :type",
         ExpressionAttributeValues={
             ":type": {
                 "S": "competitor",
             },
         },
-    )['Items']
+    )["Items"]
     entries = set_weight_class(entries)
     return render_template(
         "competitors.html",
@@ -687,7 +686,7 @@ def competitors_page():
 
 @app.route("/success", methods=["GET"])
 def success_page():
-    ### Code to have 'convenience fee' transfered to separate acct ###
+    # Code to have 'convenience fee' transfered to separate acct ###
     # session = stripe.checkout.Session.retrieve(request.args.get('session_id'))
     # paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
     # stripe.Transfer.create(
@@ -728,8 +727,8 @@ def error_page():
 @login_required
 def admin_page():
     entries = dynamodb.scan(
-        TableName=app.config["table_name"],
-    )['Items']
+        TableName=app.config["reg_table_name"],
+    )["Items"]
     return render_template(
         "admin.html",
         title="Administration",
@@ -835,14 +834,14 @@ def edit_entry_page():
             expression_attribute_names = {f'#{k}': k for k in form_data}
 
             dynamodb.update_item(
-                TableName=app.config["table_name"],
+                TableName=app.config["reg_table_name"],
                 Key={
-                    'pk': {"S": request.args.get("pk")},
+                    "pk": {"S": request.args.get("pk")},
                 },
                 UpdateExpression=update_expression,
                 ExpressionAttributeValues=expression_attribute_values,
                 ExpressionAttributeNames=expression_attribute_names,
-                ReturnValues='UPDATED_NEW',
+                ReturnValues="UPDATED_NEW",
             )
 
         flash(f'{form_data["full_name"]["S"]} updated successfully!', 'success')
@@ -850,9 +849,9 @@ def edit_entry_page():
     else:
         pk = request.args.get("pk")
         entry = dynamodb.get_item(
-            TableName=app.config["table_name"],
+            TableName=app.config["reg_table_name"],
             Key={"pk": {"S": pk}},
-        )['Item']
+        )["Item"]
         school_list = json.load(
             s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]
         )
@@ -898,7 +897,7 @@ def add_entry():
         if not os.getenv("FLASK_DEBUG"):
             pk_school_name = school.replace(" ", "_")
             pk_exists = dynamodb.get_item(
-                TableName=app.config["table_name"],
+                TableName=app.config["reg_table_name"],
                 Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
             )
 
@@ -981,7 +980,7 @@ def add_entry():
                 )
 
         if os.getenv("FLASK_DEBUG"):
-            ## For Testing Form Data
+            # For Testing Form Data
             return render_template(
                 "success.html",
                 title="Registration Submitted",
@@ -1055,14 +1054,14 @@ def add_entry():
 @login_required
 def generate_csv():
     data = dynamodb.scan(
-        TableName=app.config["table_name"],
+        TableName=app.config["reg_table_name"],
         FilterExpression="reg_type = :type",
         ExpressionAttributeValues={
             ":type": {
                 "S": "competitor",
             },
         },
-    )['Items']
+    )["Items"]
     entries = sorted(data, key=lambda item: item["full_name"]["S"].split()[-1])
     return render_template(
         "export.html",
