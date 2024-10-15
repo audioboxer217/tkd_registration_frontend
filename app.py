@@ -65,7 +65,7 @@ early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
 @login_manager.user_loader
 def loader(user_id):
     auth_table = dynamodb_res.Table(app.config["auth_table_name"])
-    response = auth_table.query(KeyConditionExpression=Key('id').eq(str(user_id)))
+    response = auth_table.query(KeyConditionExpression=Key("id").eq(str(user_id)))
 
     if response["Count"] == 0:
         return
@@ -92,10 +92,10 @@ def get_user(email):
     if response["Count"] == 0:
         return
     user = User(
-        id=response['Items'][0]["id"]["S"],
-        email=response['Items'][0]["email"]["S"],
-        name=response['Items'][0]["name"]["S"],
-        password=response['Items'][0]["password"]["S"]
+        id=response["Items"][0]["id"]["S"],
+        email=response["Items"][0]["email"]["S"],
+        name=response["Items"][0]["name"]["S"],
+        password=response["Items"][0]["password"]["S"],
     )
     return user
 
@@ -332,7 +332,7 @@ def handle_form():
                         "quantity": 1
                     }
                 )
-            ### Code to have 'convenience fee' transfered to separate acct ###
+            # Code to have 'convenience fee' transfered to separate acct ###
             # registration_items.append(
             #     {
             #         "price": price_dict["Convenience Fee"]["price_id"],
@@ -348,7 +348,7 @@ def handle_form():
             ]
 
         if os.getenv("FLASK_DEBUG"):
-            ## For Testing Form Data
+            # For Testing Form Data
             return render_template(
                 "success.html",
                 title="Registration Submitted",
@@ -371,7 +371,7 @@ def handle_form():
                     "mode": "payment",
                     "discounts": [],
                     "success_url": f'{app.config["URL"]}/success',
-                    ### Code to have 'convenience fee' transfered to separate acct ###
+                    # Code to have 'convenience fee' transfered to separate acct ###
                     # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
                     "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
                     "expires_at": int(checkout_timeout.timestamp()),
@@ -504,7 +504,7 @@ def coaches_page():
                 "S": "coach",
             },
         },
-    )['Items']
+    )["Items"]
     return render_template(
         "coaches.html",
         title="Coaches",
@@ -617,7 +617,7 @@ def competitors_page():
                 "S": "competitor",
             },
         },
-    )['Items']
+    )["Items"]
     entries = set_weight_class(entries)
     return render_template(
         "competitors.html",
@@ -686,7 +686,7 @@ def competitors_page():
 
 @app.route("/success", methods=["GET"])
 def success_page():
-    ### Code to have 'convenience fee' transfered to separate acct ###
+    # Code to have 'convenience fee' transfered to separate acct ###
     # session = stripe.checkout.Session.retrieve(request.args.get('session_id'))
     # paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
     # stripe.Transfer.create(
@@ -728,7 +728,7 @@ def error_page():
 def admin_page():
     entries = dynamodb.scan(
         TableName=app.config["reg_table_name"],
-    )['Items']
+    )["Items"]
     return render_template(
         "admin.html",
         title="Administration",
@@ -836,12 +836,12 @@ def edit_entry_page():
             dynamodb.update_item(
                 TableName=app.config["reg_table_name"],
                 Key={
-                    'pk': {"S": request.args.get("pk")},
+                    "pk": {"S": request.args.get("pk")},
                 },
                 UpdateExpression=update_expression,
                 ExpressionAttributeValues=expression_attribute_values,
                 ExpressionAttributeNames=expression_attribute_names,
-                ReturnValues='UPDATED_NEW',
+                ReturnValues="UPDATED_NEW",
             )
 
         flash(f'{form_data["full_name"]["S"]} updated successfully!', 'success')
@@ -851,7 +851,7 @@ def edit_entry_page():
         entry = dynamodb.get_item(
             TableName=app.config["reg_table_name"],
             Key={"pk": {"S": pk}},
-        )['Item']
+        )["Item"]
         school_list = json.load(
             s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]
         )
@@ -980,7 +980,7 @@ def add_entry():
                 )
 
         if os.getenv("FLASK_DEBUG"):
-            ## For Testing Form Data
+            # For Testing Form Data
             return render_template(
                 "success.html",
                 title="Registration Submitted",
@@ -1061,7 +1061,7 @@ def generate_csv():
                 "S": "competitor",
             },
         },
-    )['Items']
+    )["Items"]
     entries = sorted(data, key=lambda item: item["full_name"]["S"].split()[-1])
     return render_template(
         "export.html",
