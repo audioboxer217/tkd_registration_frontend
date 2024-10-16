@@ -22,6 +22,7 @@ else:
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["reg_table_name"] = os.getenv("REG_DB_TABLE")
 app.config["auth_table_name"] = os.getenv("AUTH_DB_TABLE")
+app.config["lookup_table_name"] = os.getenv("LOOKUP_DB_TABLE", "reg_lookup_table")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 maps_api_key = os.getenv("MAPS_API_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
