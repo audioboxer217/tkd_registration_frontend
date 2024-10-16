@@ -176,6 +176,28 @@ def index_page():
     )
 
 
+@app.route("/lookup_entry")
+def lookup_entry():
+    email = request.args.get("email")
+    name = f"{request.args.get('fname','').lower()} {request.args.get('lname','').lower()}"
+    entries = dynamodb.scan(
+        TableName=app.config["lookup_table_name"],
+        IndexName="email-index",
+        FilterExpression="email = :email",
+        ExpressionAttributeValues={
+            ":email": {
+                "S": email,
+            },
+        },
+    )["Items"]
+
+    if len(entries) > 1:
+        if name != " ":
+            entries = [e for e in entries if name.strip() in e["name"]["S"].lower()]
+
+    return entries
+
+
 @app.route("/register")
 def display_form():
     if (
