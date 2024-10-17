@@ -89,17 +89,19 @@ function autofillEntry(data) {
   document.getElementById("fname").value = (data.name.S).split(" ")[0];
   document.getElementById("lname").value = (data.name.S).split(" ")[1];
   document.getElementById("inputPhone").value = data.phone.S;
-  document.getElementById("birthdate").value = (data.birthdate.S).replace(/(\d\d)\/(\d\d)\/(\d{4})/, "$3-$1-$2");
-  document.getElementById("inputParentName").value = data.parent.S;
   document.getElementById("inputSchool").value = data.school.S;
-  document.getElementById("inputCoach").value = data.coach.S;
-  if (data.gender.S == 'male') {
-    document.getElementById("genderMale").checked = true;
+  if (document.getElementById('regType').value == "competitor") {
+    document.getElementById("birthdate").value = (data.birthdate.S).replace(/(\d\d)\/(\d\d)\/(\d{4})/, "$3-$1-$2");
+    document.getElementById("inputParentName").value = data.parent.S;
+    document.getElementById("inputCoach").value = data.coach.S;
+    if (data.gender.S == 'male') {
+      document.getElementById("genderMale").checked = true;
+    }
+    else if (data.gender.S == 'female') {
+      document.getElementById("genderFemale").checked = true;
+    }
+    calculateAge(document.getElementById("birthdate").value);
   }
-  else if (data.gender.S == 'female') {
-    document.getElementById("genderFemale").checked = true;
-  }
-  calculateAge(document.getElementById("birthdate").value);
 }
 function updateFields() {
   if (document.getElementById('regType').value == "competitor") {
