@@ -38,7 +38,7 @@ address_enabled = os.getenv("ENABLE_ADDRESS", False)
 
 # Login
 login_manager = LoginManager()
-login_manager.login_view = 'login'
+login_manager.login_view = "login"
 login_manager.init_app(app)
 ph = PasswordHasher()
 
@@ -71,10 +71,10 @@ def loader(user_id):
     if response["Count"] == 0:
         return
     user = User(
-        id=response['Items'][0]["id"],
-        email=response['Items'][0]["email"],
-        name=response['Items'][0]["name"],
-        password=response['Items'][0]["password"]
+        id=response["Items"][0]["id"],
+        email=response["Items"][0]["email"],
+        name=response["Items"][0]["name"],
+        password=response["Items"][0]["password"],
     )
     return user
 
@@ -116,7 +116,7 @@ def get_s3_file(bucket, file_name):
     return output
 
 
-@app.route('/login')
+@app.route("/login")
 def login():
     return render_template(
         "login.html",
@@ -129,27 +129,27 @@ def login():
     )
 
 
-@app.route('/login', methods=['POST'])
+@app.route("/login", methods=["POST"])
 def login_post():
     # login code goes here
-    email = request.form.get('email').lower()
-    password = request.form.get('password')
-    remember = True if request.form.get('remember') else False
+    email = request.form.get("email").lower()
+    password = request.form.get("password")
+    remember = True if request.form.get("remember") else False
 
     user = get_user(email)
     # check if the user actually exists
     if not user:
-        flash('Please check your login details and try again.')
-        return redirect(url_for('login'))
+        flash("Please check your login details and try again.")
+        return redirect(url_for("login"))
     try:
         ph.verify(user.password, password)
     except VerifyMismatchError:
-        flash('Please check your login details and try again.')
-        return redirect(url_for('login'))
+        flash("Please check your login details and try again.")
+        return redirect(url_for("login"))
 
     # if the above check passes, then we know the user has the right credentials
     login_user(user, remember=remember)
-    return redirect(url_for('admin_page'))
+    return redirect(url_for("admin_page"))
 
 
 @app.route("/logout")
@@ -200,9 +200,7 @@ def lookup_entry():
 
 @app.route("/register")
 def display_form():
-    if (
-        date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date()
-    ):
+    if date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date():
         return render_template(
             "disabled.html",
             title="Registration Closed",
@@ -1055,7 +1053,7 @@ def add_entry():
         return redirect(f'{app.config["URL"]}/success', code=303)
 
 
-@app.route('/export')
+@app.route("/export")
 @login_required
 def generate_csv():
     data = dynamodb.scan(
