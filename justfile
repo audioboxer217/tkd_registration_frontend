@@ -7,6 +7,8 @@ default:
 # Ensure `uv` is installed
 bootstrap:
   {{ uv_install }}
+  uv python install
+  uv sync --all-extras --dev
 
 _aws_login AWS_PROFILE:
   @aws --profile {{ AWS_PROFILE }} sts get-caller-identity || aws sso login
