@@ -336,7 +336,7 @@ def handle_form():
                 pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                 team_poomsae_form={"S": request.form.get("team poomsae form")},
                 family_poomsae_form={"S": request.form.get("family poomsae form")},
-                medical_form={"M": json.dumps(medical_form)},
+                medical_form={"M": medical_form},
             )
         )
         if badges_enabled:
@@ -1003,7 +1003,7 @@ def add_entry():
                 pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                 team_poomsae_form={"S": request.form.get("team poomsae form")},
                 family_poomsae_form={"S": request.form.get("family poomsae form")},
-                medical_form={"S": json.dumps(medical_form)},
+                medical_form={"S": medical_form},
             )
         )
         if badges_enabled:
