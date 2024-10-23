@@ -1,25 +1,19 @@
-python_ver := '3.10.13'
-python_win_ver := '3.10.11'
-python_subdir := if os_family() == "windows" { "/Scripts" } else { "/bin" }
-python_exec := if os_family() == "windows" { "/python.exe" } else { "/python3" }
-system_python := if os_family() == "windows" { "${HOME}/.pyenv/pyenv-win/versions/" + python_win_ver + "/python.exe" } else { "${HOME}/.pyenv/versions/" + python_ver + "/bin/python3" }
-zappa := './.venv/' + python_subdir + '/zappa'
+uv_install := if os_family() == "windows" { 'powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"' } else { "curl -LsSf https://astral.sh/uv/install.sh | sh" }
 
+# This list
 default:
   @just --list
 
-# Bootstrap Python Env. Valid Types: 'deploy' & 'dev'
-bootstrap venv_dir='.venv' type="deploy":
-  if test ! -e {{ venv_dir }}; then {{ system_python }} -m venv {{ venv_dir }}; fi
-  ./{{ venv_dir }}{{ python_subdir }}{{ python_exec }} -m pip install --upgrade pip
-  ./{{ venv_dir }}{{ python_subdir }}{{ python_exec }} -m pip install --upgrade -r requirements.txt {{ if type == 'dev' { '-r dev_requirements.txt' } else { '' } }}
+# Ensure `uv` is installed
+bootstrap:
+  {{ uv_install }}
 
 _aws_login AWS_PROFILE:
   @aws --profile {{ AWS_PROFILE }} sts get-caller-identity || aws sso login
 
 _zappa CMD ACCT ENV:
   @just _aws_login "$(yq '.{{ ENV }}.profile_name' envs/{{ ACCT }}.yml)"
-  {{ zappa }} {{ CMD }} -s envs/{{ ACCT }}.yml {{ ENV }}
+  uv run zappa {{ CMD }} -s envs/{{ ACCT }}.yml {{ ENV }}
 
 # Deploy new environment
 deploy ACCT='test' ENV='dev': (_zappa "deploy" ACCT ENV)
