@@ -116,6 +116,15 @@ def get_s3_file(bucket, file_name):
     return output
 
 
+def format_medical_form(contacts, medicalConditions_list, allergy_list, medications_list):
+    return dict(
+        contacts=dict(S=contacts),
+        medicalConditions=dict(L=[{"S": mc} for mc in medicalConditions_list if mc != ""]),
+        allergies=dict(L=[{"S": a} for a in allergy_list if a != ""]),
+        medications=dict(L=[{"S": m} for m in medications_list if m != ""]),
+    )
+
+
 @app.route("/login")
 def login():
     return render_template(
@@ -305,18 +314,13 @@ def handle_form():
             msg = "You must choose at least one event"
             abort(400, msg)
 
-        medical_form = dict(
-            contacts=request.form.get("contacts"),
-            medicalConditions=request.form.get("medicalConditionsList").split(","),
+        medical_form = format_medical_form(
+            request.form.get("contacts"),
+            request.form.get("medicalConditionsList").split(","),
+            request.form.get("allergy_list").split("\r\n"),
+            request.form.get("meds_list").split("\r\n"),
         )
-        if request.form.get("allergies") == "Y":
-            medical_form["allergies"] = request.form.get("allergy_list").split("\r\n")
-        else:
-            medical_form["allergies"] = "None"
-        if request.form.get("medications") == "Y":
-            medical_form["medications"] = request.form.get("meds_list").split("\r\n")
-        else:
-            medical_form["medications"] = "None"
+
         form_data.update(
             dict(
                 parent={"S": request.form.get("parentName")},
@@ -332,7 +336,7 @@ def handle_form():
                 pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                 team_poomsae_form={"S": request.form.get("team poomsae form")},
                 family_poomsae_form={"S": request.form.get("family poomsae form")},
-                medical_form={"S": json.dumps(medical_form)},
+                medical_form={"M": json.dumps(medical_form)},
             )
         )
         if badges_enabled:
@@ -977,18 +981,13 @@ def add_entry():
                 msg = "You must choose at least one event"
                 abort(400, msg)
 
-        medical_form = dict(
-            contacts=request.form.get("contacts"),
-            medicalConditions=request.form.get("medicalConditionsList").split(","),
+        medical_form = format_medical_form(
+            request.form.get("contacts"),
+            request.form.get("medicalConditionsList").split(","),
+            request.form.get("allergy_list").split("\r\n"),
+            request.form.get("meds_list").split("\r\n"),
         )
-        if request.form.get("allergies") == "Y":
-            medical_form["allergies"] = request.form.get("allergy_list").split("\r\n")
-        else:
-            medical_form["allergies"] = "None"
-        if request.form.get("medications") == "Y":
-            medical_form["medications"] = request.form.get("meds_list").split("\r\n")
-        else:
-            medical_form["medications"] = "None"
+
         form_data.update(
             dict(
                 parent={"S": request.form.get("parentName")},
