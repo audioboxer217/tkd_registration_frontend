@@ -30,15 +30,11 @@ jobs:
         role-session-name: FrontendTest
         aws-region: ${{ vars.AWS_DEFAULT_REGION }}
 
-    - name: setup python
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt -r dev_requirements.txt
+        # Install a specific version of uv.
+        version: "0.4.26"
 
     - name: Run Tests
       env:
@@ -58,4 +54,4 @@ jobs:
         STRIPE_API_KEY: "${{ secrets.STRIPE_API_KEY }}"
         VISITOR_INFO_URL: "${{ vars.VISITOR_INFO_URL }}"
         VISITOR_INFO_TEXT: "${{ vars.VISITOR_INFO_TEXT }}"
-      run: pytest -qrA --tb=no >> $GITHUB_STEP_SUMMARY
+      run: uv run pytest -qrA --tb=no >> $GITHUB_STEP_SUMMARY
