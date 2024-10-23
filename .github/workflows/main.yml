@@ -36,6 +36,12 @@ jobs:
         # Install a specific version of uv.
         version: "0.4.26"
 
+    - name: Set up Python
+      run: uv python install
+
+    - name: Install the project
+      run: uv sync --all-extras --dev
+
     - name: Run Tests
       env:
         COMPETITION_NAME: "${{ vars.COMPETITION_NAME }}"
