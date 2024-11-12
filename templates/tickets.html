@@ -1,0 +1,20 @@
+{% extends "base.html" -%}
+{% block content -%}
+<div class="row justify-content-md-center">
+  <div class="col-md-12 center-block" align="center">
+    <h1>Tickets</h1>
+  </div>
+</div>
+<form action="/tickets" method="post" enctype=multipart/form-data id="eventRegistration">
+  {% include "partials/form_common.html" %}
+  {% include "partials/form_tickets.html" %}
+  {% include "partials/form_total.html" %}
+  <div class="row g-3 mt-2">
+    <div class="col-sm-2">
+      <button type="submit" class="btn {{ button_style }}">Purchase</button>
+    </div>
+  </div>
+</form>
+{% include "partials/form_lookup_modal.html" %}
+{% include "partials/script_okc_prices.html" %}
+{%- endblock content %}
