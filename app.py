@@ -50,17 +50,20 @@ class User(UserMixin):
         self.name = name
         self.password = password
 
-
-# Price Details
-price_dict = {}
-products = stripe.Product.list()
-for p in products:
-    price_detail = stripe.Price.retrieve(p.default_price)
-    price_dict[p.name] = {
-        "price_id": price_detail.id,
-        "price": f"{int(price_detail.unit_amount/100)}",
-    }
 early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
+
+
+def get_price_details():
+    # Price Details
+    price_dict = {}
+    products = stripe.Product.list()
+    for p in products:
+        price_detail = stripe.Price.retrieve(p.default_price)
+        price_dict[p.name] = {
+            "price_id": price_detail.id,
+            "price": f"{int(price_detail.unit_amount/100)}",
+        }
+    return price_dict
 
 
 @login_manager.user_loader
@@ -236,7 +239,7 @@ def display_form():
             competition_year=os.getenv("COMPETITION_YEAR"),
             early_reg_date=os.getenv("EARLY_REG_DATE"),
             early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
-            price_dict=price_dict,
+            price_dict=get_price_details(),
             reg_type=reg_type,
             schools=school_list,
             enable_badges=badges_enabled,
@@ -263,6 +266,7 @@ def display_form():
 @app.route("/register", methods=["POST"])
 def handle_form():
     reg_type = request.form.get("regType")
+    price_dict = get_price_details()
 
     # Name
     fname = request.form.get("fname").strip()
@@ -483,7 +487,7 @@ def tickets_page():
         competition_year=os.getenv("COMPETITION_YEAR"),
         early_reg_date=os.getenv("EARLY_REG_DATE"),
         early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
-        price_dict=price_dict,
+        price_dict=get_price_details(),
         reg_type=reg_type,
         schools=school_list,
         enable_badges=badges_enabled,
@@ -510,6 +514,7 @@ def tickets_page():
 @app.route("/tickets", methods=["POST"])
 def purchase_tickets():
     reg_type = request.form.get("regType")
+    price_dict = get_price_details()
 
     # Name
     fname = request.form.get("fname").strip()
@@ -1046,7 +1051,7 @@ def add_entry_form():
         competition_year=os.getenv("COMPETITION_YEAR"),
         early_reg_date=os.getenv("EARLY_REG_DATE"),
         early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
-        price_dict=price_dict,
+        price_dict=get_price_details(),
         reg_type=reg_type,
         schools=school_list,
         enable_badges=badges_enabled,
