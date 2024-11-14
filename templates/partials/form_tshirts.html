@@ -1,0 +1,10 @@
+<input class="form-control" type="text" name="regType" id="regType" value="tshirts" hidden required>
+{% for size in sizes %}
+<div class="row mt-2">
+  <div class="col-sm-1">
+    <label for="tshirt_{{ size | lower }}" class="form-check-label h5">{{ size }}</label>
+    <input class="form-control" type="number" name="tshirt_{{ size | lower }}" id="tshirt_{{ size | lower }}" value="0"
+      min="0" max="10" onchange="updateTotal()" required />
+  </div>
+</div>
+{% endfor %}

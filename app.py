@@ -472,8 +472,6 @@ def tickets_page():
     #         email=os.getenv("CONTACT_EMAIL"),
     #     )
     # else:
-    reg_type = request.args.get("reg_type")
-    school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
 
     # Display the form
     return render_template(
@@ -488,10 +486,6 @@ def tickets_page():
         early_reg_date=os.getenv("EARLY_REG_DATE"),
         early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
         price_dict=get_price_details(),
-        reg_type=reg_type,
-        schools=school_list,
-        enable_badges=badges_enabled,
-        enable_address=address_enabled,
         additional_scripts=[
             dict(
                 src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
@@ -538,8 +532,153 @@ def purchase_tickets():
         email={"S": request.form.get("email")},
         phone={"S": request.form.get("phone")},
         reg_type={"S": request.form.get("regType")},
-        num_tickets=request.form.get("tickets"),
+        num_tickets={"N": request.form.get("tickets")},
     )
+
+    registration_items = [
+        {
+            "price": price_dict["TKD Demonstration Show Ticket"]["price_id"],
+            "quantity": request.form.get("tickets"),
+        },
+        {"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1},
+    ]
+
+    if os.getenv("FLASK_DEBUG"):
+        # For Testing Form Data
+        return render_template(
+            "success.html",
+            title="Registration Submitted",
+            competition_name=os.getenv("COMPETITION_NAME"),
+            favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+            visitor_info_url=visitor_info_url,
+            visitor_info_text=visitor_info_text,
+            button_style=button_style,
+            email=os.getenv("CONTACT_EMAIL"),
+            reg_detail=form_data,
+            cost_detail=registration_items,
+        )
+    else:
+        try:
+            early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y") + timedelta(days=1)
+            current_time = datetime.now()
+            checkout_timeout = current_time + timedelta(minutes=30)
+            checkout_details = {
+                "line_items": registration_items,
+                "mode": "payment",
+                "discounts": [],
+                # "success_url": f'{app.config["URL"]}/success',
+                # Code to have 'convenience fee' transfered to separate acct ###
+                "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
+                "cancel_url": f'{app.config["URL"]}/tickets',
+                "expires_at": int(checkout_timeout.timestamp()),
+            }
+            checkout_session = stripe.checkout.Session.create(
+                line_items=checkout_details["line_items"],
+                mode=checkout_details["mode"],
+                discounts=checkout_details["discounts"],
+                success_url=checkout_details["success_url"],
+                cancel_url=checkout_details["cancel_url"],
+                expires_at=checkout_details["expires_at"],
+            )
+        except Exception as e:
+            return str(e)
+
+        form_data.update(dict(checkout={"S": checkout_session.id}))
+        sqs.send_message(
+            QueueUrl=app.config["SQS_QUEUE_URL"],
+            DelaySeconds=120,
+            MessageAttributes={
+                "Name": {"DataType": "String", "StringValue": fullName},
+                "Transaction": {
+                    "DataType": "String",
+                    "StringValue": checkout_session.id,
+                },
+            },
+            MessageBody=json.dumps(form_data),
+        )
+
+        return redirect(checkout_session.url, code=303)
+
+
+@app.route("/tshirts", methods=["GET"])
+def tshirts_page():
+    # if date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date():
+    #     return render_template(
+    #         "disabled.html",
+    #         title="Registration Closed",
+    #         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+    #         visitor_info_url=visitor_info_url,
+    #         visitor_info_text=visitor_info_text,
+    #         button_style=button_style,
+    #         competition_name=os.getenv("COMPETITION_NAME"),
+    #         email=os.getenv("CONTACT_EMAIL"),
+    #     )
+    # else:
+
+    # Display the form
+    return render_template(
+        "tshirts.html",
+        title="T-Shirts",
+        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+        visitor_info_url=visitor_info_url,
+        visitor_info_text=visitor_info_text,
+        button_style=button_style,
+        competition_name=os.getenv("COMPETITION_NAME"),
+        competition_year=os.getenv("COMPETITION_YEAR"),
+        early_reg_date=os.getenv("EARLY_REG_DATE"),
+        early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
+        price_dict=get_price_details(),
+        sizes=["XS", "S", "M", "L", "XL", "XXL", "XXXL"],
+        additional_scripts=[
+            dict(
+                src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
+                async_bool="true",
+                defer="true",
+            ),
+            dict(
+                src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
+                integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
+            ),
+            dict(
+                src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
+                integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
+            ),
+            dict(src=url_for("static", filename="js/form.js")),
+        ],
+    )
+
+
+@app.route("/tshirts", methods=["POST"])
+def purchase_tshirts():
+    reg_type = request.form.get("regType")
+    price_dict = get_price_details()
+
+    # Name
+    fname = request.form.get("fname").strip()
+    lname = request.form.get("lname").strip()
+    fullName = f"{fname}_{lname}"
+
+    # Check if registration already exists
+    if not os.getenv("FLASK_DEBUG"):
+        pk_exists = dynamodb.get_item(
+            TableName=app.config["reg_table_name"],
+            Key={"pk": {"S": f"{reg_type}-{fullName}"}},
+        )
+
+        if "Item" in pk_exists:
+            print("registration exists")
+            return redirect(f'{app.config["URL"]}/registration_error?reg_type={reg_type}')
+
+    # Base Form Data
+    form_data = dict(
+        full_name={"S": f"{fname} {lname}"},
+        email={"S": request.form.get("email")},
+        phone={"S": request.form.get("phone")},
+        reg_type={"S": request.form.get("regType")},
+    )
+
+    tshirts = {f"tshirt_{size}": {"N": request.form.get(f"tshirt_{size}")} for size in ["xs", "s", "m", "l", "xl", "xxl", "xxxl"]}
+    form_data.update(tshirts)
 
     registration_items = [
         {

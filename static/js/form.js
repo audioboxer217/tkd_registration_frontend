@@ -399,6 +399,12 @@ function updateTotal() {
   else if (document.getElementById('regType').value == "tickets") {
     document.getElementById("total").value = "$" + (window.tkdreg.price_dict.tickets * document.getElementById("tickets").value)
   }
+  else if (document.getElementById('regType').value == "tshirts") {
+    tshirt_count = 0;
+    tshirt_sizes = document.querySelectorAll('[id^=tshirt_]');
+    tshirt_sizes.forEach((element) => tshirt_count += element.valueAsNumber);
+    document.getElementById("total").value = "$" + (window.tkdreg.price_dict.tshirts * tshirt_count);
+  }
   else {
     document.getElementById("total").value = "$" + window.tkdreg.price_dict.coach
   }
