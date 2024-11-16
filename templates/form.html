@@ -5,6 +5,11 @@
       <h1>{{ reg_type|capitalize }} Registration Form</h1>
     </div>
   </div>
+  <div class="row justify-content-md-center">
+    <div class="col-md-12 center-block" align="center">
+      <h4>Registration includes one free ticket to the Yongin Demo Team Performance</h4>
+    </div>
+  </div>
   <form action="/register?reg_type={{ reg_type }}" method="post" enctype=multipart/form-data id="eventRegistration">
     {% include "partials/form_common.html" %}
     {% if reg_type == 'competitor' %}
@@ -18,10 +23,14 @@
       {% endif %}
     {% endif %}
     {% include "partials/form_school.html" %}
-    {% if reg_type == 'competitor' %}
-      {% include "partials/form_belt.html" %}
-      {% include "partials/form_events.html" %}
-      {% include "partials/form_total.html" %}
+  {% if reg_type == 'competitor' %}
+  {% include "partials/form_belt.html" %}
+  {% include "partials/form_events.html" %}
+  {% endif %}
+  {% if reg_type == 'competitor' or reg_type == 'seminar' %}
+    {% include "partials/form_total.html" %}
+  {% endif %}
+  {% if reg_type == 'competitor' %}
       {% include "partials/form_medical.html" %}
       {% include "partials/form_liability.html" %}
     {% endif %}

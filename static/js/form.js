@@ -396,6 +396,9 @@ function updateTotal() {
       alert("Please choose a Belt Rank to get your Total")
     }
   }
+  else if (document.getElementById('regType').value == "seminar") {
+    document.getElementById("total").value = "$" + (window.tkdreg.price_dict.registration);
+  }
   else if (document.getElementById('regType').value == "tickets") {
     document.getElementById("total").value = "$" + (window.tkdreg.price_dict.tickets * document.getElementById("tickets").value)
   }

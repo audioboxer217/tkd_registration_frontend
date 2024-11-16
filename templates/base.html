@@ -25,30 +25,15 @@
       </div>
     </div>
     <div class="row justify-content-md-center">
-      <div class="col-sm-3">
-        <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/register" role="button">Event Registration</a>
+        <div class="col-sm-3 g-2" align="center">
+          <a class="btn {{ button_style }}" href="/register?reg_type=seminar" role="button">Seminar Registration</a>
         </div>
-        <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/tickets" role="button">Spectator Tickets</a>
-        </div>
-      </div>
-      <div class="col-sm-3">
-        <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/schedule" role="button">Schedule of Events</a>
-        </div>
-        <!-- <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/competitors" role="button">Events & Divisions</a>
-        </div> -->
-      </div>
-      <div class="col-sm-3">
-        <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/information" role="button">Information</a>
-        </div>
-        <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/tshirts" role="button">T-Shirts</a>
-        </div>
-      </div>
+          <div class="col-sm-3 g-2" align="center">
+            <a class="btn {{ button_style }}" href="/tickets" role="button">Performance Tickets</a>
+          </div>
+          <div class="col-sm-3 g-2" align="center">
+            <a class="btn {{ button_style }}" href="/tshirts" role="button">Event T-Shirts</a>
+          </div>
     </div>
     <hr/>
     {% with messages = get_flashed_messages(with_categories=true) %}

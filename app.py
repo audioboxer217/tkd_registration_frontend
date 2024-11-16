@@ -628,7 +628,7 @@ def tshirts_page():
         early_reg_date=os.getenv("EARLY_REG_DATE"),
         early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
         price_dict=get_price_details(),
-        sizes=["XS", "S", "M", "L", "XL", "XXL", "XXXL"],
+        sizes=enumerate(["XS", "S", "M", "L", "XL", "XXL", "XXXL"]),
         additional_scripts=[
             dict(
                 src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
@@ -679,11 +679,12 @@ def purchase_tshirts():
 
     tshirts = {f"tshirt_{size}": {"N": request.form.get(f"tshirt_{size}")} for size in ["xs", "s", "m", "l", "xl", "xxl", "xxxl"]}
     form_data.update(tshirts)
+    tshirt_quantity = sum([int(tshirts[f"tshirt_{size}"]["N"]) for size in ["xs", "s", "m", "l", "xl", "xxl", "xxxl"]])
 
     registration_items = [
         {
-            "price": price_dict["TKD Demonstration Show Ticket"]["price_id"],
-            "quantity": request.form.get("tickets"),
+            "price": price_dict["T-Shirt"]["price_id"],
+            "quantity": tshirt_quantity,
         },
         {"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1},
     ]
