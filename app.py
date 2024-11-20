@@ -22,7 +22,13 @@ app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["reg_table_name"] = os.getenv("REG_DB_TABLE")
 app.config["auth_table_name"] = os.getenv("AUTH_DB_TABLE", "admin_auth_table")
 app.config["lookup_table_name"] = os.getenv("LOOKUP_DB_TABLE", "reg_lookup_table")
-app.config["sizes"] = os.getenv("SIZES", "XS,S,M,L,XL,XXL").split(",")
+app.config["sizes"] = os.getenv(
+    "SIZES",
+    dict(
+        Youth=["YS", "YM", "YL"],
+        Adult=["S", "M", "L", "XL", "XXL"],
+    ),
+)
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
 s3 = boto3.client("s3")
@@ -362,7 +368,7 @@ def purchase_page():
             early_reg_date=os.getenv("EARLY_REG_DATE"),
             # early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
             price_dict=get_price_details(),
-            sizes=enumerate(app.config["sizes"]),
+            size_dict=app.config["sizes"],
             additional_scripts=[
                 dict(
                     src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
