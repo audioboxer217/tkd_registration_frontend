@@ -1,14 +1,23 @@
-<input class="form-control" type="text" name="regType" id="regType" value="tshirts" hidden required>
-{% for i,size in sizes %}
-{% if i == 0 or i == 4 %}
 <div class="row mt-2">
-  {% endif %}
-  <div class="col-sm-1">
-    <label for="tshirt_{{ size | lower }}" class="form-check-label h5">{{ size }}</label>
-    <input class="form-control" type="number" name="tshirt_{{ size | lower }}" id="tshirt_{{ size | lower }}" value="0"
-    min="0" max="10" onchange="updateTotal()" required />
-  </div>
-{% if i == 3 or i == 7 %}
+  <h5>T-Shirts</h5>
 </div>
-{% endif %}
+{% for i,size in sizes %}
+  {% if i == 0 or i == 3 %}
+  <div class="row mt-2">
+    {% endif %}
+    <div class="col-sm-1">
+      <input class="form-check-input" type="checkbox" id="bool_tshirt_{{ size }}" value="{{ size }}"
+        onclick="enableSize(this.value)">
+      <label for="bool_tshirt_{{ size }}" class="form-check-label h5">{{ size }}</label>
+      <!-- </div> -->
+      <div class="row" id="section_tshirt_{{ size }}" hidden>
+        <div class="col mt-1">
+          <input class="form-control" type="number" name="tshirt_{{ size }}" id="tshirt_{{ size }}" value="0" min="0" max="10"
+            onchange="updateTotal()" />
+        </div>
+      </div>
+      </div>
+      {% if i == 2 or i == 5 %}
+      </div>
+      {% endif %}
 {% endfor %}
