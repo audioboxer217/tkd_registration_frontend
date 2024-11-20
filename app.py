@@ -279,10 +279,8 @@ def handle_form():
     )
 
     registration_items = [
-        {
-            "price": price_dict["Registration"]["price_id"],
-            "quantity": 1,
-        },
+        {"price": price_dict["Registration"]["price_id"], "quantity": 1},
+        {"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1},
     ]
 
     if os.getenv("FLASK_DEBUG"):

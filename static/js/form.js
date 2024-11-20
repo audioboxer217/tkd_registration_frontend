@@ -152,16 +152,16 @@ function updateTotal() {
   const early_reg_date = window.tkdreg.early_reg_date
 
   if (document.getElementById('regType').value == "seminar") {
-    total = window.tkdreg.price_dict.registration;
+    total = Number(window.tkdreg.price_dict.registration) + Number(window.tkdreg.price_dict.convfee);
   }
   else {
-    total = 0;
+    total = Number(window.tkdreg.price_dict.convfee);
     tshirt_count = 0;
     tshirt_sizes = document.querySelectorAll('[name^=tshirt_]');
     tshirt_sizes.forEach((element) => tshirt_count += element.valueAsNumber);
     
-    total += window.tkdreg.price_dict.tickets * document.getElementById("tickets").value;
-    total += (window.tkdreg.price_dict.tshirts * tshirt_count);
+    total += Number(window.tkdreg.price_dict.tickets) * document.getElementById("tickets").value;
+    total += Number(window.tkdreg.price_dict.tshirts) * tshirt_count;
   }
 
   document.getElementById("total").value = "$" + total;
