@@ -51,8 +51,6 @@ class User(UserMixin):
         self.name = name
         self.password = password
 
-# early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
-
 
 def get_price_details():
     # Price Details
@@ -168,7 +166,6 @@ def index_page():
         title=os.getenv("COMPETITION_NAME"),
         email=os.getenv("CONTACT_EMAIL"),
         competition_name=os.getenv("COMPETITION_NAME"),
-        early_reg_date=os.getenv("EARLY_REG_DATE"),
         reg_close_date=os.getenv("REG_CLOSE_DATE"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
         button_style=button_style,
@@ -219,8 +216,6 @@ def display_form():
             button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
-            early_reg_date=os.getenv("EARLY_REG_DATE"),
-            # early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
             price_dict=get_price_details(),
             schools=school_list,
             additional_scripts=[
@@ -303,7 +298,6 @@ def handle_form():
         )
     else:
         try:
-            early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y") + timedelta(days=1)
             current_time = datetime.now()
             checkout_timeout = current_time + timedelta(minutes=30)
             checkout_details = {
@@ -316,8 +310,7 @@ def handle_form():
                 "cancel_url": f'{app.config["URL"]}/register',
                 "expires_at": int(checkout_timeout.timestamp()),
             }
-            # if current_time < early_reg_date:
-            #     checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
+
             checkout_session = stripe.checkout.Session.create(
                 line_items=checkout_details["line_items"],
                 mode=checkout_details["mode"],
@@ -365,8 +358,6 @@ def purchase_page():
             button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
-            early_reg_date=os.getenv("EARLY_REG_DATE"),
-            # early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
             price_dict=get_price_details(),
             size_dict=app.config["sizes"],
             additional_scripts=[
@@ -438,7 +429,6 @@ def purchase():
         )
     else:
         try:
-            # early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y") + timedelta(days=1)
             current_time = datetime.now()
             checkout_timeout = current_time + timedelta(minutes=30)
             checkout_details = {
@@ -666,8 +656,6 @@ def add_entry_form():
         button_style=button_style,
         competition_name=os.getenv("COMPETITION_NAME"),
         competition_year=os.getenv("COMPETITION_YEAR"),
-        early_reg_date=os.getenv("EARLY_REG_DATE"),
-        # early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
         price_dict=get_price_details(),
         schools=school_list,
         additional_scripts=[

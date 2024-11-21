@@ -149,7 +149,7 @@ function enableSize(size) {
 }
 function updateTotal() {
   const today = new Date()
-  const early_reg_date = window.tkdreg.early_reg_date
+
 
   if (document.getElementById('regType').value == "seminar") {
     total = Number(window.tkdreg.price_dict.registration) + Number(window.tkdreg.price_dict.convfee);
