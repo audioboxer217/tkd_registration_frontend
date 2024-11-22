@@ -586,6 +586,7 @@ def edit_entry_form():
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
         button_style=button_style,
         schools=school_list,
+        size_dict=app.config["sizes"],
         entry=entry,
         additional_scripts=[
             dict(

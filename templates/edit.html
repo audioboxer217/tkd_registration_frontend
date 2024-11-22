@@ -25,7 +25,7 @@
           oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>
       </div>
     </div>
-    {% if entry.reg_type.S == 'competitor' %}
+    {% if entry.reg_type.S == 'seminar' %}
     <div class="row g-3 mt-1" id="classSection">
       <div class="col-md-6">
         <div class="row g-3">
@@ -70,20 +70,7 @@
           </div>
         </div>
       </div>
-      <div class="col-md-4">
-        <div class="row mt-1">
-          <div class="col-md-4">
-            <label class="form-check-label h5" for="weightLbs">Weight</label>
-            <input class="form-control" name="weight" ="number" step="0.01" id="weightLbs" value="{{ entry.weight.N }}" required>
-          </div>
-          <div class="col-md-4">
-            <label class="form-check-label h5" for="height">Height</label>
-            <input class="form-control" type="number" step="0.01" name="height" id="height" value="{{ entry.height.N }}" required>
-          </div>
-        </div>
-      </div>
     </div>
-    {% endif %}
     <div class="row g-3 mt-1">
       <div class="col-md-6">
         <label for="inputSchool" class="form-check-label h5">Taekwondo School Or Club</label>
@@ -94,14 +81,7 @@
           {% endfor %}
         </datalist>
       </div>
-      {% if entry.reg_type.S == 'competitor' %}
-      <div class="col-md-6" id="coachSection">
-        <label for="inputCoach" class="form-check-label h5">Taekwondo Instructor / Coach</label>
-        <input type="text" class="form-control" name="coach" value="{{ entry.coach.S }}" id="inputCoach" required>
-      </div>
-      {% endif %}
     </div>
-    {% if entry.reg_type.S == 'competitor' %}
     <div class="row mt-1" id="beltSection">
       <div class="col-md-4">
         <div class="row g-3 mt-0">
@@ -170,96 +150,35 @@
           </div>
         </div>
       </div>
-      <div class="col-md-2"></div>
-      <div class="col-md-4">
-        <div class="row g-3 mt-0">
-          <label class="form-check-label h5" for="event list">Events</label>
-          <ul>
-            {% for event in entry.events.S.split(',') %}
-            <li>{{ event }}</li>
-            {% endfor %}
-          </ul>
+    {% else %}
+    <div class="row mt-2">
+      <h5>T-Shirts</h5>
+    </div>
+    {% for category,sizes in size_dict.items() %}
+    <div class="row mt-2">
+      <h5>{{ category }}</h5>
+    </div>
+        <div class="row mt-2">
+          {% for size in sizes %}
+          <div class="col-sm-1">
+            <input class="form-check-input" type="checkbox" id="bool_tshirt_{{ size }}" value="{{ size }}"
+              onclick="enableSize()" {{ "checked" if entry.tshirts.M['tshirt_'+size]['N'] !="0" else "" }}>
+            <label for="bool_tshirt_{{ size }}" class="form-check-label h5">{{ size }}</label>
+            <!-- </div> -->
+            <div class="row" id="section_tshirt_{{ size }}" {{ "hidden" if entry.tshirts.M['tshirt_'+size]['N']=="0" else "" }}>
+              <div class="col mt-1">
+                <input class="form-control" type="number" name="tshirt_{{ size }}" id="tshirt_{{ size }}"
+                  value="{{ entry.tshirts.M['tshirt_'+size]['N'] }}" min="0" max="10" />
+              </div>
+            </div>
+            </div>
+        {% endfor %}
         </div>
-      </div>
-    </div>
-    <div class="row mt-1" {{ "hidden" if  entry.poomsae_form.S == '' }}>
-      <div class="col-md-2">
-        <label class="form-check-label h5" for="poomsae form">Poomsae Form</label>
-        <select  class="form-select" name="poomsae form" id="poomsae form">
-          <option {{ "selected" if entry.poomsae_form.S == "" else "" }} value=""></option>
-          <option {{ "selected" if entry.poomsae_form.S == "1" else "" }} value="1">Taegeuk 1 Jang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "2" else "" }} value="2">Taegeuk 2 Jang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "3" else "" }} value="3">Taegeuk 3 Jang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "4" else "" }} value="4">Taegeuk 4 Jang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "5" else "" }} value="5">Taegeuk 5 Jang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "6" else "" }} value="6">Taegeuk 6 Jang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "7" else "" }} value="7">Taegeuk 7 Jang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "8" else "" }} value="8">Taegeuk 8 Jang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "Koryo" else "" }} value="Koryo">Koryo</option>
-          <option {{ "selected" if entry.poomsae_form.S == "Keumgang" else "" }} value="Keumgang">Keumgang</option>
-          <option {{ "selected" if entry.poomsae_form.S == "Taebaek" else "" }} value="Taebaek">Taebaek</option>
-          <option {{ "selected" if entry.poomsae_form.S == "Pyongwon" else "" }} value="Pyongwon">Pyongwon</option>
-        </select>
-      </div>
-    </div>
-    <div class="row mt-1" {{ "hidden" if  entry.pair_poomsae_form.S == '' }}>
-      <div class="col-md-2">
-        <label class="form-check-label h5" for="pair poomsae form">Pair Poomsae Form</label>
-        <select  class="form-select" name="pair poomsae form" id="pair poomsae form">
-          <option {{ "selected" if entry.pair_poomsae_form.S == "" else "" }} value=""></option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "1" else "" }} value="1">Taegeuk 1 Jang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "2" else "" }} value="2">Taegeuk 2 Jang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "3" else "" }} value="3">Taegeuk 3 Jang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "4" else "" }} value="4">Taegeuk 4 Jang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "5" else "" }} value="5">Taegeuk 5 Jang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "6" else "" }} value="6">Taegeuk 6 Jang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "7" else "" }} value="7">Taegeuk 7 Jang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "8" else "" }} value="8">Taegeuk 8 Jang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "Koryo" else "" }} value="Koryo">Koryo</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "Keumgang" else "" }} value="Keumgang">Keumgang</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "Taebaek" else "" }} value="Taebaek">Taebaek</option>
-          <option {{ "selected" if entry.pair_poomsae_form.S == "Pyongwon" else "" }} value="Pyongwon">Pyongwon</option>
-        </select>
-      </div>
-    </div>
-    <div class="row mt-1" {{ "hidden" if  entry.team_poomsae_form.S == '' }}>
-      <div class="col-md-2">
-        <label class="form-check-label h5" for="team poomsae form">Team Poomsae Form</label>
-        <select  class="form-select" name="team poomsae form" id="team poomsae form">
-          <option {{ "selected" if entry.team_poomsae_form.S == "" else "" }} value=""></option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "1" else "" }} value="1">Taegeuk 1 Jang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "2" else "" }} value="2">Taegeuk 2 Jang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "3" else "" }} value="3">Taegeuk 3 Jang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "4" else "" }} value="4">Taegeuk 4 Jang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "5" else "" }} value="5">Taegeuk 5 Jang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "6" else "" }} value="6">Taegeuk 6 Jang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "7" else "" }} value="7">Taegeuk 7 Jang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "8" else "" }} value="8">Taegeuk 8 Jang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "Koryo" else "" }} value="Koryo">Koryo</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "Keumgang" else "" }} value="Keumgang">Keumgang</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "Taebaek" else "" }} value="Taebaek">Taebaek</option>
-          <option {{ "selected" if entry.team_poomsae_form.S == "Pyongwon" else "" }} value="Pyongwon">Pyongwon</option>
-        </select>
-      </div>
-    </div>
-    <div class="row mt-1" {{ "hidden" if  entry.family_poomsae_form.S == '' }}>
-      <div class="col-md-2">
-        <label class="form-check-label h5" for="poomsae form">Poomsae Form</label>
-        <select  class="form-select" name="family poomsae form" id="family poomsae form">
-          <option {{ "selected" if entry.family_poomsae_form.S == "" else "" }} value=""></option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "1" else "" }} value="1">Taegeuk 1 Jang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "2" else "" }} value="2">Taegeuk 2 Jang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "3" else "" }} value="3">Taegeuk 3 Jang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "4" else "" }} value="4">Taegeuk 4 Jang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "5" else "" }} value="5">Taegeuk 5 Jang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "6" else "" }} value="6">Taegeuk 6 Jang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "7" else "" }} value="7">Taegeuk 7 Jang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "8" else "" }} value="8">Taegeuk 8 Jang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "Koryo" else "" }} value="Koryo">Koryo</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "Keumgang" else "" }} value="Keumgang">Keumgang</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "Taebaek" else "" }} value="Taebaek">Taebaek</option>
-          <option {{ "selected" if entry.family_poomsae_form.S == "Pyongwon" else "" }} value="Pyongwon">Pyongwon</option>
-        </select>
+    {% endfor %}
+    <div class="row mt-2">
+      <div class="col-sm-1">
+        <label for="tickets" class="form-check-label h5">Tickets</label>
+        <input class="form-control" type="number" name="tickets" id="tickets" min=0 value="{{ entry.num_tickets.N }}" />
       </div>
     </div>
     {% endif %}
@@ -272,5 +191,4 @@
       </div>
     </div>
   </form>
-  
 {%- endblock content %}
