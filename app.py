@@ -403,15 +403,14 @@ def purchase():
         num_tickets={"N": request.form.get("tickets")},
     )
 
-    tshirts = dict(M={f"tshirt_{size}": {"N": request.form.get(f"tshirt_{size}")} for size in app.config["sizes"]})
+    all_sizes = app.config["sizes"]["Youth"] + app.config["sizes"]["Adult"]
+    tshirts = dict(M={f"tshirt_{size}": {"N": request.form.get(f"tshirt_{size}")} for size in all_sizes})
     form_data.update(tshirts)
-    tshirt_quantity = sum([int(tshirts["M"][f"tshirt_{size}"]["N"]) for size in app.config["sizes"]])
+    tshirt_quantity = sum([int(tshirts["M"][f"tshirt_{size}"]["N"]) for size in all_sizes])
 
     registration_items = [
-        {
-            "price": price_dict["T-Shirt"]["price_id"],
-            "quantity": tshirt_quantity,
-        },
+        {"price": price_dict["T-Shirt"]["price_id"], "quantity": tshirt_quantity},
+        {"price": price_dict["TKD Demonstration Show Ticket"]["price_id"], "quantity": form_data["num_tickets"]["N"]},
         {"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1},
     ]
 
@@ -438,7 +437,7 @@ def purchase():
                 # "success_url": f'{app.config["URL"]}/success',
                 # Code to have 'convenience fee' transfered to separate acct ###
                 "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
-                "cancel_url": f'{app.config["URL"]}/tickets',
+                "cancel_url": f'{app.config["URL"]}/purchase',
                 "expires_at": int(checkout_timeout.timestamp()),
             }
             checkout_session = stripe.checkout.Session.create(
