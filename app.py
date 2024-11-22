@@ -405,7 +405,7 @@ def purchase():
 
     all_sizes = app.config["sizes"]["Youth"] + app.config["sizes"]["Adult"]
     tshirts = dict(M={f"tshirt_{size}": {"N": request.form.get(f"tshirt_{size}")} for size in all_sizes})
-    form_data.update(tshirts)
+    form_data.update({"tshirts": tshirts})
     tshirt_quantity = sum([int(tshirts["M"][f"tshirt_{size}"]["N"]) for size in all_sizes])
 
     registration_items = [
