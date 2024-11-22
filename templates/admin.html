@@ -10,8 +10,8 @@
     <a class="btn {{ button_style }}" href="/export" role="button">Export</a>
   </div>
   <div class="col-md-9" align="right">
-    <a class="btn {{ button_style }}" href="/add_entry?reg_type=competitor" role="button">Add Competitor</a>
-    <a class="btn {{ button_style }}" href="/add_entry?reg_type=coach" role="button">Add Coach</a>
+    <a class="btn {{ button_style }}" href="/add_entry?reg_type=seminar" role="button">Add Seminar Registrant</a>
+    <a class="btn {{ button_style }}" href="/add_entry?reg_type=purchase" role="button">Add Purchase</a>
     <a class="btn {{ button_style }}" href="/logout" role="button">Logout</a>
   </div>
 </div>
@@ -24,6 +24,8 @@
           <th>Phone</th>
           <th>Type</th>
           <th>School</th>
+          <th>Tickets</th>
+          <th>T-Shirts</th>
           <th>Edit</th>
         </tr>
       </thead>
@@ -34,7 +36,18 @@
             <td>{{ e.email.S }}</td>
             <td>{{ e.phone.S }}</td>
             <td>{{ e.reg_type.S }}</td>
-            <td>{{ e.school.S }}</td>
+            <td>{% if e.school is defined %}{{ e.school.S }}{% else %}{% endif %}</td>
+            <td>{% if e.reg_type.S == 'purchase' %}{{ e.num_tickets.N }}{% else %}1{% endif %}</td>
+            <td>
+              {%- if e.tshirts is defined -%}
+              {%- for size in e.tshirts.M -%}
+              {%- if e.tshirts.M[size]['N'] | int > 0 -%}
+              {{ size[7:] }}:{{ e.tshirts.M[size]['N'] }}<br \>
+              {%- endif -%}
+              {%- endfor -%}
+              {%- else -%}
+              {%- endif -%}
+            </td>
             <td><a class="btn {{ button_style }}" href="/edit?pk={{ e.pk.S }}" role="button">Edit</a></td>
         </tr>
         {% endfor %}
@@ -46,6 +59,8 @@
           <th>Phone</th>
           <th>Type</th>
           <th>School</th>
+          <th>Tickets</th>
+          <th>T-Shirts</th>
           <th>Edit</th>
         </tr>
       </tfoot>
