@@ -1,0 +1,23 @@
+{% extends "base.html" -%}
+{% block content -%}
+<div class="row justify-content-md-center">
+  <div class="col-md-12 center-block" align="center">
+    <div class="col-md-8" align="left">
+      <h1>We have your order!</h1>
+      <p>
+        We look forward to seeing you at the seminar!<br>
+        You should receive an email with your purchase confirmation.
+      </p>
+      <p>
+        You can email us at <a href="mailto:{{ email }}">{{ email }}</a> if you have questions or issues.
+      </p>
+      <p>
+        Thanks,<br>
+        {{ competition_name }}
+      </p>
+    </div>
+  </div>
+</div>
+<!-- for testing, app.py will send 'reg_detail' to display here -->
+{{ reg_detail }}
+{%- endblock content %}

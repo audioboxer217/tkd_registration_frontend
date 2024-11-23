@@ -291,7 +291,7 @@ def handle_form():
     if os.getenv("FLASK_DEBUG"):
         # For Testing Form Data
         return render_template(
-            "success.html",
+            "registration_success.html",
             title="Registration Submitted",
             competition_name=os.getenv("COMPETITION_NAME"),
             favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
@@ -311,7 +311,7 @@ def handle_form():
                 "discounts": [],
                 # "success_url": f'{app.config["URL"]}/success',
                 # Code to have 'convenience fee' transfered to separate acct ###
-                "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
+                "success_url": f'{app.config["URL"]}/registration_success?session_id={{CHECKOUT_SESSION_ID}}',
                 "cancel_url": f'{app.config["URL"]}/register',
                 "expires_at": int(checkout_timeout.timestamp()),
             }
@@ -424,7 +424,7 @@ def purchase():
     if os.getenv("FLASK_DEBUG"):
         # For Testing Form Data
         return render_template(
-            "success.html",
+            "purchase_success.html",
             title="Registration Submitted",
             competition_name=os.getenv("COMPETITION_NAME"),
             favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
@@ -444,7 +444,7 @@ def purchase():
                 "discounts": [],
                 # "success_url": f'{app.config["URL"]}/success',
                 # Code to have 'convenience fee' transfered to separate acct ###
-                "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
+                "success_url": f'{app.config["URL"]}/purchase_success?session_id={{CHECKOUT_SESSION_ID}}',
                 "cancel_url": f'{app.config["URL"]}/purchase',
                 "expires_at": int(checkout_timeout.timestamp()),
             }
@@ -475,8 +475,9 @@ def purchase():
 
         return redirect(checkout_session.url, code=303)
 
-@app.route("/success", methods=["GET"])
-def success_page():
+
+@app.route("/registration_success", methods=["GET"])
+def reg_success_page():
     # Code to have 'convenience fee' transfered to separate acct ###
     price_dict = get_price_details()
     session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
@@ -488,8 +489,31 @@ def success_page():
         destination="acct_1PYYvBGhUvudnYnE",
     )
     return render_template(
-        "success.html",
+        "registration_success.html",
         title="Registration Submitted",
+        competition_name=os.getenv("COMPETITION_NAME"),
+        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+        logo_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "logo.png")),
+        button_style=button_style,
+        email=os.getenv("CONTACT_EMAIL"),
+    )
+
+
+@app.route("/purchase_success", methods=["GET"])
+def purchase_success_page():
+    # Code to have 'convenience fee' transfered to separate acct ###
+    price_dict = get_price_details()
+    session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
+    paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
+    stripe.Transfer.create(
+        amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+        currency="usd",
+        source_transaction=paymentIntent.latest_charge,
+        destination="acct_1PYYvBGhUvudnYnE",
+    )
+    return render_template(
+        "purchase_success.html",
+        title="Purchase Complete",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
         logo_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "logo.png")),
@@ -755,7 +779,7 @@ def add_entry():
             MessageBody=json.dumps(form_data),
         )
 
-        return redirect(f'{app.config["URL"]}/success', code=303)
+        return redirect(f'{app.config["URL"]}/registration_success', code=303)
 
 
 @app.route("/export")
