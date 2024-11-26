@@ -189,6 +189,15 @@ function calculateAge(dateString) {
     year: "numeric"
   });
 
+  if (age < 7) {
+    document.getElementById("ageError").hidden = false;
+    document.getElementById("submitBtn").disabled = true;
+  }
+  else {
+    document.getElementById("ageError").hidden = true;
+    document.getElementById("submitBtn").disabled = false;
+  }
+
   if (age < 18) {
     document.getElementById("inputParentName").required = true;
     document.getElementById("parentNameSection").hidden = false;

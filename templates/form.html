@@ -2,12 +2,13 @@
 {% block content -%}
   <div class="row justify-content-md-center">
     <div class="col-md-12 center-block" align="center">
-      <h1>Seminar Registration Form</h1>
+      <h1>Demo Seminar Registration Form</h1>
     </div>
   </div>
   <div class="row justify-content-md-center">
     <div class="col-md-12 center-block" align="center">
       <h4>Registration includes <em>one free ticket</em> to the Yongin Demo Team Performance</h4>
+      <h5>Yellow Belt and Above, 7 Years and Older</h5>
     </div>
   </div>
   <form action="/register" method="post" enctype=multipart/form-data id="eventRegistration">
@@ -16,7 +17,7 @@
     {% include "partials/form_total.html" %}
     <div class="row g-3 mt-2">
       <div class="col-sm-2">
-        <button type="submit" class="btn {{ button_style }}">Register</button>
+        <button type="submit" class="btn {{ button_style }}" id="submitBtn">Register</button>
       </div>
     </div>
   </form>

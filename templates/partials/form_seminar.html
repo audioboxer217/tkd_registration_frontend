@@ -35,6 +35,11 @@
     </div>
   </div>
 </div>
+<div class="row mt-2" id="ageError" hidden>
+  <div class="col-sm-4 bg-danger">
+    <h5>Seminar is for students aged 7 and older.</h5>
+  </div>
+</div>
 <div class="row mt-2" id="parentNameSection" hidden>
   <div class="col-md-6">
     <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
@@ -111,13 +116,6 @@
           <input class="form-check-input" type="radio" name="beltRank" id="yellowBelt" value="yellow"
             onchange="toggleBlackBeltDanSection()">
           <label class="form-check-label" for="yellowBelt">Yellow</label>
-        </div>
-      </div>
-      <div class="col-sm-6">
-        <div class="form-check">
-          <input class="form-check-input" type="radio" name="beltRank" id="whiteBelt" value="white"
-            onchange="toggleBlackBeltDanSection()">
-          <label class="form-check-label" for="whiteBelt">White</label>
         </div>
       </div>
     </div>
