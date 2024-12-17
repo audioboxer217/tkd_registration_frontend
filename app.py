@@ -486,7 +486,7 @@ def reg_success_page():
         amount=int(price_dict["Convenience Fee"]["price"]) * 100,
         currency="usd",
         source_transaction=paymentIntent.latest_charge,
-        destination="acct_1PYYvBGhUvudnYnE",
+        destination=os.getenv("CONNECT_ACCT"),
     )
     return render_template(
         "registration_success.html",
@@ -509,7 +509,7 @@ def purchase_success_page():
         amount=int(price_dict["Convenience Fee"]["price"]) * 100,
         currency="usd",
         source_transaction=paymentIntent.latest_charge,
-        destination="acct_1PYYvBGhUvudnYnE",
+        destination=os.getenv("CONNECT_ACCT"),
     )
     return render_template(
         "purchase_success.html",
