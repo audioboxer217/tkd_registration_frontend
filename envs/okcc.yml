@@ -1,4 +1,21 @@
 ---
+dev:
+  domain: okchmp24.kseppler.com
+  certificate_arn: arn:aws:acm:us-east-1:799879571353:certificate/b2176a36-73b1-422a-bdb9-3bfef96316df
+  app_function: app.app
+  aws_region: us-east-1
+  profile_name: personal
+  project_name: frontend
+  runtime: python3.11
+  s3_bucket: zappa-okc-chmp-frontend-dev
+  http_methods:
+    - GET
+    - POST
+  remote_env: s3://okchmp-dev-reg-config/frontend.json
+  parameter_depth: 1
+  memory_size: 512
+  use_precompiled_packages: true
+  slim_handler: true
 prod:
   domain: okc.oktkdevents.com
   certificate_arn: arn:aws:acm:us-east-1:851725437474:certificate/3f9b2618-4282-4f64-8d62-ded89512c2d9
