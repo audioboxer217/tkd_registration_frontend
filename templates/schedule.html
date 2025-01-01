@@ -16,7 +16,11 @@
         <tbody>
         {% for item in day['items'] %}
         <tr>
-            <th scope="row" class="table-primary">{{ item.time }}</th>
+            {% if item.time is defined %}
+            <th scope="row" class="table-primary" {% if item.time_rowspan is defined %}rowspan="{{item.time_rowspan}}" {%endif%}>
+                {{item.time }}
+            </th>
+            {%endif%}
             <td {% if item.title_class is defined -%}class="{{item.title_class}}" {%endif%}>{{ item.title | safe }}</td>
             {% if item.location is defined %}
             <td {% if item.location.class is defined -%}class="{{item.location.class}}" {%endif%}{% if item.location.rowspan
