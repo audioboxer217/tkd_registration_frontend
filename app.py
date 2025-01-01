@@ -412,7 +412,7 @@ def handle_form():
                 "discounts": [],
                 # "success_url": f'{app.config["URL"]}/success',
                 # Code to have 'convenience fee' transfered to separate acct ###
-                "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
+                "success_url": f'{app.config["URL"]}/success?reg_type={reg_type}&session_id={{CHECKOUT_SESSION_ID}}',
                 "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
                 "expires_at": int(checkout_timeout.timestamp()),
             }
@@ -590,7 +590,8 @@ def set_weight_class(entries):
     updated_entries = []
     for entry in entries:
         age_group = get_age_group(entry)
-        weight_class_ranges = weight_classes[age_group][entry["gender"]["S"]]
+        gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
+        weight_class_ranges = weight_classes[age_group][gender]
         entry["weight_class"] = next(
             weight_class
             for weight_class, weights in weight_class_ranges.items()
@@ -681,14 +682,15 @@ def competitors_page():
 @app.route("/success", methods=["GET"])
 def success_page():
     # Code to have 'convenience fee' transfered to separate acct ###
-    session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
-    paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
-    stripe.Transfer.create(
-        amount=int(price_dict["Convenience Fee"]["price"]) * 100,
-        currency="usd",
-        source_transaction=paymentIntent.latest_charge,
-        destination=os.getenv("CONNECT_ACCT"),
-    )
+    if request.args.get("reg_type") == "competitor":
+        session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
+        paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
+        stripe.Transfer.create(
+            amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+            currency="usd",
+            source_transaction=paymentIntent.latest_charge,
+            destination=os.getenv("CONNECT_ACCT"),
+        )
     return render_template(
         "success.html",
         title="Registration Submitted",
