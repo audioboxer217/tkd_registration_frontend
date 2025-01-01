@@ -51,16 +51,17 @@ class User(UserMixin):
         self.password = password
 
 
-# Price Details
-price_dict = {}
-products = stripe.Product.list()
-for p in products:
-    price_detail = stripe.Price.retrieve(p.default_price)
-    price_dict[p.name] = {
-        "price_id": price_detail.id,
-        "price": f"{int(price_detail.unit_amount/100)}",
-    }
-early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
+def get_price_details():
+    price_dict = {}
+    products = stripe.Product.list()
+    for p in products:
+        price_detail = stripe.Price.retrieve(p.default_price)
+        price_dict[p.name] = {
+            "price_id": price_detail.id,
+            "price": f"{int(price_detail.unit_amount/100)}",
+        }
+
+    return price_dict
 
 
 @login_manager.user_loader
@@ -221,6 +222,7 @@ def display_form():
             email=os.getenv("CONTACT_EMAIL"),
         )
     else:
+        early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
         reg_type = request.args.get("reg_type")
         school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
 
@@ -236,7 +238,7 @@ def display_form():
             competition_year=os.getenv("COMPETITION_YEAR"),
             early_reg_date=os.getenv("EARLY_REG_DATE"),
             early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
-            price_dict=price_dict,
+            price_dict=get_price_details(),
             reg_type=reg_type,
             schools=school_list,
             enable_badges=badges_enabled,
@@ -262,6 +264,7 @@ def display_form():
 
 @app.route("/register", methods=["POST"])
 def handle_form():
+    price_dict = get_price_details()
     reg_type = request.form.get("regType")
 
     # Name
@@ -417,6 +420,7 @@ def handle_form():
                 "expires_at": int(checkout_timeout.timestamp()),
             }
             if reg_type == "competitor" and current_time < early_reg_date:
+                early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
                 checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
             checkout_session = stripe.checkout.Session.create(
                 line_items=checkout_details["line_items"],
@@ -681,6 +685,7 @@ def competitors_page():
 
 @app.route("/success", methods=["GET"])
 def success_page():
+    price_dict = get_price_details()
     # Code to have 'convenience fee' transfered to separate acct ###
     if request.args.get("reg_type") == "competitor":
         session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
@@ -879,6 +884,7 @@ def edit_entry():
 @app.route("/add_entry")
 @login_required
 def add_entry_form():
+    early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
     reg_type = request.args.get("reg_type")
     school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
     # Display the form
@@ -893,7 +899,7 @@ def add_entry_form():
         competition_year=os.getenv("COMPETITION_YEAR"),
         early_reg_date=os.getenv("EARLY_REG_DATE"),
         early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
-        price_dict=price_dict,
+        price_dict=get_price_details(),
         reg_type=reg_type,
         schools=school_list,
         enable_badges=badges_enabled,
