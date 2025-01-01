@@ -331,7 +331,7 @@ def handle_form():
                 height={"N": str(height)},
                 coach={"S": coach},
                 beltRank={"S": belt},
-                events={"S": eventList.replace("little_tiger", "Little Tiger Showcase")},
+                events={"S": eventList},
                 poomsae_form={"S": request.form.get("poomsae form")},
                 pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                 team_poomsae_form={"S": request.form.get("team poomsae form")},
@@ -355,26 +355,21 @@ def handle_form():
             )
 
         events_list = eventList.split(",")
-        registration_items = []
-        if "little_tiger" in events_list:
+        if request.form.get("beltRank") == "black":
             registration_items = [
                 {
-                    "price": price_dict["Little Tiger Showcase"]["price_id"],
+                    "price": price_dict["Black Belt Registration"]["price_id"],
                     "quantity": 1,
                 },
             ]
-            events_list.remove("little_tiger")
-        num_events = len(events_list)
-        if num_events > 0:
-            registration_items += [
-                {
-                    "price": price_dict["Registration"]["price_id"],
-                    "quantity": 1,
-                },
-            ]
-            num_add_event = num_events - 1
         else:
-            num_add_event = 0
+            registration_items = [
+                {
+                    "price": price_dict["Color Belt Registration"]["price_id"],
+                    "quantity": 1,
+                },
+            ]
+        num_add_event = len(events_list) - 1
         if num_add_event > 0:
             registration_items.append(
                 {
@@ -382,17 +377,8 @@ def handle_form():
                     "quantity": num_add_event,
                 },
             )
-        if "breaking" in request.form.get("eventList"):
-            registration_items.append({"price": price_dict["Breaking"]["price_id"], "quantity": 1})
-        if "sparring-wc" in request.form.get("eventList"):
-            registration_items.append({"price": price_dict["World Class"]["price_id"], "quantity": 1})
         # Code to have 'convenience fee' transfered to separate acct ###
-        # registration_items.append(
-        #     {
-        #         "price": price_dict["Convenience Fee"]["price_id"],
-        #         "quantity": 1
-        #     }
-        # )
+        registration_items.append({"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1})
     else:
         registration_items = [
             {
@@ -424,9 +410,9 @@ def handle_form():
                 "line_items": registration_items,
                 "mode": "payment",
                 "discounts": [],
-                "success_url": f'{app.config["URL"]}/success',
+                # "success_url": f'{app.config["URL"]}/success',
                 # Code to have 'convenience fee' transfered to separate acct ###
-                # "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
+                "success_url": f'{app.config["URL"]}/success?session_id={{CHECKOUT_SESSION_ID}}',
                 "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
                 "expires_at": int(checkout_timeout.timestamp()),
             }
@@ -695,14 +681,14 @@ def competitors_page():
 @app.route("/success", methods=["GET"])
 def success_page():
     # Code to have 'convenience fee' transfered to separate acct ###
-    # session = stripe.checkout.Session.retrieve(request.args.get('session_id'))
-    # paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
-    # stripe.Transfer.create(
-    #     amount=int(price_dict["Convenience Fee"]["price"]) * 100,
-    #     currency="usd",
-    #     source_transaction=paymentIntent.latest_charge,
-    #     destination='acct_1PYYvBGhUvudnYnE'
-    # )
+    session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
+    paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
+    stripe.Transfer.create(
+        amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+        currency="usd",
+        source_transaction=paymentIntent.latest_charge,
+        destination=os.getenv("CONNECT_ACCT"),
+    )
     return render_template(
         "success.html",
         title="Registration Submitted",
