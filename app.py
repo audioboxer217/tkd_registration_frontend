@@ -176,7 +176,7 @@ def index_page():
         title=os.getenv("COMPETITION_NAME"),
         email=os.getenv("CONTACT_EMAIL"),
         competition_name=os.getenv("COMPETITION_NAME"),
-        early_reg_date=os.getenv("EARLY_REG_DATE"),
+        early_reg_date=datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).strftime("%B %d, %Y"),
         reg_close_date=os.getenv("REG_CLOSE_DATE"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
         visitor_info_url=visitor_info_url,
@@ -236,7 +236,7 @@ def display_form():
             button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
-            early_reg_date=os.getenv("EARLY_REG_DATE"),
+            early_reg_date=datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
             early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
             price_dict=get_price_details(),
             reg_type=reg_type,
@@ -405,8 +405,9 @@ def handle_form():
             cost_detail=registration_items,
         )
     else:
+        early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
         try:
-            early_reg_date = datetime.strptime(os.getenv("EARLY_REG_DATE"), "%B %d, %Y") + timedelta(days=1)
+            early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"])
             current_time = datetime.now()
             checkout_timeout = current_time + timedelta(minutes=30)
             checkout_details = {
@@ -420,7 +421,6 @@ def handle_form():
                 "expires_at": int(checkout_timeout.timestamp()),
             }
             if reg_type == "competitor" and current_time < early_reg_date:
-                early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
                 checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
             checkout_session = stripe.checkout.Session.create(
                 line_items=checkout_details["line_items"],
@@ -897,7 +897,7 @@ def add_entry_form():
         button_style=button_style,
         competition_name=os.getenv("COMPETITION_NAME"),
         competition_year=os.getenv("COMPETITION_YEAR"),
-        early_reg_date=os.getenv("EARLY_REG_DATE"),
+        early_reg_date=datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
         early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
         price_dict=get_price_details(),
         reg_type=reg_type,
