@@ -30,8 +30,8 @@ s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
 dynamodb_res = boto3.resource("dynamodb")
-visitor_info_url = os.getenv("VISITOR_INFO_URL")
-visitor_info_text = os.getenv("VISITOR_INFO_TEXT")
+# visitor_info_url = os.getenv("VISITOR_INFO_URL")
+# visitor_info_text = os.getenv("VISITOR_INFO_TEXT")
 button_style = os.getenv("BUTTON_STYLE", "btn-primary")
 badges_enabled = os.getenv("ENABLE_BADGES", False)
 address_enabled = os.getenv("ENABLE_ADDRESS", False)
@@ -132,8 +132,7 @@ def login():
         "login.html",
         title="Login",
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         competition_name=os.getenv("COMPETITION_NAME"),
     )
@@ -179,8 +178,7 @@ def index_page():
         early_reg_date=datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).strftime("%B %d, %Y"),
         reg_close_date=os.getenv("REG_CLOSE_DATE"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         poster_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
     )
@@ -215,8 +213,7 @@ def display_form():
             "disabled.html",
             title="Registration Closed",
             favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-            visitor_info_url=visitor_info_url,
-            visitor_info_text=visitor_info_text,
+            event_city=os.getenv("EVENT_CITY"),
             button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             email=os.getenv("CONTACT_EMAIL"),
@@ -231,8 +228,7 @@ def display_form():
             "form.html",
             title="Registration",
             favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-            visitor_info_url=visitor_info_url,
-            visitor_info_text=visitor_info_text,
+            event_city=os.getenv("EVENT_CITY"),
             button_style=button_style,
             competition_name=os.getenv("COMPETITION_NAME"),
             competition_year=os.getenv("COMPETITION_YEAR"),
@@ -397,8 +393,7 @@ def handle_form():
             title="Registration Submitted",
             competition_name=os.getenv("COMPETITION_NAME"),
             favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-            visitor_info_url=visitor_info_url,
-            visitor_info_text=visitor_info_text,
+            event_city=os.getenv("EVENT_CITY"),
             button_style=button_style,
             email=os.getenv("CONTACT_EMAIL"),
             reg_detail=form_data,
@@ -458,8 +453,7 @@ def schedule_page():
         title="Schedule",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         schedule_dict=schedule_dict,
     )
@@ -472,8 +466,7 @@ def events_page():
         title="Page to be Created",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
     )
 
@@ -486,13 +479,24 @@ def info_page():
         title="Information",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         information_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
         additional_imgs=[
             url_for("static", filename=get_s3_file(app.config["mediaBucket"], i["Key"])) for i in s3_addl_images if i["Size"] > 0
         ],
+    )
+
+
+@app.route("/visit", methods=["GET"])
+def visit_page():
+    return render_template(
+        f"{os.getenv('EVENT_CITY').lower()}.html",
+        title=f"Visit {os.getenv('EVENT_CITY')}",
+        competition_name=os.getenv("COMPETITION_NAME"),
+        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+        event_city=os.getenv("EVENT_CITY"),
+        button_style=button_style,
     )
 
 
@@ -512,8 +516,7 @@ def coaches_page():
         title="Coaches",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         entries=entries,
         additional_stylesheets=[
@@ -623,8 +626,7 @@ def competitors_page():
         title="Competitors",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         entries=entries,
         additional_stylesheets=[
@@ -701,8 +703,7 @@ def success_page():
         title="Registration Submitted",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         email=os.getenv("CONTACT_EMAIL"),
     )
@@ -716,8 +717,7 @@ def error_page():
         title="Registration Error",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         email=os.getenv("CONTACT_EMAIL"),
         reg_type=reg_type,
@@ -735,8 +735,7 @@ def admin_page():
         title="Administration",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         entries=entries,
         additional_stylesheets=[
@@ -809,8 +808,7 @@ def edit_entry_form():
         title="Edit Entry",
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         schools=school_list,
         entry=entry,
@@ -892,8 +890,7 @@ def add_entry_form():
         "add_entry.html",
         title="Registration",
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        visitor_info_url=visitor_info_url,
-        visitor_info_text=visitor_info_text,
+        event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
         competition_name=os.getenv("COMPETITION_NAME"),
         competition_year=os.getenv("COMPETITION_YEAR"),
@@ -1022,8 +1019,7 @@ def add_entry():
             title="Registration Submitted",
             competition_name=os.getenv("COMPETITION_NAME"),
             favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-            visitor_info_url=visitor_info_url,
-            visitor_info_text=visitor_info_text,
+            event_city=os.getenv("EVENT_CITY"),
             button_style=button_style,
             email=os.getenv("CONTACT_EMAIL"),
             reg_detail=form_data,
