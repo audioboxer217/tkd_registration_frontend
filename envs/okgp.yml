@@ -18,7 +18,7 @@ dev:
   slim_handler: true
 prod:
   domain: okgp.oktkdevents.com
-  certificate_arn: arn:aws:acm:us-east-1:058264481846:certificate/40058d81-bd60-47a7-a6b6-772dd9b2325d
+  certificate_arn: arn:aws:acm:us-east-1:058264481846:certificate/60eb6f27-a942-4b5c-a90f-31c0661d92e6
   app_function: app.app
   aws_region: us-east-1
   profile_name: gdtkd
