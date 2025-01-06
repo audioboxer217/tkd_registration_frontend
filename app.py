@@ -416,10 +416,15 @@ def purchase():
     tshirt_quantity = sum([int(tshirts["M"][f"tshirt_{size}"]["N"]) for size in all_sizes])
 
     registration_items = [
-        {"price": price_dict["T-Shirt"]["price_id"], "quantity": tshirt_quantity},
-        {"price": price_dict["TKD Demonstration Show Ticket"]["price_id"], "quantity": form_data["num_tickets"]["N"]},
         {"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1},
     ]
+    if tshirt_quantity > 0:
+        registration_items.append({"price": price_dict["T-Shirt"]["price_id"], "quantity": tshirt_quantity})
+
+    if int(form_data["num_tickets"]["N"]) > 0:
+        registration_items.append(
+            {"price": price_dict["TKD Demonstration Show Ticket"]["price_id"], "quantity": form_data["num_tickets"]["N"]},
+        )
 
     if os.getenv("FLASK_DEBUG"):
         # For Testing Form Data
