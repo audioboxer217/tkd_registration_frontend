@@ -11,7 +11,7 @@ from flask import Flask, abort, flash, redirect, render_template, request, url_f
 from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
 
 app = Flask(__name__)
-app.secret_key = os.urandom(12)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
 app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
 app.config["mediaBucket"] = os.getenv("PUBLIC_MEDIA_BUCKET")
@@ -39,6 +39,7 @@ address_enabled = os.getenv("ENABLE_ADDRESS", False)
 # Login
 login_manager = LoginManager()
 login_manager.login_view = "login"
+login_manager.REMEMBER_COOKIE_DURATION = timedelta(days=30)
 login_manager.init_app(app)
 ph = PasswordHasher()
 
