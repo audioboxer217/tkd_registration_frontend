@@ -1,14 +1,12 @@
 import json
 import os
+import urllib
 from datetime import date, datetime, timedelta
 
 import boto3
 import stripe
-from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
-from boto3.dynamodb.conditions import Key
-from flask import Flask, abort, flash, redirect, render_template, request, url_for
-from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user
+from authlib.integrations.flask_client import OAuth
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
@@ -16,7 +14,7 @@ app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
 app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
 app.config["mediaBucket"] = os.getenv("PUBLIC_MEDIA_BUCKET")
 if os.getenv("FLASK_DEBUG"):
-    app.config["URL"] = "http://127.0.0.1:5001"
+    app.config["URL"] = "http://localhost:5001"
 else:
     app.config["URL"] = os.getenv("REG_URL")
 app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
@@ -36,20 +34,31 @@ button_style = os.getenv("BUTTON_STYLE", "btn-primary")
 badges_enabled = os.getenv("ENABLE_BADGES", False)
 address_enabled = os.getenv("ENABLE_ADDRESS", False)
 
-# Login
-login_manager = LoginManager()
-login_manager.login_view = "login"
-login_manager.REMEMBER_COOKIE_DURATION = timedelta(days=30)
-login_manager.init_app(app)
-ph = PasswordHasher()
+# Oauth Login
+oauth = OAuth(app)
+oauth.register(
+    name="oidc",
+    authority=os.getenv("COGNITO_AUTHORITY_URL"),
+    client_id=os.getenv("COGNITO_CLIENT_ID"),
+    client_secret=os.getenv("COGNITO_CLIENT_SECRET"),
+    server_metadata_url=f"{os.getenv('COGNITO_AUTHORITY_URL')}/.well-known/openid-configuration",
+    client_kwargs={"scope": "phone openid email"},
+)
 
 
-class User(UserMixin):
-    def __init__(self, id, email, name, password):
-        self.id = id
-        self.email = email
-        self.name = name
-        self.password = password
+def login_required(func):
+    def auth_wrapper():
+        user = session.get("user")
+        if not user:
+            return redirect(url_for("login"))
+        elif "Admins" not in user.get("cognito:groups", []):
+            flash("You are not authorized to view this page. Please contact the adminstrator.", "danger")
+            return redirect(url_for("logout"))
+        else:
+            return func()
+
+    auth_wrapper.__name__ = func.__name__
+    return auth_wrapper
 
 
 def get_price_details():
@@ -63,44 +72,6 @@ def get_price_details():
         }
 
     return price_dict
-
-
-@login_manager.user_loader
-def loader(user_id):
-    auth_table = dynamodb_res.Table(app.config["auth_table_name"])
-    response = auth_table.query(KeyConditionExpression=Key("id").eq(str(user_id)))
-
-    if response["Count"] == 0:
-        return
-    user = User(
-        id=response["Items"][0]["id"],
-        email=response["Items"][0]["email"],
-        name=response["Items"][0]["name"],
-        password=response["Items"][0]["password"],
-    )
-    return user
-
-
-def get_user(email):
-    response = dynamodb.scan(
-        TableName=app.config["auth_table_name"],
-        FilterExpression="email = :email",
-        ExpressionAttributeValues={
-            ":email": {
-                "S": email,
-            },
-        },
-    )
-
-    if response["Count"] == 0:
-        return
-    user = User(
-        id=response["Items"][0]["id"]["S"],
-        email=response["Items"][0]["email"]["S"],
-        name=response["Items"][0]["name"]["S"],
-        password=response["Items"][0]["password"]["S"],
-    )
-    return user
 
 
 def get_s3_file(bucket, file_name):
@@ -129,44 +100,23 @@ def format_medical_form(contacts, medicalConditions_list, allergy_list, medicati
 
 @app.route("/login")
 def login():
-    return render_template(
-        "login.html",
-        title="Login",
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        competition_name=os.getenv("COMPETITION_NAME"),
-    )
+    return oauth.oidc.authorize_redirect(f"{app.config['URL']}/authorize")
 
 
-@app.route("/login", methods=["POST"])
-def login_post():
-    # login code goes here
-    email = request.form.get("email").lower()
-    password = request.form.get("password")
-    remember = True if request.form.get("remember") else False
-
-    user = get_user(email)
-    # check if the user actually exists
-    if not user:
-        flash("Please check your login details and try again.")
-        return redirect(url_for("login"))
-    try:
-        ph.verify(user.password, password)
-    except VerifyMismatchError:
-        flash("Please check your login details and try again.")
-        return redirect(url_for("login"))
-
-    # if the above check passes, then we know the user has the right credentials
-    login_user(user, remember=remember)
-    return redirect(url_for("admin_page"))
+@app.route("/authorize")
+def authorize():
+    token = oauth.oidc.authorize_access_token()
+    user = token["userinfo"]
+    session["user"] = user
+    return redirect(f"{app.config['URL']}/admin")
 
 
 @app.route("/logout")
-@login_required
 def logout():
-    logout_user()
-    return redirect(app.config["URL"])
+    index_page_uri = urllib.parse.quote_plus(url_for("index_page", _external=True))
+    logout_uri = f"{os.getenv('COGNITO_AUTH_URL')}/logout?client_id={os.getenv('COGNITO_CLIENT_ID')}&logout_uri={index_page_uri}"
+    session.pop("user", None)
+    return redirect(logout_uri)
 
 
 @app.route("/")
@@ -691,8 +641,8 @@ def success_page():
     price_dict = get_price_details()
     # Code to have 'convenience fee' transfered to separate acct ###
     if request.args.get("reg_type") == "competitor":
-        session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
-        paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
+        stripe_session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
+        paymentIntent = stripe.PaymentIntent.retrieve(stripe_session.payment_intent)
         stripe.Transfer.create(
             amount=int(price_dict["Convenience Fee"]["price"]) * 100,
             currency="usd",
