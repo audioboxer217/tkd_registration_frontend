@@ -1,21 +1,4 @@
 ---
-dev:
-  domain: okgp.kseppler.com
-  certificate_arn: arn:aws:acm:us-east-1:799879571353:certificate/cc350ef5-dab3-4faf-9429-18b853e6d7df
-  app_function: app.app
-  aws_region: us-east-1
-  profile_name: personal
-  project_name: frontend
-  runtime: python3.11
-  s3_bucket: zappa-okgp-frontend-dev
-  http_methods:
-    - GET
-    - POST
-  remote_env: s3://okgp-reg-config/frontend.json
-  parameter_depth: 1
-  memory_size: 512
-  use_precompiled_packages: true
-  slim_handler: true
 prod:
   domain: okgp.oktkdevents.com
   certificate_arn: arn:aws:acm:us-east-1:058264481846:certificate/60eb6f27-a942-4b5c-a90f-31c0661d92e6
