@@ -290,8 +290,7 @@ function toggleBlackBeltDanSection() {
     document.getElementById("blackBeltDan").required = false;
   }
 }
-
-function updateEventList(clickedEvent, calculateTotal=true) {
+function updateEventList(clickedEvent) {
   var eventList = []
 
   if (clickedEvent == 'little_tiger') {

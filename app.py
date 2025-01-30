@@ -649,6 +649,27 @@ def visit_page():
         return render_base("tulsa.html")
 
 
+@app.route("/registration_error", methods=["GET"])
+def error_page():
+    page_params = {
+        "reg_type": request.args.get("reg_type"),
+        "email": os.getenv("CONTACT_EMAIL"),
+        "competition_name": os.getenv("COMPETITION_NAME"),
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("registration_error.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("registration_error.html", **page_params)
+
+
+@app.route("/visit", methods=["GET"])
+def visit_page():
+    if request.headers.get("HX-Request"):
+        return render_template("tulsa.html")
+    else:
+        return render_base("tulsa.html")
+
+
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
     if request.headers.get("HX-Request"):
@@ -797,10 +818,10 @@ def set_weight_class(entries):
                 weight_class
                 for weight_class, weights in weight_class_ranges.items()
                 if float(entry["weight"]["N"]) >= float(weights[0]) and float(entry["weight"]["N"]) < float(weights[1])
-            ),
-            "UNKNOWN",
-        )
-        updated_entries.append(entry)
+            )
+            updated_entries.append(entry)
+        else:
+            updated_entries.append(entry)
 
     return updated_entries
 
@@ -980,8 +1001,151 @@ def add_entry():
             MessageBody=json.dumps(form_data),
         )
 
-        flash(f"{form_data['full_name']['S']} added successfully!", "success")
-        return redirect(f'{app.config["URL"]}/admin', code=303)
+        return redirect(f'{app.config["URL"]}/success', code=303)
+
+
+@app.route("/edit_entry")
+@login_required
+def edit_entry_form():
+    pk = request.args.get("pk")
+    entry = dynamodb.get_item(
+        TableName=app.config["reg_table_name"],
+        Key={"pk": {"S": pk}},
+    )["Item"]
+    school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+    page_params = {
+        "schools": school_list,
+        "entry": entry,
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("edit.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("edit.html", **page_params)
+
+
+@app.route("/edit", methods=["POST"])
+@login_required
+def edit_entry():
+    form_data = dict(
+        full_name={"S": request.form.get("full_name")},
+        email={"S": request.form.get("email")},
+        phone={"S": request.form.get("phone")},
+        school={"S": request.form.get("school")},
+        reg_type={"S": request.form.get("regType")},
+    )
+    if form_data["reg_type"]["S"] == "competitor":
+        belt = request.form.get("beltRank")
+        if belt == "black":
+            dan = request.form.get("blackBeltDan")
+            if dan == "4":
+                belt = "Master"
+            else:
+                belt = f"{dan} degree {belt}"
+        form_data.update(
+            dict(
+                parent={"S": request.form.get("parentName")},
+                birthdate={"S": request.form.get("birthdate")},
+                age={"N": request.form.get("age")},
+                gender={"S": request.form.get("gender")},
+                weight={"N": request.form.get("weight")},
+                height={"N": request.form.get("height")},
+                coach={"S": request.form.get("coach").strip()},
+                beltRank={"S": belt},
+                poomsae_form={"S": request.form.get("poomsae form")},
+                pair_poomsae_form={"S": request.form.get("pair poomsae form")},
+                team_poomsae_form={"S": request.form.get("team poomsae form")},
+                family_poomsae_form={"S": request.form.get("family poomsae form")},
+            )
+        )
+        update_expression = "SET {}".format(",".join(f"#{k}=:{k}" for k in form_data))
+        expression_attribute_values = {f":{k}": v for k, v in form_data.items()}
+        expression_attribute_names = {f"#{k}": k for k in form_data}
+
+        dynamodb.update_item(
+            TableName=app.config["reg_table_name"],
+            Key={
+                "pk": {"S": request.args.get("pk")},
+            },
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+            ExpressionAttributeNames=expression_attribute_names,
+            ReturnValues="UPDATED_NEW",
+        )
+
+    flash(f'{form_data["full_name"]["S"]} updated successfully!', "success")
+    return redirect(f'{app.config["URL"]}/admin', code=303)
+
+
+@app.route("/edit_entry")
+@login_required
+def edit_entry_form():
+    pk = request.args.get("pk")
+    entry = dynamodb.get_item(
+        TableName=app.config["reg_table_name"],
+        Key={"pk": {"S": pk}},
+    )["Item"]
+    school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+    page_params = {
+        "schools": school_list,
+        "entry": entry,
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("edit.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("edit.html", **page_params)
+
+
+@app.route("/edit", methods=["POST"])
+@login_required
+def edit_entry():
+    form_data = dict(
+        full_name={"S": request.form.get("full_name")},
+        email={"S": request.form.get("email")},
+        phone={"S": request.form.get("phone")},
+        school={"S": request.form.get("school")},
+        reg_type={"S": request.form.get("regType")},
+    )
+    if form_data["reg_type"]["S"] == "competitor":
+        belt = request.form.get("beltRank")
+        if belt == "black":
+            dan = request.form.get("blackBeltDan")
+            if dan == "4":
+                belt = "Master"
+            else:
+                belt = f"{dan} degree {belt}"
+        form_data.update(
+            dict(
+                parent={"S": request.form.get("parentName")},
+                birthdate={"S": request.form.get("birthdate")},
+                age={"N": request.form.get("age")},
+                gender={"S": request.form.get("gender")},
+                weight={"N": request.form.get("weight")},
+                height={"N": request.form.get("height")},
+                coach={"S": request.form.get("coach").strip()},
+                beltRank={"S": belt},
+                poomsae_form={"S": request.form.get("poomsae form")},
+                pair_poomsae_form={"S": request.form.get("pair poomsae form")},
+                team_poomsae_form={"S": request.form.get("team poomsae form")},
+                family_poomsae_form={"S": request.form.get("family poomsae form")},
+            )
+        )
+        update_expression = "SET {}".format(",".join(f"#{k}=:{k}" for k in form_data))
+        expression_attribute_values = {f":{k}": v for k, v in form_data.items()}
+        expression_attribute_names = {f"#{k}": k for k in form_data}
+
+        dynamodb.update_item(
+            TableName=app.config["reg_table_name"],
+            Key={
+                "pk": {"S": request.args.get("pk")},
+            },
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+            ExpressionAttributeNames=expression_attribute_names,
+            ReturnValues="UPDATED_NEW",
+        )
+
+    flash(f'{form_data["full_name"]["S"]} updated successfully!', "success")
+    return redirect(f'{app.config["URL"]}/admin', code=303)
 
 
 @app.route("/edit_entry")
