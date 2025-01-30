@@ -4,12 +4,18 @@
       <h1>Add {{ reg_type|capitalize }} Registration</h1>
     </div>
   </div>
-  <form hx-post="/add_entry?reg_type={{ reg_type }}" hx-trigger="submit" hx-target="#parent-div" hx-swap="outerHTML"
+  <form hx-post="/add_entry?reg_type={{ reg_type }}" hx-trigger="submit_btn" hx-target="#parent-div" hx-swap="outerHTML"
     hx-replace-url="true" hx-push-url="true" enctype=multipart/form-data id="eventRegistration">
-    {% include "form/common.html" %}
+    {% include "partials/form_common.html" %}
     {% if reg_type == 'competitor' %}
     {% if enable_address %}
-    {% include "form/address.html" %}
+    {% include "partials/form_address.html" %}
+    {% endif %}
+    {% include "partials/form_class.html" %}
+    {% include "partials/form_parent.html" %}
+    {% if enable_badges %}
+    {% include "partials/form_profile.html" %}
+    {% endif %}
     {% endif %}
     {% include "form/class.html" %}
     {% include "form/parent.html" %}
@@ -19,9 +25,9 @@
     {% endif %}
     {% include "form/school.html" %}
     {% if reg_type == 'competitor' %}
-    {% include "form/belt.html" %}
-    {% include "form/events.html" %}
-    {% include "form/medical_manual.html" %}
+    {% include "partials/form_belt.html" %}
+    {% include "partials/form_events.html" %}
+    {% include "partials/form_medical_manual.html" %}
     {% endif %}
     <div hidden>
       {% include "form/total.html" %}
