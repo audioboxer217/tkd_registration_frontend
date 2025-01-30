@@ -6,13 +6,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "authlib>=1.4.0",
-    "boto3~=1.35.0",
-    "flask~=3.0.0",
-    "requests>=2.32.2",
-    "stripe~=10.10.0",
-    "urllib3>=2.2.2",
-    "werkzeug>=3.0.3",
-    "zipp>=3.19.1",
+    "boto3~=1.36.6",
+    "flask~=3.1.0",
+    "stripe~=11.4.1",
 ]
 
 [tool.uv]
