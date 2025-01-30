@@ -1,8 +1,4 @@
-{% extends "base.html" -%}
-{% block content -%}
-<div class="row g-1 mb-1 justify-content-md-center">
-    <div class="col-md-12 center-block" align="center">
-        <img src="{{ schedule_img }}"" class=" img-fluid"><img><br />
-    </div>
+<div class="col-md-12 center-block" align="center">
+    <h1>Schedule</h1>
 </div>
-{%- endblock content %}
+<div class="table-responsive" hx-get="/get_schedule_details" hx-trigger="load"></div>
