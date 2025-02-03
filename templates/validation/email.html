@@ -1,0 +1,31 @@
+<div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+    <label for="inputEmail" class="form-check-label h5">Email</label>
+    <input id="inputEmail" name="email" class="form-control is-{% if not email_valid %}in{% endif %}valid"
+        hx-post="/api/email" value={{email}} required>
+    {% if email_valid %}
+    <div class="valid-feedback">
+        Looks good!
+    </div>
+    <!-- Button trigger modal -->
+    <div class="row mt-1">
+        <div class="col-sm-6">
+            <button type="button" class="btn {{ button_style }}" data-bs-toggle="modal" data-bs-target="#lookupModal"
+                hx-post="/lookup_entry" hx-target="#lookupOptions" hx-trigger="click" hx-replace-url="false"
+                hx-push-url="false">
+                Lookup Previous Registration
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fade" id="lookupModal" tabindex="-1" aria-labelledby="lookupModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div id="lookupOptions" class="modal-content"></div>
+        </div>
+    </div>
+    {% else %}
+    <div id="inputEmailFeedback" class="invalid-feedback">
+        Please enter a valid email address
+    </div>
+    {% endif %}
+</div>

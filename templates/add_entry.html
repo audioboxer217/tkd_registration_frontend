@@ -6,25 +6,25 @@
     </div>
     <form hx-post="/add_entry?reg_type={{ reg_type }}" hx-trigger="submit" hx-target="#parent-div" hx-swap="outerHTML"
         hx-replace-url="true" hx-push-url="true" enctype=multipart/form-data id="eventRegistration">
-        {% include "partials/form_common.html" %}
+        {% include "form/common.html" %}
         {% if reg_type == 'competitor' %}
         {% if enable_address %}
-        {% include "partials/form_address.html" %}
+        {% include "form/address.html" %}
         {% endif %}
-        {% include "partials/form_class.html" %}
-        {% include "partials/form_parent.html" %}
+        {% include "form/class.html" %}
+        {% include "form/parent.html" %}
         {% if enable_badges %}
-        {% include "partials/form_profile.html" %}
+        {% include "form/profile.html" %}
         {% endif %}
         {% endif %}
-        {% include "partials/form_school.html" %}
+        {% include "form/school.html" %}
         {% if reg_type == 'competitor' %}
-        {% include "partials/form_belt.html" %}
-        {% include "partials/form_events.html" %}
-        {% include "partials/form_medical_manual.html" %}
+        {% include "form/belt.html" %}
+        {% include "form/events.html" %}
+        {% include "form/medical_manual.html" %}
         {% endif %}
         <div hidden>
-            {% include "partials/form_total.html" %}
+            {% include "form/total.html" %}
         </div>
         <div class="row g-3 mt-2">
             <div class="col-sm-2">
@@ -32,6 +32,6 @@
             </div>
         </div>
     </form>
-    {% include "partials/form_lookup_modal.html" %}
-    {% include "partials/script_okgp_prices.html" %}
+    {% include "form/lookup_modal.html" %}
+    {% include "script/okgp_prices.html" %}
 </div>
