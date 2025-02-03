@@ -149,10 +149,10 @@ def index():
         return render_base("landing.html", **page_params)
 
 
-@app.route("/lookup_entry")
+@app.route("/lookup_entry", methods=["POST"])
 def lookup_entry():
-    email = request.args.get("email")
-    name = f"{request.args.get('fname','').lower()} {request.args.get('lname','').lower()}"
+    email = request.form.get("email")
+    name = f"{request.form.get('fname','').lower()} {request.form.get('lname','').lower()}"
     entries = dynamodb.scan(
         TableName=app.config["lookup_table_name"],
         IndexName="email-index",
@@ -168,7 +168,10 @@ def lookup_entry():
         if name != " ":
             entries = [e for e in entries if name.strip() in e["name"]["S"].lower()]
 
-    return entries
+    return render_template("form/lookup_modal.html", entries=entries)
+
+
+# TODO: Add a way to handle entry autofill
 
 
 @app.route("/api/email", methods=["POST"])
@@ -203,7 +206,6 @@ def display_form():
         early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
         reg_type = request.args.get("reg_type")
         school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
-
 
         # Display the form
         page_params = {
