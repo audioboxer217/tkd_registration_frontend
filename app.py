@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 import boto3
 import stripe
 from authlib.integrations.flask_client import OAuth
+from email_validator import EmailNotValidError, validate_email
 from flask import Flask, abort, flash, redirect, render_template, render_template_string, request, session, url_for
 
 app = Flask(__name__)
@@ -170,6 +171,23 @@ def lookup_entry():
     return entries
 
 
+@app.route("/api/email", methods=["POST"])
+def email_api():
+    email = request.form.get("email")
+    try:
+        validate_email(email)
+        email_valid = True
+    except EmailNotValidError:
+        email_valid = False
+
+    return render_template(
+        "validation/email.html",
+        email=email,
+        email_valid=email_valid,
+        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+    )
+
+
 @app.route("/register", methods=["GET"])
 def display_form():
     if date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date():
@@ -185,6 +203,7 @@ def display_form():
         early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
         reg_type = request.args.get("reg_type")
         school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+
 
         # Display the form
         page_params = {
