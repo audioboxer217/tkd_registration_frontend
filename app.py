@@ -410,16 +410,16 @@ def purchase():
         num_tickets={"N": request.form.get("tickets")},
     )
 
-    all_sizes = app.config["sizes"]["Youth"] + app.config["sizes"]["Adult"]
-    tshirts = dict(M={f"tshirt_{size}": {"N": request.form.get(f"tshirt_{size}")} for size in all_sizes})
-    form_data.update({"tshirts": tshirts})
-    tshirt_quantity = sum([int(tshirts["M"][f"tshirt_{size}"]["N"]) for size in all_sizes])
+    # all_sizes = app.config["sizes"]["Youth"] + app.config["sizes"]["Adult"]
+    # tshirts = dict(M={f"tshirt_{size}": {"N": request.form.get(f"tshirt_{size}")} for size in all_sizes})
+    # form_data.update({"tshirts": tshirts})
+    # tshirt_quantity = sum([int(tshirts["M"][f"tshirt_{size}"]["N"]) for size in all_sizes])
 
     registration_items = [
         {"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1},
     ]
-    if tshirt_quantity > 0:
-        registration_items.append({"price": price_dict["T-Shirt"]["price_id"], "quantity": tshirt_quantity})
+    # if tshirt_quantity > 0:
+    #     registration_items.append({"price": price_dict["T-Shirt"]["price_id"], "quantity": tshirt_quantity})
 
     if int(form_data["num_tickets"]["N"]) > 0:
         registration_items.append(
