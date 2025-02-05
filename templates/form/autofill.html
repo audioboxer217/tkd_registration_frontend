@@ -1,0 +1,16 @@
+<div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+    <label for="inputEmail" class="form-check-label h5">Email</label>
+    <input id="inputEmail" name="email" class="form-control is-valid" hx-post="/api/email" value={{ entry.email.S }}
+        required>
+    <div class="valid-feedback">
+        Looks good!
+    </div>
+</div>
+
+<input type="text" hx-swap-oob="true" class="form-control" id='fname' name="fname" value="{{ entry.fname }}"
+    aria-label="First name" required>
+<input type="text" hx-swap-oob="true" class="form-control" id='lname' name="lname" value="{{ entry.lname }}"
+    aria-label="Last name" required>
+<input type="tel" hx-swap-oob="true" class="form-control" name="phone" id="inputPhone" value="{{ entry.phone.S }}"
+    pattern="^\d{3}-\d{3}-\d{4}$" oninvalid="setCustomValidity('Please enter a valid phone number.')"
+    oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>

@@ -171,7 +171,22 @@ def lookup_entry():
     return render_template("form/lookup_modal.html", entries=entries)
 
 
-# TODO: Add a way to handle entry autofill
+@app.route("/api/autofill", methods=["GET"])
+def autofill():
+    # pk = request.args.get("pk")
+    # entry = dynamodb.get_item(
+    #     TableName=app.config["reg_table_name"],
+    #     Key={"pk": {"S": pk}},
+    # )["Item"]
+    # return entry
+    entry = json.loads(request.args.get("entry"))
+    entry["fname"] = entry["name"]["S"].split()[0]
+    entry["lname"] = entry["name"]["S"].split()[1]
+
+    return render_template(
+        "form/autofill.html",
+        entry=entry,
+    )
 
 
 @app.route("/api/email", methods=["POST"])
