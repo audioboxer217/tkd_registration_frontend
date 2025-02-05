@@ -192,6 +192,7 @@ def autofill():
 @app.route("/api/email", methods=["POST"])
 def email_api():
     email = request.form.get("email")
+    reg_type = request.form.get("regType")
     try:
         validate_email(email)
         email_valid = True
@@ -202,6 +203,7 @@ def email_api():
         "validation/email.html",
         email=email,
         email_valid=email_valid,
+        reg_type=reg_type,
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
     )
 
