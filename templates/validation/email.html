@@ -7,6 +7,7 @@
         Looks good!
     </div>
     <!-- Button trigger modal -->
+    {% if reg_type == "competitor" %}
     <div class="row mt-1">
         <div class="col-sm-6">
             <button type="button" class="btn {{ button_style }}" data-bs-toggle="modal" data-bs-target="#lookupModal"
@@ -23,6 +24,7 @@
             <div id="lookupOptions" class="modal-content"></div>
         </div>
     </div>
+    {% endif %}
     {% else %}
     <div id="inputEmailFeedback" class="invalid-feedback">
         Please enter a valid email address
