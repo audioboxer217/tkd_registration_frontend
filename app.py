@@ -455,7 +455,19 @@ def schedule_page():
 @app.route("/get_schedule_details", methods=["GET"])
 def schedule_details():
     schedule_dict = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schedule.json")["Body"])
-    if request.headers.get("HX-Request"):
+    schedule_img = url_for("static", filename=get_s3_file(app.config["configBucket"], "schedule.png"))
+    if request.headers.get("HX-Request") and schedule_img != "":
+        return render_template_string(
+            """
+            <div class="row g-1 mb-1 justify-content-md-center">
+                <div class="col-md-12 center-block" align="center">
+                    <img src="{{ schedule_img }}"" class=" img-fluid"><img><br />
+                </div>
+            </div>
+            """,
+            schedule_img=schedule_img,
+        )
+    elif request.headers.get("HX-Request") and schedule_dict != "":
         return render_template_string(
             """
             <table class="table table-striped table-bordered">
