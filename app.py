@@ -257,6 +257,7 @@ def api_validate_email():
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
     )
 
+
 @app.route("/api/validate/phone", methods=["POST"])
 def api_validate_phone():
     phone_num = request.form.get("phone").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
@@ -271,6 +272,7 @@ def api_validate_phone():
         phone_num=phone_num,
         phone_valid=phone_valid,
     )
+
 
 @app.route("/api/validate/birthdate", methods=["POST"])
 def api_validate_birthdate():
