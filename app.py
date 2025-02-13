@@ -398,7 +398,7 @@ def handle_form():
 
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
-    schedule_dict = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schedule.json")["Body"])
+    schedule_img = url_for("static", filename=get_s3_file(app.config["configBucket"], "schedule.png"))
     return render_template(
         "schedule.html",
         title="Schedule",
@@ -406,7 +406,7 @@ def schedule_page():
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
         event_city=os.getenv("EVENT_CITY"),
         button_style=button_style,
-        schedule_dict=schedule_dict,
+        schedule_img=schedule_img,
     )
 
 
