@@ -275,7 +275,18 @@ function toggleBlackBeltDanSection() {
 function updateEventList(clickedEvent) {
   var eventList = []
 
-  if (clickedEvent == 'sparring-wc') {
+  if (clickedEvent == 'little_dragon') {
+    if (document.getElementById("little_dragon").checked) {
+      document.getElementById("t-shirt_option").hidden = false;
+      document.getElementById("t-shirt").required = true;
+    }
+    else {
+      document.getElementById("t-shirt_option").hidden = true;
+      document.getElementById("t-shirt").value = "";
+      document.getElementById("t-shirt").required = false;
+    }
+  }
+  else if (clickedEvent == 'sparring-wc') {
     document.getElementById("sparring-gr").checked = false;
   }
   else if (clickedEvent == 'sparring-gr') {
@@ -324,41 +335,53 @@ function updateMedicalConditionsList() {
   document.getElementById("medicalConditionsList").value = conditionList.join()
 }
 function updateTotal() {
+  if (document.getElementById('regType').value == "coach") {
+    document.getElementById("total").value = "$" + window.tkdreg.price_dict.coach;
+    return;
+  }
+
   const today = new Date()
   const early_reg_date = window.tkdreg.early_reg_date
+  const belt_selected = document.querySelectorAll('input[name="beltRank"]:checked').length
+  var events_selected = document.querySelectorAll('input[name="events"]:checked').length
+  var total = 0
 
-  if (document.getElementById('regType').value == "competitor") {
-    if (
-      document.querySelectorAll('input[name="beltRank"]:checked').length > 0 &&
-      document.querySelectorAll('input[name="events"]:checked').length > 0
-    ) {
-      if (document.getElementById('blackBelt').checked) {
-        var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
-        var total = parseInt(window.tkdreg.price_dict.black_belt)
-      }
-      else {
-        var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
-        var total = parseInt(window.tkdreg.price_dict.color_belt)
-      }
-      total += eventPrice * (document.querySelectorAll('input[name="events"]:checked').length - 1)
-
-      if (today < early_reg_date) {
-        total -= window.tkdreg.price_dict.coupon
-      }
-      document.getElementById("total").value = "$" + total
-    }
-    else if (
-      document.querySelectorAll('input[name="beltRank"]:checked').length == 0 &&
-      document.querySelectorAll('input[name="events"]:checked').length > 0
-    ) {
-      alert("Please choose a Belt Rank to get your Total")
-    }
-    else {
-      document.getElementById("total").value = ""
+  if (document.getElementById("little_dragon").checked) {
+    total += parseInt(window.tkdreg.price_dict.little_dragon)
+    events_selected -= 1
+    if (events_selected == 0) {
+      document.getElementById("total").value = "$" + total;
+      return;
     }
   }
+  
+  if (
+    belt_selected > 0 &&
+    events_selected > 0
+  ) {
+    if (document.getElementById('blackBelt').checked) {
+      var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
+      total += parseInt(window.tkdreg.price_dict.black_belt)
+    }
+    else {
+      var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
+      total += parseInt(window.tkdreg.price_dict.color_belt)
+    }
+    total += eventPrice * (events_selected - 1)
+
+    if (today < early_reg_date) {
+      total -= window.tkdreg.price_dict.coupon
+    }
+    document.getElementById("total").value = "$" + total
+  }
+  else if (
+    belt_selected == 0 &&
+    events_selected > 0
+  ) {
+    alert("Please choose a Belt Rank to get your Total")
+  }
   else {
-    document.getElementById("total").value = "$" + window.tkdreg.price_dict.coach
+    document.getElementById("total").value = ""
   }
 }
 function getPoomsaeForms(fieldName) {
@@ -390,10 +413,10 @@ function calculateAge(dateString) {
   console.log(birthdate)
   var age = today.getFullYear() - birthdate.getFullYear()//dateString.split('/')[2]
   document.getElementById("inputAge").value = age
-  if (age <= 5) {
+  if (age == 4) {
     var ageClass = "Titan"
   }
-  else if (age > 5 && age <= 7) {
+  else if (age > 4 && age <= 7) {
     var ageClass = "Tiger"
   }
   else if (age > 7 && age <= 9) {
@@ -414,6 +437,9 @@ function calculateAge(dateString) {
   else if (age > 32) {
     var ageClass = "Ultra"
   }
+  else {
+    var ageClass = ""
+  }
   formattedBirthdate = birthdate.toLocaleDateString("en-US", {
     month: "2-digit",
     day: "2-digit",
@@ -422,13 +448,26 @@ function calculateAge(dateString) {
 
   if (ageClass == "") {
     document.getElementById("ageClass").innerHTML = "<b style='color:red;'>Competitors must be at least 4 years old!</b>"
+    document.getElementById("submit_btn").disabled = true;
+    document.getElementById("eventSection").hidden = true;
   }
   else {
+    document.getElementById("submit_btn").disabled = false;
+    document.getElementById("eventSection").hidden = false;
     document.getElementById("ageClass").innerHTML = "Age Group is <b>" + ageClass + "</b>"
   }
   if (age < 18) {
     document.getElementById("inputParentName").required = true;
     document.getElementById("parentNameSection").hidden = false;
+  if (age >=4 && age <= 7) {
+      document.getElementById("little_dragon_option").hidden = false;
+    }
+  else {
+      document.getElementById("little_dragon_option").hidden = true;
+      document.getElementById("little_dragon").checked = false;
+      document.getElementById("t-shirt").value = "";
+      document.getElementById("t-shirt").required = false;
+    }
   }
   else {
     document.getElementById("inputParentName").required = false;
