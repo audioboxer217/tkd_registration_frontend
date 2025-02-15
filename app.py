@@ -351,6 +351,22 @@ def handle_form():
                 },
             ]
         num_add_event = len(events_list) - 1
+        if "little_dragon" in eventList.split(","):
+            form_data.update(dict(tshirt={"S": request.form.get("t-shirt")}))
+            if num_add_event == 0:
+                registration_items = [
+                    {
+                        "price": price_dict["Little Dragon Obstacle Course"]["price_id"],
+                        "quantity": 1,
+                    },
+                ]
+            else:
+                registration_items.append = (
+                    {
+                        "price": price_dict["Little Dragon Obstacle Course"]["price_id"],
+                        "quantity": 1,
+                    },
+                )
         if num_add_event > 0:
             registration_items.append(
                 {
@@ -662,8 +678,6 @@ def add_entry():
                 belt = "Master"
             else:
                 belt = f"{dan} degree {belt}"
-        if request.form.get("eventType") == "little_tiger":
-            eventList = "Little Tiger Showcase"
         else:
             eventList = request.form.get("eventList")
             if eventList == "":
