@@ -305,6 +305,18 @@ function updateEventList(clickedEvent) {
     }
   }
   else if (clickedEvent == 'sparring-wc') {
+  if (clickedEvent == 'little_dragon') {
+    if (document.getElementById("little_dragon").checked) {
+      document.getElementById("t-shirt_option").hidden = false;
+      document.getElementById("t-shirt").required = true;
+    }
+    else {
+      document.getElementById("t-shirt_option").hidden = true;
+      document.getElementById("t-shirt").value = "";
+      document.getElementById("t-shirt").required = false;
+    }
+  }
+  else if (clickedEvent == 'sparring-wc') {
     document.getElementById("sparring-gr").checked = false;
   }
   else if (clickedEvent == 'sparring-gr') {

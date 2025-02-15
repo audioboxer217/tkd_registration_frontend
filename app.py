@@ -499,8 +499,7 @@ def handle_form():
                     },
                 ]
             else:
-                num_add_event -= 1
-                registration_items.append(
+                registration_items.append = (
                     {
                         "price": price_dict["Little Tiger Showcase"]["price_id"],
                         "quantity": 1,
@@ -931,11 +930,11 @@ def add_entry():
                 belt = "Master"
             else:
                 belt = f"{dan} degree {belt}"
-
-        eventList = request.form.get("eventList")
-        if eventList == "":
-            msg = "You must choose at least one event"
-            abort(400, msg)
+        else:
+            eventList = request.form.get("eventList")
+            if eventList == "":
+                msg = "You must choose at least one event"
+                abort(400, msg)
 
         medical_form = format_medical_form(
             request.form.get("contacts"),
