@@ -499,7 +499,8 @@ def handle_form():
                     },
                 ]
             else:
-                registration_items.append = (
+                num_add_event -= 1
+                registration_items.append(
                     {
                         "price": price_dict["Little Tiger Showcase"]["price_id"],
                         "quantity": 1,
