@@ -1,0 +1,22 @@
+{% extends "base.html" -%}
+{% block content -%}
+<div class="row justify-content-md-center">
+    <div class="col-md-12 center-block" align="center">
+        <h1>Upload {{ resource | capitalize }}</h1>
+    </div>
+</div>
+<form action="/api/upload/{{ resource }}" method="post" enctype=multipart/form-data id="eventRegistration">
+    <div class="row g-3 mt-2 justify-content-md-center">
+        <div class="col-md-3">
+            <input type="file" class="form-control" name="uploadFile" id="uploadFile"
+                accept="{% if resource == 'schedule' %}image/png{% elif resource == 'booklet' %}application/pdf{% endif %}"
+                required>
+        </div>
+    </div>
+    <div class="row g-3 mt-2 justify-content-md-center">
+        <div class="col-sm-2">
+            <button id="submit_btn" type="submit" class="btn {{ button_style }}">Upload</button>
+        </div>
+    </div>
+</form>
+{%- endblock content %}
