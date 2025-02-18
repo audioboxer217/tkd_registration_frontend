@@ -1,8 +1,10 @@
 <div class="row mb-3">
-    <div class="col-md-3" align="left">
+    <div class="col-md-6" align="left">
         <a class="btn {{ button_style }}" href="/export" role="button">Export</a>
+        <a class="btn {{ button_style }}" href="/api/upload/schedule" role="button">Upload Schedule</a>
+        <a class="btn {{ button_style }}" href="/api/upload/booklet" role="button">Upload Information Booklet</a>
     </div>
-    <div class="col-md-9" align="right">
+    <div class="col-md-6" align="right">
         <a class="btn {{ button_style }}" hx-get="/add_entry?reg_type=competitor" hx-trigger="click"
             hx-target="#admin-content-div" hx-replace-url="true" hx-push-url="true" role="button">Add Competitor</a>
         <a class="btn {{ button_style }}" hx-get="/add_entry?reg_type=coach" hx-trigger="click"

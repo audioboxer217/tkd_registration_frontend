@@ -525,6 +525,39 @@ def schedule_details():
         abort(404)
 
 
+@app.route("/api/upload/<string:resource>", methods=["GET"])
+def upload_form(resource):
+    return render_template(
+        "upload.html",
+        title=f"Upload {resource.capitalize()}",
+        competition_name=os.getenv("COMPETITION_NAME"),
+        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+        event_city=os.getenv("EVENT_CITY"),
+        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+        resource=resource,
+    )
+
+
+@app.route("/api/upload/<string:resource>", methods=["POST"])
+def upload_item(resource):
+    upload_item = request.files["uploadFile"]
+    if resource == "schedule":
+        bucket = app.config["configBucket"]
+        filename = "schedule.png"
+    elif resource == "booklet":
+        bucket = app.config["mediaBucket"]
+        filename = "information_booklet.pdf"
+
+    s3.upload_fileobj(
+        upload_item,
+        bucket,
+        filename,
+    )
+
+    flash(f"{resource} updated successfully!", "success")
+    return redirect(f'{app.config["URL"]}/admin', code=303)
+
+
 @app.route("/information", methods=["GET"])
 def info_page():
     s3_addl_images = s3.list_objects(Bucket=app.config["mediaBucket"], Prefix="additional_information_images/")["Contents"]
