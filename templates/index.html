@@ -1,6 +1,6 @@
 {% extends "base.html" -%}
 {% block content -%}
-<div class="row justify-content-md-center mt-4">
+  <div class="row justify-content-md-center mt-4">
     <div class="col" align="center">
       <h2>Early Registration Ends <font color="red">{{early_reg_date}}</font></h2>
       <h2>Registration Closes <font color="red">{{reg_close_date}}</font></h2>
@@ -15,7 +15,14 @@
   </div>
   <div class="row justify-content-md-center mt-4">
     <div class="col" align="center">
-      <img src="{{ poster_url }}" class="img-fluid"/>
+      <h2>Host Hotel</h2>
+      <a href="https://www.hiexpress.com/redirect?path=rates&brandCode=EX&localeCode=en&regionCode=1&hotelCode=TULJS&checkInDate=28&checkInMonthYear=022025&checkOutDate=30&checkOutMonthYear=022025&_PMID=99801505&GPC=okg&cn=no&viewfullsite=true"
+        class="btn btn-primary">Book Now</a>
+      </div>
+      </div>
+      <div class="row justify-content-md-center mt-4">
+        <div class="col" align="center">
+          <img src="{{ poster_url }}" class="img-fluid" />
     </div>
-  </div>
+    </div>
 {%- endblock content %}
