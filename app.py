@@ -965,11 +965,11 @@ def add_entry():
                 belt = "Master"
             else:
                 belt = f"{dan} degree {belt}"
-        else:
-            eventList = request.form.get("eventList")
-            if eventList == "":
-                msg = "You must choose at least one event"
-                abort(400, msg)
+
+        eventList = request.form.get("eventList")
+        if eventList == "":
+            msg = "You must choose at least one event"
+            abort(400, msg)
 
         medical_form = format_medical_form(
             request.form.get("contacts"),
@@ -1038,7 +1038,8 @@ def add_entry():
             MessageBody=json.dumps(form_data),
         )
 
-        return redirect(f'{app.config["URL"]}/success', code=303)
+        flash(f"{form_data['full_name']['S']} added successfully!", "success")
+        return redirect(f'{app.config["URL"]}/admin', code=303)
 
 
 @app.route("/export")
