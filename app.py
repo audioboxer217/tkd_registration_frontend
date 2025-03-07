@@ -485,6 +485,7 @@ def info_page():
         information_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
         poomsae_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "poomsae_booklet.pdf")),
         breaking_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "breaking_booklet.pdf")),
+        demo_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "demo_booklet.pdf")),
         additional_imgs=[
             url_for("static", filename=get_s3_file(app.config["mediaBucket"], i["Key"])) for i in s3_addl_images if i["Size"] > 0
         ],
