@@ -474,11 +474,12 @@ function calculateAge(dateString) {
     document.getElementById("inputParentName").required = true;
     document.getElementById("parentNameSection").hidden = false;
   if (age >=4 && age <= 7) {
-      document.getElementById("little_dragon_option").hidden = false;
+      document.getElementById("little_dragon").disabled = false;
     }
   else {
-      document.getElementById("little_dragon_option").hidden = true;
+      document.getElementById("little_dragon").disabled = true;
       document.getElementById("little_dragon").checked = false;
+      document.getElementById("t-shirt_option").hidden = true;
       document.getElementById("t-shirt").value = "";
       document.getElementById("t-shirt").required = false;
     }
