@@ -272,7 +272,7 @@ function toggleBlackBeltDanSection() {
   }
 }
 
-function updateEventList(clickedEvent) {
+function updateEventList(clickedEvent, calculateTotal=true) {
   var eventList = []
 
   if (clickedEvent == 'little_dragon') {
@@ -309,7 +309,9 @@ function updateEventList(clickedEvent) {
     eventList.push(checked_items[i].id)
   }
   document.getElementById("eventList").value = eventList.join()
-  updateTotal()
+  if (calculateTotal) {
+    updateTotal();
+  }
   getPoomsaeForms("poomsae")
   getPoomsaeForms("pair poomsae")
   getPoomsaeForms("team poomsae")

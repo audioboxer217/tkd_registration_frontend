@@ -858,6 +858,7 @@ def edit_entry():
                 height={"N": request.form.get("height")},
                 coach={"S": request.form.get("coach").strip()},
                 beltRank={"S": belt},
+                events={"S": request.form.get("eventList")},
                 poomsae_form={"S": request.form.get("poomsae form")},
                 pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                 team_poomsae_form={"S": request.form.get("team poomsae form")},
