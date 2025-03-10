@@ -15,8 +15,77 @@
       <div class="row" id="t-shirt_option" hidden>
         <div class="col-sm-8">
           <div class="form-check">
-            <label for="t-shirt" class="form-check-label">T-Shirt Size</label>
-            <select id="t-shirt" class="form-select" name="t-shirt">
+            <input class="form-check-input" type="checkbox" name="events" id="little_dragon"
+              onchange="updateEventList(this.id)" disabled>
+            <label class="form-check-label" for="little_dragon">Little Dragon Obstacle Course (4-8 yrs old)</label>
+          </div>
+        </div>
+        <div class="row" id="t-shirt_option" hidden>
+          <div class="col-sm-8">
+            <div class="form-check">
+              <label for="t-shirt" class="form-check-label">T-Shirt Size</label>
+              <select id="t-shirt" class="form-select" name="t-shirt">
+                <option selected value="">Choose...</option>
+                <option value="XXS">XXS</option>
+                <option value="XS">XS</option>
+                <option value="S">S</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-6" id="sparringInput">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring"
+              onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="sparring">Sparring</label>
+          </div>
+        </div>
+        <div class="col-sm-6" id="sparring-grInput" hidden>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring-gr"
+              onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="sparring-gr">Sparring - Grass Roots</label>
+          </div>
+        </div>
+        <div class="col-sm-6" id="sparring-wcInput" hidden>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="sparring-wc"
+              onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="sparring-wc">Sparring - World Class</label>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="breaking"
+              onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="breaking">Breaking</label>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-6">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="weapons"
+              onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="weapons">Weapons</label>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-4">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="events" id="poomsae"
+              onclick="updateEventList(this.id)">
+            <label class="form-check-label" for="poomsae">Poomsae</label>
+          </div>
+        </div>
+        <div class="col-sm-5" id="poomsaeFormSection" hidden>
+          <div class="form-check">
+            <select class="form-select" name="poomsae form" id="poomsae form">
               <option selected value="">Choose...</option>
               <option value="XXS">XXS</option>
               <option value="XS">XS</option>
