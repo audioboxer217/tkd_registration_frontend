@@ -461,7 +461,7 @@ function calculateAge(dateString) {
   if (age < 18) {
     document.getElementById("inputParentName").required = true;
     document.getElementById("parentNameSection").hidden = false;
-  if (age >=4 && age <= 7) {
+  if (age >=4 && age <= 8) {
       document.getElementById("little_dragon").disabled = false;
     }
   else {
