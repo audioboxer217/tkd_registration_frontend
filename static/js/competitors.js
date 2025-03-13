@@ -114,10 +114,10 @@ $(document).ready(function() {
               }
             },
             {
-              label: 'Little Tiger Showcase',
+              label: 'Little Dragon Obstacle Course',
               value: function(rowData, rowIdx){
                 events_arr = rowData[6].split(',').map(s => s.trim());
-                return events_arr.includes('Little Tiger Showcase')
+                return events_arr.includes('little_dragon')
               }
             },
           ]
