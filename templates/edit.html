@@ -317,6 +317,7 @@
                   <div class="form-check">
                     <select class="form-select" name="team poomsae form" id="team poomsae form">
                       <option {{ "selected" if entry.team_poomsae_form.S=="" else "" }} value=""></option>
+                      <option {{ "selected" if entry.team_poomsae_form.S=="Freestyle" else "" }} value="Freestyle">Freestyle</option>
                       <option {{ "selected" if entry.team_poomsae_form.S=="1" else "" }} value="1">Taegeuk 1 Jang</option>
                       <option {{ "selected" if entry.team_poomsae_form.S=="2" else "" }} value="2">Taegeuk 2 Jang</option>
                       <option {{ "selected" if entry.team_poomsae_form.S=="3" else "" }} value="3">Taegeuk 3 Jang</option>
