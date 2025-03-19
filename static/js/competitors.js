@@ -50,13 +50,13 @@ $(document).ready(function() {
             {
               label: 'Senior',
               value: function(rowData, rowIdx){
-                  return rowData[3] >= 17 && rowData[3] <= 19;
+                  return rowData[3] >= 17 && rowData[3] <= 32;
               }
             },
             {
               label: 'Ultra',
               value: function(rowData, rowIdx){
-                  return rowData[3] >= 20;
+                  return rowData[3] >= 33;
               }
             },
           ]
