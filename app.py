@@ -594,19 +594,18 @@ def set_weight_class(entries):
     weight_classes = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="weight_classes.json")["Body"])
     updated_entries = []
     for entry in entries:
-        if entry["reg_type"]["S"] == "competitor":
-            age_group = get_age_group(entry)
-            entry["age_group"] = age_group
-            gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
-            weight_class_ranges = weight_classes[age_group][gender]
-            entry["weight_class"] = next(
+        age_group = get_age_group(entry)
+        gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
+        weight_class_ranges = weight_classes[age_group][gender]
+        entry["weight_class"] = next(
+            (
                 weight_class
                 for weight_class, weights in weight_class_ranges.items()
                 if float(entry["weight"]["N"]) >= float(weights[0]) and float(entry["weight"]["N"]) < float(weights[1])
-            )
-            updated_entries.append(entry)
-        else:
-            updated_entries.append(entry)
+            ),
+            "UNKNOWN",
+        )
+        updated_entries.append(entry)
 
     return updated_entries
 
