@@ -50,13 +50,13 @@ $(document).ready(function() {
             {
               label: 'Senior',
               value: function(rowData, rowIdx){
-                  return rowData[3] >= 17 && rowData[3] <= 19;
+                  return rowData[3] >= 17 && rowData[3] <= 32;
               }
             },
             {
               label: 'Ultra',
               value: function(rowData, rowIdx){
-                  return rowData[3] >= 20;
+                  return rowData[3] >= 33;
               }
             },
           ]
@@ -114,10 +114,10 @@ $(document).ready(function() {
               }
             },
             {
-              label: 'Little Tiger Showcase',
+              label: 'Little Dragon Obstacle Course',
               value: function(rowData, rowIdx){
                 events_arr = rowData[6].split(',').map(s => s.trim());
-                return events_arr.includes('Little Tiger Showcase')
+                return events_arr.includes('little_dragon')
               }
             },
           ]
