@@ -470,9 +470,8 @@ def schedule_page():
 
 @app.route("/get_schedule_details", methods=["GET"])
 def schedule_details():
-    schedule_dict = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schedule.json")["Body"])
     schedule_img = url_for("static", filename=get_s3_file(app.config["configBucket"], "schedule.png"))
-    if request.headers.get("HX-Request") and schedule_img != "":
+    if schedule_img != "":
         return render_template_string(
             """
             <div class="row g-1 mb-1 justify-content-md-center">
@@ -483,7 +482,11 @@ def schedule_details():
             """,
             schedule_img=schedule_img,
         )
-    elif request.headers.get("HX-Request") and schedule_dict != "":
+    else:
+        try:
+            schedule_dict = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schedule.json")["Body"])
+        except Exception as e:
+            abort(400, f"Error loading schedule: {e}")
         return render_template_string(
             """
             <table class="table table-striped table-bordered">
@@ -520,8 +523,6 @@ def schedule_details():
             """,
             schedule_dict=schedule_dict,
         )
-    else:
-        abort(404)
 
 
 @app.route("/api/upload/<string:resource>", methods=["GET"])
