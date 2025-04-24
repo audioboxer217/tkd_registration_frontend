@@ -82,7 +82,11 @@ def get_s3_file(bucket, file_name):
     output = f"public_media/{os.path.basename(file_name)}"
 
     if not os.path.exists(output):
-        s3.download_file(bucket, file_name, f"static/{output}")
+        try:
+            s3.download_file(bucket, file_name, f"static/{output}")
+        except Exception as e:
+            print(f"Error downloading {file_name} from S3: {e}")
+            return None
 
     return output
 
@@ -470,8 +474,8 @@ def schedule_page():
 
 @app.route("/get_schedule_details", methods=["GET"])
 def schedule_details():
-    schedule_img = url_for("static", filename=get_s3_file(app.config["configBucket"], "schedule.png"))
-    if schedule_img != "":
+    if schedule_img_file := get_s3_file(app.config["configBucket"], "schedule.png"):
+        schedule_img = url_for("static", filename=schedule_img_file)
         return render_template_string(
             """
             <div class="row g-1 mb-1 justify-content-md-center">
@@ -482,47 +486,48 @@ def schedule_details():
             """,
             schedule_img=schedule_img,
         )
-    else:
-        try:
-            schedule_dict = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schedule.json")["Body"])
-        except Exception as e:
-            abort(400, f"Error loading schedule: {e}")
+    elif schedule_json := get_s3_file(app.config["configBucket"], "schedule.json"):
+        schedule_dict = json.load(open(os.path.join(app.static_folder, schedule_json), "r"))
         return render_template_string(
             """
-            <table class="table table-striped table-bordered">
-                {% for day in schedule_dict %}
-                <thead>
-                    <tr>
-                        <th class="{{ day.class }}" scope="col" colspan="{{ day.colspan }}">
-                            <h4>{{day.date}}</h4>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in day['items'] %}
-                    <tr>
-                        {% if item.time is defined %}
-                        <th scope="row" class="table-primary" {% if item.time_rowspan is defined
-                            %}rowspan="{{item.time_rowspan}}" {%endif%}>
-                            {{item.time }}
-                        </th>
-                        {%endif%}
-                        <td {% if item.title_class is defined -%}class="{{item.title_class}}" {%endif%}>{{ item.title | safe }}
-                        </td>
-                        {% if item.location is defined %}
-                        <td {% if item.location.class is defined -%}class="{{item.location.class}}" {%endif%}{% if
-                            item.location.rowspan is defined %}rowspan="{{item.location.rowspan}}" {%endif%}><a
-                                href="{{item.location.link}}" target="_blank">{{
-                                item.location.name }}</a></td>
-                        {%endif%}
-                    </tr>
+            <div class="table-responsive" align="center">
+                <table class="table table-striped table-bordered">
+                    {% for day in schedule_dict %}
+                    <thead>
+                        <tr>
+                            <th class="{{ day.class }}" scope="col" colspan="{{ day.colspan }}">
+                                <h4>{{day.date}}</h4>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in day['items'] %}
+                        <tr>
+                            {% if item.time is defined %}
+                            <th scope="row" class="table-primary" {% if item.time_rowspan is defined
+                                %}rowspan="{{item.time_rowspan}}" {%endif%}>
+                                {{item.time }}
+                            </th>
+                            {%endif%}
+                            <td {% if item.title_class is defined -%}class="{{item.title_class}}" {%endif%}>{{ item.title | safe }}
+                            </td>
+                            {% if item.location is defined %}
+                            <td {% if item.location.class is defined -%}class="{{item.location.class}}" {%endif%}{% if
+                                item.location.rowspan is defined %}rowspan="{{item.location.rowspan}}" {%endif%}><a
+                                    href="{{item.location.link}}" target="_blank">{{
+                                    item.location.name }}</a></td>
+                            {%endif%}
+                        </tr>
+                        {%endfor%}
+                    </tbody>
                     {%endfor%}
-                </tbody>
-                {%endfor%}
-            </table>
+                </table>
+            </div>
             """,
             schedule_dict=schedule_dict,
         )
+    else:
+        return render_template_string('<div align="center">Schedule not found</div>')
 
 
 @app.route("/api/upload/<string:resource>", methods=["GET"])
