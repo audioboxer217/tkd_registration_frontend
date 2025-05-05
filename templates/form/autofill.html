@@ -14,3 +14,21 @@
 <input type="tel" hx-swap-oob="true" class="form-control" name="phone" id="inputPhone" value="{{ entry.phone.S }}"
     pattern="^\d{3}-\d{3}-\d{4}$" oninvalid="setCustomValidity('Please enter a valid phone number.')"
     oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>
+<input type="date" hx-swap-oob="true" class="form-control" id='birthdate' name="birthdate" value="{{ entry.birthdate }}"
+    onload="calculateAge(this.value)" onchange="calculateAge(this.value)" required>
+<input type="text" hx-swap-oob="true" class="form-control" id='inputAge' name="age" value="{{ entry.age }}"
+    aria-label="Age" readonly>
+<input type="radio" hx-swap-oob="true" class="form-check-input" id='genderMale' name="gender" value="male" required
+    {{ "checked" if entry.gender.S=='male' else "" }}>
+<input type="radio" hx-swap-oob="true" class="form-check-input" id='genderFemale' name="gender" value="female" required
+    {{ "checked" if entry.gender.S=='female' else "" }}>
+<select type="text" hx-swap-oob="true" class="form-select" id='inputSchool' name="school"
+    onchange="checkForUnlisted(this.value)" required>
+    <option selected value="{{ entry.school.S }}">{{ entry.school.S }}</option>
+    {% for school in schools %}
+    <option value="{{ school }}">{{ school }}</option>
+    {% endfor %}
+    <option value="unlisted">Not Listed - Please Specify Below</option>
+</select>
+<input type="text" hx-swap-oob="true" class="form-control" name="coach" id="inputCoach" value="{{ entry.coach.S }}"
+    {{ "required" if reg_type=='competitor' else "" }}>
