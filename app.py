@@ -186,10 +186,15 @@ def autofill():
     entry = json.loads(request.args.get("entry"))
     entry["fname"] = entry["name"]["S"].split()[0]
     entry["lname"] = entry["name"]["S"].split()[1]
+    birthdate = datetime.strptime(entry["birthdate"]["S"], "%m/%d/%Y")
+    entry["birthdate"] = birthdate.strftime("%Y-%m-%d")
+    entry["age"] = str(date.today().year - birthdate.year)
+    schools = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
 
     return render_template(
         "form/autofill.html",
         entry=entry,
+        schools=schools,
     )
 
 
