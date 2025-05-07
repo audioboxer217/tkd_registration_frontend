@@ -4,54 +4,15 @@
         <label for="belt" class="form-check-label h5">Belt Rank</label>
       </div>
       <div class="row">
+        {% for belt in ['black', 'brown', 'red', 'blue', 'green', 'orange', 'yellow', 'white'] %}
         <div class="col-sm-6">
           <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="blackBelt" value="black" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
-            <label class="form-check-label" for="blackBelt">Black</label>
+            <input class="form-check-input" type="radio" name="beltRank" id="{{ belt }}Belt" value="{{ belt }}"
+              onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
+            <label class="form-check-label" for="{{ belt }}Belt">{{ belt.capitalize() }}</label>
           </div>
         </div>
-        <div class="col-sm-6">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="brownBelt" value="brown" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
-            <label class="form-check-label" for="brownBelt">Brown</label>
-          </div>
-        </div>
-        <div class="col-sm-6">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="redBelt" value="red" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
-            <label class="form-check-label" for="redBelt">Red</label>
-          </div>
-        </div>
-        <div class="col-sm-6">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="blueBelt" value="blue" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
-            <label class="form-check-label" for="blueBelt">Blue</label>
-          </div>
-        </div>
-        <div class="col-sm-6">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="greenBelt" value="green" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
-            <label class="form-check-label" for="greenBelt">Green</label>
-          </div>
-        </div>
-        <div class="col-sm-6">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="orangeBelt" value="orange" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
-            <label class="form-check-label" for="orangeBelt">Orange</label>
-          </div>
-        </div>
-        <div class="col-sm-6">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="yellowBelt" value="yellow" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
-            <label class="form-check-label" for="yellowBelt">Yellow</label>
-          </div>
-        </div>
-        <div class="col-sm-6">
-          <div class="form-check">
-            <input class="form-check-input" type="radio" name="beltRank" id="whiteBelt" value="white" onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
-            <label class="form-check-label" for="whiteBelt">White</label>
-          </div>
-        </div>
+        {% endfor %}
       </div>
       <div class="row" id="blackBeltDanSection" hidden>
         <div class="col-md-6">
