@@ -22,6 +22,14 @@
     {{ "checked" if entry.gender.S=='male' else "" }}>
 <input type="radio" hx-swap-oob="true" class="form-check-input" id='genderFemale' name="gender" value="female" required
     {{ "checked" if entry.gender.S=='female' else "" }}>
+{% if entry.age | int <= 17 %} <div class="row mt-2" hx-swap-oob="true" id="parentNameSection">
+    <div class="col-md-6">
+        <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
+        <input type="text" hx-swap-oob="true" class="form-control" id="inputParentName" name="parentName"
+            value="{{ entry.parent.S if entry.parent.S else '' }}" aria-label="Parent's name">
+    </div>
+    </div>
+    {% endif %}
 <select type="text" hx-swap-oob="true" class="form-select" id='inputSchool' name="school"
     onchange="checkForUnlisted(this.value)" required>
     <option selected value="{{ entry.school.S }}">{{ entry.school.S }}</option>
@@ -32,3 +40,45 @@
 </select>
 <input type="text" hx-swap-oob="true" class="form-control" name="coach" id="inputCoach" value="{{ entry.coach.S }}"
     {{ "required" if reg_type=='competitor' else "" }}>
+{% if entry.allergy_list | count > 0 %}
+<input type="radio" hx-swap-oob="true" class="form-check-input" id="allergyYes" name="allergies" value="Y"
+    onclick="toggleAllergyList()" checked>
+<div class="row mt-2" hx-swap-oob="true" id="allergyListSection">
+    <label class="form-control-label" for="allergy_list">Please indicate which medications (one per line).</label>
+    <div class="col-md-4">
+        <textarea class="form-control" name="allergy_list" id="allergy_list"
+            rows="3">{{ entry.allergy_list | join('\n') }}</textarea>
+    </div>
+</div>
+{% else %}
+<input type="radio" hx-swap-oob="true" class="form-check-input" id="allergyNo" name="allergies" value="N"
+    onclick="toggleAllergyList()" checked>
+{% endif %}
+
+{% if entry.meds_list | count > 0 %}
+<input type="radio" hx-swap-oob="true" class="form-check-input" id="medsYes" name="medications" value="Y"
+    onclick="toggleMedsList()" checked>
+<div class="row mt-2" hx-swap-oob="true" id="medsListSection">
+    <label class="form-control-label" for="meds_list">Please indicate which medications (one per line).</label>
+    <div class="col-md-4">
+        <textarea class="form-control" name="meds_list" id="meds_list"
+            rows="3">{{ entry.meds_list | join('\n') }}</textarea>
+    </div>
+</div>
+{% else %}
+<input type="radio" hx-swap-oob="true" class="form-check-input" id="medsNo" name="medications" value="N"
+    onclick="toggleMedsList()" checked>
+{% endif %}
+
+{% if entry.medical_form.M.contacts.S == 'Y' %}
+<input type="radio" hx-swap-oob="true" class="form-check-input" id="contactsYes" name="contacts" value="Y" checked>
+{% else %}
+<input type="radio" hx-swap-oob="true" class="form-check-input" id="contactsNo" name="contacts" value="N" checked>
+{% endif %}
+
+{% for mc in entry.medical_conditions %}
+<input type="checkbox" hx-swap-oob="true" class="form-check-input" id="{{ mc }}" name="medical_conditions"
+    value="{{ mc }}" checked onclick="updateMedicalConditionsList()">
+{% endfor %}
+<input class="form-control" hx-swap-oob="true" type="text" name="medicalConditionsList" id="medicalConditionsList"
+    value="{{ entry.medical_conditions_list | join(', ') }}" hidden>
