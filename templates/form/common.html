@@ -3,19 +3,19 @@
   <label for="inputName" class="form-check-label h5">Name</label>
 </div>
 <div class="row g-3">
-  <div class="col">
+  <div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
     <input type="text" class="form-control" id='fname' name="fname" placeholder="First name" aria-label="First name"
-      required>
+      required hx-post="/api/validate/name/fname">
   </div>
-  <div class="col">
+  <div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
     <input type="text" class="form-control" id='lname' name="lname" placeholder="Last name" aria-label="Last name"
-      required>
+      required hx-post="/api/validate/name/lname">
   </div>
 </div>
 <div class="row mt-3">
   <div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
     <label for="inputEmail" class="form-check-label h5">Email</label>
-    <input id="inputEmail" name="email" class="form-control" hx-post="/api/email" required>
+    <input id="inputEmail" name="email" class="form-control" hx-post="/api/validate/email" required>
   </div>
   <div class="col">
     <label for="inputPhone" class="form-check-label h5">Phone</label>

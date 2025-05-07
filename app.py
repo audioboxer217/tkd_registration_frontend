@@ -195,8 +195,24 @@ def autofill():
     )
 
 
-@app.route("/api/email", methods=["POST"])
-def email_api():
+@app.route("/api/validate/name/<string:form_item_id>", methods=["POST"])
+def api_validate_name(form_item_id):
+    form_item = request.form.get(form_item_id)
+    if form_item != "" and form_item.replace(" ", "").isalpha():
+        form_item_valid = True
+    else:
+        form_item_valid = False
+
+    return render_template(
+        "validation/name.html",
+        form_item=form_item,
+        form_item_id=form_item_id,
+        form_item_valid=form_item_valid,
+    )
+
+
+@app.route("/api/validate/email", methods=["POST"])
+def api_validate_email():
     email = request.form.get("email")
     reg_type = request.form.get("regType")
     try:
