@@ -177,12 +177,6 @@ def lookup_entry():
 
 @app.route("/api/autofill", methods=["GET"])
 def autofill():
-    # pk = request.args.get("pk")
-    # entry = dynamodb.get_item(
-    #     TableName=app.config["reg_table_name"],
-    #     Key={"pk": {"S": pk}},
-    # )["Item"]
-    # return entry
     entry = json.loads(request.args.get("entry"))
     entry["fname"] = entry["name"]["S"].split()[0]
     entry["lname"] = entry["name"]["S"].split()[1]
@@ -190,6 +184,9 @@ def autofill():
     entry["birthdate"] = birthdate.strftime("%Y-%m-%d")
     entry["age"] = str(date.today().year - birthdate.year)
     schools = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+    entry["allergy_list"] = [a["S"] for a in entry["medical_form"]["M"]["allergies"]["L"]]
+    entry["meds_list"] = [m["S"] for m in entry["medical_form"]["M"]["medications"]["L"]]
+    entry["medicalConditionsList"] = [mc["S"] for mc in entry["medical_form"]["M"]["medicalConditions"]["L"]]
 
     return render_template(
         "form/autofill.html",
