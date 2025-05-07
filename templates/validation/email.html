@@ -1,7 +1,7 @@
 <div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
     <label for="inputEmail" class="form-check-label h5">Email</label>
     <input id="inputEmail" name="email" class="form-control is-{% if not email_valid %}in{% endif %}valid"
-        hx-post="/api/email" value={{email}} required>
+        hx-post="/api/validate/email" value={{email}} required>
     {% if email_valid %}
     <div class="valid-feedback">
         Looks good!
