@@ -3,13 +3,18 @@
   <label for="inputName" class="form-check-label h5">Name</label>
 </div>
 <div class="row g-3">
-  <div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
-    <input type="text" class="form-control" id='fname' name="fname" placeholder="First name" aria-label="First name"
-      required hx-post="/api/validate/name/fname">
+  <div class="col">
+    <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+      <input type="text" class="form-control" id='fname' name="fname" placeholder="First name" aria-label="First name"
+        required hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false"
+        hx-post="/api/validate/name/fname">
+    </div>
   </div>
-  <div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
-    <input type="text" class="form-control" id='lname' name="lname" placeholder="Last name" aria-label="Last name"
-      required hx-post="/api/validate/name/lname">
+  <div class="col">
+    <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+      <input type="text" class="form-control" id='lname' name="lname" placeholder="Last name" aria-label="Last name"
+        required hx-post="/api/validate/name/lname">
+  </div>
   </div>
 </div>
 <div class="row mt-3">

@@ -195,9 +195,10 @@ def autofill():
     )
 
 
-@app.route("/api/validate/name/<string:form_item_id>", methods=["POST"])
-def api_validate_name(form_item_id):
-    form_item = request.form.get(form_item_id)
+@app.route("/api/validate/name/<string:form_item_name>", methods=["POST"])
+def api_validate_name(form_item_name):
+    form_item = request.form.get(form_item_name)
+    form_item_id = request.args.get(id, form_item_name)
     if form_item != "" and form_item.replace(" ", "").isalpha():
         form_item_valid = True
     else:
@@ -207,6 +208,7 @@ def api_validate_name(form_item_id):
         "validation/name.html",
         form_item=form_item,
         form_item_id=form_item_id,
+        form_item_name=form_item_name,
         form_item_valid=form_item_valid,
     )
 
