@@ -1,8 +1,6 @@
-<div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+<div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
     <input type="text" class="form-control is-{% if not form_item_valid %}in{% endif %}valid" id='{{form_item_id}}'
-        name="{{form_item_id}}" placeholder="Last name" aria-label="Last name" required
-        hx-post="/api/validate/name/{{form_item_id}}" hx-target="this" hx-swap="outerHTML" hx-replace-url="false"
-        hx-push-url="false" value={{form_item}}>
+        name="{{form_item_name}}" required hx-post="/api/validate/name/{{form_item_name}}?id={{form_item_id}}" value="{{form_item}}">
     {% if form_item_valid %}
     <div class="valid-feedback">
         Looks good!
