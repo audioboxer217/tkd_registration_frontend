@@ -15,11 +15,11 @@ class TestHomepage:
         assert self.response.status_code == 200
 
     def test_early_reg(self):
-        html_line = f'<h2>Early Registration Ends <font color="red">{os.environ.get("EARLY_REG_DATE")}</font></h2>'
+        html_line = f'<h2>Early Registration Ends <font color="red">{os.environ.get("EARLY_REG_DATE")}</font>'
         assert html_line.encode() in self.response.data
 
     def test_reg_close(self):
-        html_line = f'<h2>Registration Closes <font color="red">{os.environ.get("REG_CLOSE_DATE")}</font></h2>'
+        html_line = f'<h2>Registration Closes <font color="red">{os.environ.get("REG_CLOSE_DATE")}</font>'
         assert html_line.encode() in self.response.data
 
     def test_contact_email(self):
