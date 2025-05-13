@@ -61,3 +61,13 @@ jobs:
         VISITOR_INFO_URL: "${{ vars.VISITOR_INFO_URL }}"
         VISITOR_INFO_TEXT: "${{ vars.VISITOR_INFO_TEXT }}"
       run: uv run pytest -qrA --tb=no >> $GITHUB_STEP_SUMMARY
+
+  security:
+    runs-on: ubuntu-latest
+    environment: Test
+    steps:
+      - uses: actions/checkout@main
+      - name: Run Safety CLI to check for vulnerabilities
+        uses: pyupio/safety-action@v1
+        with:
+          api-key: "${{ secrets.SAFETY_API_KEY }}"
