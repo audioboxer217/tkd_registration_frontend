@@ -23,8 +23,9 @@
   </div>
   <div class="col">
     <label for="inputPhone" class="form-check-label h5">Phone</label>
-    <input type="tel" class="form-control" name="phone" id="inputPhone" placeholder="123-456-7890"
-      pattern="^\d{3}-\d{3}-\d{4}$" oninvalid="setCustomValidity('Please enter a valid phone number.')"
-      oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>
+    <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+      <input type="tel" class="form-control" name="phone" id="inputPhone" placeholder="123-456-7890"
+        required hx-post="/api/validate/phone">
+    </div>
   </div>
 </div>

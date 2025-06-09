@@ -231,6 +231,21 @@ def api_validate_email():
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
     )
 
+@app.route("/api/validate/phone", methods=["POST"])
+def api_validate_phone():
+    phone_num = request.form.get("phone").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if phone_num != "" and phone_num.isdigit() and len(phone_num) == 10:
+        phone_num = phone_num[0:3] + "-" + phone_num[3:6] + "-" + phone_num[6:]
+        phone_valid = True
+    else:
+        phone_valid = False
+
+    return render_template(
+        "validation/phone.html",
+        phone_num=phone_num,
+        phone_valid=phone_valid,
+    )
+
 
 @app.route("/register", methods=["GET"])
 def display_form():
