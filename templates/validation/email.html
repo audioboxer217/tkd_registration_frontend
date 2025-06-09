@@ -3,9 +3,6 @@
     <input id="inputEmail" name="email" class="form-control is-{% if not email_valid %}in{% endif %}valid"
         hx-post="/api/validate/email" value={{email}} required>
     {% if email_valid %}
-    <div class="valid-feedback">
-        Looks good!
-    </div>
     <!-- Button trigger modal -->
     {% if reg_type == "competitor" %}
     <div class="row mt-1">

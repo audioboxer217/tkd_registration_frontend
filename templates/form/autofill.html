@@ -1,16 +1,16 @@
 <div class="col" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
     <label for="inputEmail" class="form-check-label h5">Email</label>
-    <input id="inputEmail" name="email" class="form-control is-valid" hx-post="/api/email" value={{ entry.email.S }}
+    <input id="inputEmail" name="email" class="form-control is-valid" hx-post="/api/validate/email" value={{ entry.email.S
+        }}
         required>
-    <div class="valid-feedback">
-        Looks good!
-    </div>
 </div>
 
-<input type="text" hx-swap-oob="true" class="form-control" id='fname' name="fname" value="{{ entry.fname }}"
-    aria-label="First name" required>
-<input type="text" hx-swap-oob="true" class="form-control" id='lname' name="lname" value="{{ entry.lname }}"
-    aria-label="Last name" required>
+<input type="text" hx-swap-oob="true" class="form-control is-valid" id='fname' name="fname" value="{{ entry.fname }}"
+    aria-label="First name" required hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false"
+    hx-post="/api/validate/name/fname">
+<input type="text" hx-swap-oob="true" class="form-control is-valid" id='lname' name="lname" value="{{ entry.lname }}"
+    aria-label="Last name" required hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false"
+    hx-post="/api/validate/name/lname">
 <input type="tel" hx-swap-oob="true" class="form-control" name="phone" id="inputPhone" value="{{ entry.phone.S }}"
     pattern="^\d{3}-\d{3}-\d{4}$" oninvalid="setCustomValidity('Please enter a valid phone number.')"
     oninput="setCustomValidity('')" onchange="formatPhoneNumber(this.value)" required>
@@ -25,8 +25,9 @@
 {% if entry.age | int <= 17 %} <div class="row mt-2" hx-swap-oob="true" id="parentNameSection">
     <div class="col-md-6">
         <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
-        <input type="text" hx-swap-oob="true" class="form-control" id="inputParentName" name="parentName"
-            value="{{ entry.parent.S if entry.parent.S else '' }}" aria-label="Parent's name">
+        <input type="text" hx-swap-oob="true" class="form-control is-valid" inputParentName" name="parentName"
+            value="{{ entry.parent.S if entry.parent.S else '' }}" aria-label="Parent's name"
+            hx-post="/api/validate/name/parentName?id=inputParentName">
     </div>
     </div>
     {% endif %}
@@ -38,8 +39,8 @@
     {% endfor %}
     <option value="unlisted">Not Listed - Please Specify Below</option>
 </select>
-<input type="text" hx-swap-oob="true" class="form-control" name="coach" id="inputCoach" value="{{ entry.coach.S }}"
-    {{ "required" if reg_type=='competitor' else "" }}>
+<input type="text" hx-swap-oob="true" class="form-control is-valid" name="coach" id="inputCoach"
+    value="{{ entry.coach.S }}" {{ "required" if reg_type=='competitor' else "" }} hx-post="/api/validate/name/coach">
 {% if entry.allergy_list | count > 0 %}
 <input type="radio" hx-swap-oob="true" class="form-check-input" id="allergyYes" name="allergies" value="Y"
     onclick="toggleAllergyList()" checked>
