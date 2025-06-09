@@ -6,11 +6,9 @@
 </div>
 
 <input type="text" hx-swap-oob="true" class="form-control is-valid" id='fname' name="fname" value="{{ entry.fname }}"
-    aria-label="First name" required hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false"
-    hx-post="/api/validate/name/fname">
+    aria-label="First name" required hx-post="/api/validate/name/fname">
 <input type="text" hx-swap-oob="true" class="form-control is-valid" id='lname' name="lname" value="{{ entry.lname }}"
-    aria-label="Last name" required hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false"
-    hx-post="/api/validate/name/lname">
+    aria-label="Last name" required hx-post="/api/validate/name/lname">
 <input type="tel" hx-swap-oob="true" class="form-control is-valid" name="phone" id="inputPhone"
     value="{{ entry.phone.S }}" required hx-post="/api/validate/phone">
 <input type="date" hx-swap-oob="true" class="form-control" id='birthdate' name="birthdate" value="{{ entry.birthdate }}"
