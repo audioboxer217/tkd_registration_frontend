@@ -15,6 +15,9 @@
     </div>
     <div class="col-md-6" id="coachSection" {{ "" if reg_type=='competitor' else "hidden" }}>
       <label for="inputCoach" class="form-check-label h5">Taekwondo Instructor / Coach</label>
-      <input type="text" class="form-control" name="coach" id="inputCoach" {{ "required" if reg_type=='competitor' else "" }}>
+      <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+        <input type="text" class="form-control" name="coach" id="inputCoach" {{ "required" if reg_type=='competitor' else ""
+          }} hx-post="/api/validate/name/coach">
+      </div>
     </div>
   </div>
