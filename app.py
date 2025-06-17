@@ -183,6 +183,7 @@ def autofill():
     birthdate = datetime.strptime(entry["birthdate"]["S"], "%m/%d/%Y")
     entry["birthdate"] = birthdate.strftime("%Y-%m-%d")
     entry["age"] = str(date.today().year - birthdate.year)
+    entry["age_group"] = get_age_group(int(entry["age"]))
     schools = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
     entry["allergy_list"] = [a["S"] for a in entry["medical_form"]["M"]["allergies"]["L"]]
     entry["meds_list"] = [m["S"] for m in entry["medical_form"]["M"]["medications"]["L"]]
@@ -244,6 +245,28 @@ def api_validate_phone():
         "validation/phone.html",
         phone_num=phone_num,
         phone_valid=phone_valid,
+    )
+
+@app.route("/api/validate/birthdate", methods=["POST"])
+def api_validate_birthdate():
+    birthdate = datetime.strptime(request.form.get("birthdate"), "%Y-%m-%d")
+    try:
+        birthyear = birthdate.year
+        curr_year = datetime.now().year
+        age = curr_year - birthyear
+        age_group = get_age_group(age)
+        date_valid = True
+    except ValueError:
+        age = ""
+        age_group = ""
+        date_valid = False
+
+    return render_template(
+        "validation/birthdate.html",
+        birthdate=request.form.get("birthdate"),
+        date_valid=date_valid,
+        age=str(age),
+        age_group=age_group,
     )
 
 
@@ -613,7 +636,7 @@ def info_page():
         return render_base("information.html", **page_params)
 
 
-def get_age_group(entry):
+def get_age_group(age):
     age_groups = {
         "dragon": [4, 5, 6, 7],
         "tiger": [8, 9],
@@ -624,7 +647,7 @@ def get_age_group(entry):
         "ultra": list(range(33, 100)),
     }
 
-    age_group = next((group for group, ages in age_groups.items() if int(entry["age"]["N"]) in ages))
+    age_group = next((group for group, ages in age_groups.items() if int(age) in ages))
 
     return age_group
 
@@ -634,7 +657,7 @@ def set_weight_class(entries):
     weight_classes = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="weight_classes.json")["Body"])
     updated_entries = []
     for entry in entries:
-        age_group = get_age_group(entry)
+        age_group = get_age_group(entry["age"]["N"])
         gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
         weight_class_ranges = weight_classes[age_group][gender]
         entry["weight_class"] = next(
