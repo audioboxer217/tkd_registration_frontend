@@ -295,6 +295,22 @@ def api_validate_birthdate():
     )
 
 
+@app.route("/api/validate/school", methods=["POST"])
+def api_validate_school():
+    school_selection = request.form.get("school")
+    if school_selection != "":
+        school_valid = True
+    else:
+        school_valid = False
+
+    return render_template(
+        "validation/school.html",
+        school_selection=school_selection,
+        school_valid=school_valid,
+        schools=json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]),
+    )
+
+
 @app.route("/register", methods=["GET"])
 def display_form():
     if date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date():
