@@ -3,9 +3,9 @@
       <div class="row g-3">
         <div class="col-md-8">
           <label class="form-check-label h5" for="date">Birthday</label>
-          <div class="input-group date">
+          <div class="input-group date" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
             <input class="form-control" type="date" name="birthdate" id="birthdate" placeholder="MM/DD/YYYY"
-              onchange="calculateAge(this.value)" required>
+              required hx-post="/api/validate/birthdate">
           </div>
         </div>
         <div class="col-md-2">

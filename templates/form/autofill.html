@@ -11,9 +11,10 @@
     aria-label="Last name" required hx-post="/api/validate/name/lname">
 <input type="tel" hx-swap-oob="true" class="form-control is-valid" name="phone" id="inputPhone"
     value="{{ entry.phone.S }}" required hx-post="/api/validate/phone">
-<input type="date" hx-swap-oob="true" class="form-control" id='birthdate' name="birthdate" value="{{ entry.birthdate }}"
-    onload="calculateAge(this.value)" onchange="calculateAge(this.value)" required>
-<input type="text" hx-swap-oob="true" class="form-control" id='inputAge' name="age" value="{{ entry.age }}"
+<input type="date" hx-swap-oob="true" class="form-control is-valid" id='birthdate' name="birthdate"
+    value="{{ entry.birthdate }}" onload="calculateAge(this.value)" required hx-post="/api/validate/birthdate">
+<p hx-swap-oob="true" id="ageClass">Age Group is <b>{{ entry.age_group }}</b></p>
+<input type="text" hx-swap-oob="true" class="form-control is-valid" id='inputAge' name="age" value="{{ entry.age }}"
     aria-label="Age" readonly>
 <input type="radio" hx-swap-oob="true" class="form-check-input" id='genderMale' name="gender" value="male" required
     {{ "checked" if entry.gender.S=='male' else "" }}>

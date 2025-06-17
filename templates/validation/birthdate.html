@@ -1,0 +1,11 @@
+<div class="input-group date" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+    <input class="form-control is-{% if not date_valid %}in{% endif %}valid" type="date" name="birthdate" id="birthdate"
+        required hx-post="/api/validate/birthdate" value="{{birthdate}}">
+    {% if not date_valid %}
+    <div id="inputBirthdayFeedback" class="invalid-feedback">
+        Please enter a valid date in the format MM/DD/YYYY
+    </div>
+    {% endif %}
+</div>
+<input type="text" hx-swap-oob="true" class="form-control is-valid" name="age" id="inputAge" value="{{age}}" readonly>
+<p hx-swap-oob="true" id="ageClass">Age Group is <b>{{age_group}}</b></p>
