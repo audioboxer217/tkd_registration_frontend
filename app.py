@@ -214,6 +214,31 @@ def api_validate_name(form_item_name):
     )
 
 
+@app.route("/api/validate/number/<string:form_item_name>", methods=["POST"])
+def api_validate_number(form_item_name):
+    form_item = request.form.get(form_item_name)
+    form_item_id = request.args.get("id", form_item_name)
+    form_item_step = request.args.get("step", "1")
+    form_item_min = request.args.get("min", "")
+    form_item_max = request.args.get("max", "")
+
+    if form_item != "" and form_item.isdigit():
+        form_item_valid = True
+    else:
+        form_item_valid = False
+
+    return render_template(
+        "validation/number.html",
+        form_item=form_item,
+        form_item_id=form_item_id,
+        form_item_step=form_item_step,
+        form_item_min=form_item_min,
+        form_item_max=form_item_max,
+        form_item_name=form_item_name,
+        form_item_valid=form_item_valid,
+    )
+
+
 @app.route("/api/validate/email", methods=["POST"])
 def api_validate_email():
     email = request.form.get("email")

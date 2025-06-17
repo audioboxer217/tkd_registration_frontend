@@ -1,0 +1,12 @@
+<div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+    <input type="number" class="form-control is-{% if not form_item_valid %}in{% endif %}valid" id='{{form_item_id}}'
+        name="{{form_item_name}}" required
+        hx-post="/api/validate/number/{{form_item_name}}?step={{form_item_step}}{% if form_item_min %}&min={{form_item_min}}{% endif %}{% if form_item_max %}&max={{form_item_max}}{% endif %}"
+        step="{{form_item_step}}" {% if form_item_min %}min="{{form_item_min}}" {% endif %} {% if form_item_max
+        %}max="{{form_item_max}}" {% endif %} value="{{form_item}}">
+    {% if not form_item_valid %}
+    <div id="input{{form_item_id}}Feedback" class="invalid-feedback">
+        Please enter a valid name
+    </div>
+    {% endif %}
+</div>
