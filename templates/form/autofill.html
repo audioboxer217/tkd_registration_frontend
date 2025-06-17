@@ -29,11 +29,10 @@
     </div>
     </div>
     {% endif %}
-<select type="text" hx-swap-oob="true" class="form-select" id='inputSchool' name="school"
-    onchange="checkForUnlisted(this.value)" required>
-    <option selected value="{{ entry.school.S }}">{{ entry.school.S }}</option>
+<select hx-swap-oob="true" class="form-select is-valid" id='inputSchool' name="school" hx-post="/api/validate/school"
+    required>
     {% for school in schools %}
-    <option value="{{ school }}">{{ school }}</option>
+    <option {% if school==entry.school.S %}selected {% endif %}value="{{ school }}">{{ school }}</option>
     {% endfor %}
     <option value="unlisted">Not Listed - Please Specify Below</option>
 </select>

@@ -1,16 +1,14 @@
   <div class="row g-3 mt-1">
     <div class="col-md-6">
       <label for="inputSchool" class="form-check-label h5">Taekwondo School Or Club</label>
-      <select id="inputSchool" class="form-select" name="school" onchange="checkForUnlisted(this.value)" required>
-        <option selected value="">School...</option>
-        {% for school in schools %}
-        <option value="{{ school }}">{{ school }}</option>
-        {% endfor %}
-        <option value="unlisted">Not Listed - Please Specify Below</option>
-      </select>
-      <div id="unlistedSchoolSection" hidden>
-        <label for="inputUnlistedSchool" class="form-check-label">School Name</label>
-        <input type="text" class="form-control" name="unlistedSchool" id="inputUnlistedSchool">
+      <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+        <select id="inputSchool" class="form-select" name="school" hx-post="/api/validate/school" required>
+          <option selected value="">School...</option>
+          {% for school in schools %}
+          <option value="{{ school }}">{{ school }}</option>
+          {% endfor %}
+          <option value="unlisted">Not Listed - Please Specify Below</option>
+        </select>
       </div>
     </div>
     <div class="col-md-6" id="coachSection" {{ "" if reg_type=='competitor' else "hidden" }}>
