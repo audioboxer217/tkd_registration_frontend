@@ -18,5 +18,5 @@ dev-dependencies = [
     "python-dotenv~=1.0.0",
     "ruff~=0.6.5",
     "setuptools==74.1.2",
-    "zappa>=0.59.0",
+    "zappa>=0.60.0",
 ]
