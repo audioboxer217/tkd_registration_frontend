@@ -382,6 +382,10 @@ function updateTotal() {
       total += parseInt(window.tkdreg.price_dict.breaking)
     }
     total += eventPrice * (events_selected - 1)
+    
+    if (today < early_reg_date) {
+      total -= window.tkdreg.price_dict.coupon
+    }
 
     document.getElementById("total").value = "$" + total
   }
