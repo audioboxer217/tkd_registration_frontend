@@ -493,6 +493,20 @@ def handle_form():
             )
         # Code to have 'convenience fee' transfered to separate acct ###
         registration_items.append({"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1})
+        if "sparring-wc" in events_list:
+            registration_items.append(
+                {
+                    "price": price_dict["World Class"]["price_id"],
+                    "quantity": 1,
+                },
+            )
+        if "breaking" in events_list:
+            registration_items.append(
+                {
+                    "price": price_dict["Breaking"]["price_id"],
+                    "quantity": 1,
+                },
+            )
     else:
         registration_items = [
             {
