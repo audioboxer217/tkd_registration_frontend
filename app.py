@@ -551,7 +551,10 @@ def handle_form():
             MessageBody=json.dumps(form_data),
         )
 
-        return redirect(checkout_session.url, code=303)
+        # return redirect(checkout_session.url, code=303)
+        return render_template_string(
+            '<meta http-equiv="refresh" content="0; url={{ checkout_url }}" />', checkout_url=checkout_session.url
+        )
 
 
 @app.route("/registration_error", methods=["GET"])
