@@ -221,29 +221,33 @@ function updateFields() {
 function updateEventOptions() {
   const today = new Date()
   const early_reg_date = window.tkdreg.early_reg_date
+  var price_detail = window.tkdreg.price_dict.registration
+  var early_reg_warn = ""
   if (today < early_reg_date) {
-    var blackBeltPrice = window.tkdreg.price_dict.black_belt - window.tkdreg.price_dict.coupon
-    var colorBeltPrice = window.tkdreg.price_dict.color_belt - window.tkdreg.price_dict.coupon
+    price_detail -= window.tkdreg.price_dict.coupon
+    // var blackBeltPrice = window.tkdreg.price_dict.black_belt - window.tkdreg.price_dict.coupon
+    // var colorBeltPrice = window.tkdreg.price_dict.color_belt - window.tkdreg.price_dict.coupon
     const early_reg_date_pretty = early_reg_date.toLocaleDateString('en-us', { month:"long", day:"numeric"}) 
     var early_reg_warn = "<br>After " + early_reg_date_pretty + ", prices increase $" + window.tkdreg.price_dict.coupon
   }
-  else {
-    var blackBeltPrice = window.tkdreg.price_dict.black_belt
-    var colorBeltPrice = window.tkdreg.price_dict.color_belt
-    var early_reg_warn = ""
-  }
-
-  const blackBelt = "The first event for Black Belts is $" + blackBeltPrice + " and each additional event is $" + window.tkdreg.price_dict.addl_event
-  const colorBelt = "The first event for Color Belts is $" + colorBeltPrice + "  and each additional event is $" + window.tkdreg.price_dict.addl_event
-
+  // else {
+  //   var blackBeltPrice = window.tkdreg.price_dict.black_belt
+  //   var colorBeltPrice = window.tkdreg.price_dict.color_belt
+  //   var early_reg_warn = ""
+  // }
+  
+  // const blackBelt = "The first event for Black Belts is $" + blackBeltPrice + " and each additional event is $" + window.tkdreg.price_dict.addl_event
+  // const colorBelt = "The first event for Color Belts is $" + colorBeltPrice + "  and each additional event is $" + window.tkdreg.price_dict.addl_event
+  
+  document.getElementById("costDetail").innerHTML = "The first event is $" + price_detail + " and each additional event is $" + window.tkdreg.price_dict.addl_event + early_reg_warn;
   if (document.getElementById('blackBelt').checked) {
-    document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn;
+    // document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn;
     document.getElementById("sparring").hidden = true;
     document.getElementById("sparring-gr").hidden = false;
     document.getElementById("sparring-wc").hidden = false;
   }
   else {
-    document.getElementById("costDetail").innerHTML = colorBelt + early_reg_warn
+    // document.getElementById("costDetail").innerHTML = colorBelt + early_reg_warn
     document.getElementById("sparring").hidden = false;
     document.getElementById("sparring-gr").hidden = true;
     document.getElementById("sparring-wc").hidden = true;
@@ -275,8 +279,8 @@ function toggleBlackBeltDanSection() {
 function updateEventList(clickedEvent, calculateTotal=true) {
   var eventList = []
 
-  if (clickedEvent == 'little_dragon') {
-    if (document.getElementById("little_dragon").checked) {
+  if (clickedEvent == 'little_tiger') {
+    if (document.getElementById("little_tiger").checked) {
       document.getElementById("t-shirt_option").hidden = false;
       document.getElementById("t-shirt").required = true;
     }
@@ -348,8 +352,8 @@ function updateTotal() {
   var events_selected = document.querySelectorAll('input[name="events"]:checked').length
   var total = 0
 
-  if (document.getElementById("little_dragon").checked) {
-    total += parseInt(window.tkdreg.price_dict.little_dragon)
+  if (document.getElementById("little_tiger").checked) {
+    total += parseInt(window.tkdreg.price_dict.little_tiger)
     events_selected -= 1
     if (events_selected == 0) {
       document.getElementById("total").value = "$" + total;
@@ -361,19 +365,24 @@ function updateTotal() {
     belt_selected > 0 &&
     events_selected > 0
   ) {
-    if (document.getElementById('blackBelt').checked) {
-      var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
-      total += parseInt(window.tkdreg.price_dict.black_belt)
+    var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
+    total += parseInt(window.tkdreg.price_dict.registration)
+    // if (document.getElementById('blackBelt').checked) {
+    //   var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
+    //   total += parseInt(window.tkdreg.price_dict.black_belt)
+    // }
+    // else {
+    //   var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
+    //   total += parseInt(window.tkdreg.price_dict.color_belt)
+    // }
+    if (document.getElementById('sparring-wc').checked) {
+      total += parseInt(window.tkdreg.price_dict.world_class)
     }
-    else {
-      var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
-      total += parseInt(window.tkdreg.price_dict.color_belt)
+    if (document.getElementById('breaking').checked) {
+      total += parseInt(window.tkdreg.price_dict.breaking)
     }
     total += eventPrice * (events_selected - 1)
 
-    if (today < early_reg_date) {
-      total -= window.tkdreg.price_dict.coupon
-    }
     document.getElementById("total").value = "$" + total
   }
   else if (
@@ -462,11 +471,11 @@ function calculateAge(dateString) {
     document.getElementById("inputParentName").required = true;
     document.getElementById("parentNameSection").hidden = false;
   if (age >=4 && age <= 8) {
-      document.getElementById("little_dragon").disabled = false;
+      document.getElementById("little_tiger").disabled = false;
     }
   else {
-      document.getElementById("little_dragon").disabled = true;
-      document.getElementById("little_dragon").checked = false;
+      document.getElementById("little_tiger").disabled = true;
+      document.getElementById("little_tiger").checked = false;
       document.getElementById("t-shirt_option").hidden = true;
       document.getElementById("t-shirt").value = "";
       document.getElementById("t-shirt").required = false;

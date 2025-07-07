@@ -619,7 +619,6 @@ dependencies = [
     { name = "email-validator" },
     { name = "flask" },
     { name = "stripe" },
-    { name = "zappa" },
 ]
 
 [package.dev-dependencies]
@@ -638,7 +637,6 @@ requires-dist = [
     { name = "email-validator", specifier = ">=2.2.0" },
     { name = "flask", specifier = "~=3.1.0" },
     { name = "stripe", specifier = "~=11.4.1" },
-    { name = "zappa", specifier = ">=0.60.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -647,7 +645,7 @@ dev = [
     { name = "python-dotenv", specifier = "~=1.0.0" },
     { name = "ruff", specifier = "~=0.6.5" },
     { name = "setuptools", specifier = "==74.1.2" },
-    { name = "zappa", specifier = ">=0.59.0" },
+    { name = "zappa", specifier = ">=0.60.0" },
 ]
 
 [[package]]

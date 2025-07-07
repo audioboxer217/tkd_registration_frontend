@@ -286,6 +286,9 @@ def api_validate_birthdate():
         age_group = ""
         date_valid = False
 
+    if age_group == "too_young":
+        date_valid = False
+
     return render_template(
         "validation/birthdate.html",
         birthdate=request.form.get("birthdate"),
@@ -439,27 +442,33 @@ def handle_form():
             )
 
         events_list = eventList.split(",")
-        if request.form.get("beltRank") == "black":
-            registration_items = [
-                {
-                    "price": price_dict["Black Belt Registration"]["price_id"],
-                    "quantity": 1,
-                },
-            ]
-        else:
-            registration_items = [
-                {
-                    "price": price_dict["Color Belt Registration"]["price_id"],
-                    "quantity": 1,
-                },
-            ]
+        # if request.form.get("beltRank") == "black":
+        #     registration_items = [
+        #         {
+        #             "price": price_dict["Black Belt Registration"]["price_id"],
+        #             "quantity": 1,
+        #         },
+        #     ]
+        # else:
+        #     registration_items = [
+        #         {
+        #             "price": price_dict["Color Belt Registration"]["price_id"],
+        #             "quantity": 1,
+        #         },
+        #     ]
+        registration_items = [
+            {
+                "price": price_dict["Registration"]["price_id"],
+                "quantity": 1,
+            }
+        ]
         num_add_event = len(events_list) - 1
-        if "little_dragon" in eventList.split(","):
+        if "little_tiger" in eventList.split(","):
             form_data.update(dict(tshirt={"S": request.form.get("t-shirt")}))
             if num_add_event == 0:
                 registration_items = [
                     {
-                        "price": price_dict["Little Dragon Obstacle Course"]["price_id"],
+                        "price": price_dict["Little Tiger Showcase"]["price_id"],
                         "quantity": 1,
                     },
                 ]
@@ -467,7 +476,7 @@ def handle_form():
                 num_add_event -= 1
                 registration_items.append(
                     {
-                        "price": price_dict["Little Dragon Obstacle Course"]["price_id"],
+                        "price": price_dict["Little Tiger Showcase"]["price_id"],
                         "quantity": 1,
                     },
                 )
@@ -680,8 +689,9 @@ def info_page():
 
 def get_age_group(age):
     age_groups = {
-        "dragon": [4, 5, 6, 7],
-        "tiger": [8, 9],
+        "too_young": list(range(0, 3)),
+        "tiger": [4, 5, 6, 7],
+        "dragon": [8, 9],
         "youth": [10, 11],
         "cadet": [12, 13, 14],
         "junior": [15, 16],
