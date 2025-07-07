@@ -259,6 +259,7 @@ def api_validate_email():
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
     )
 
+
 @app.route("/api/validate/phone", methods=["POST"])
 def api_validate_phone():
     phone_num = request.form.get("phone").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
@@ -273,6 +274,7 @@ def api_validate_phone():
         phone_num=phone_num,
         phone_valid=phone_valid,
     )
+
 
 @app.route("/api/validate/birthdate", methods=["POST"])
 def api_validate_birthdate():
@@ -555,6 +557,20 @@ def handle_form():
         return render_template_string(
             '<meta http-equiv="refresh" content="0; url={{ checkout_url }}" />', checkout_url=checkout_session.url
         )
+
+
+@app.route("/success", methods=["GET"])
+def success_page():
+    page_params = {
+        "reg_type": request.args.get("reg_type"),
+        "session_id": request.args.get("session_id"),
+        "email": os.getenv("CONTACT_EMAIL"),
+        "competition_name": os.getenv("COMPETITION_NAME"),
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("success.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("success.html", **page_params)
 
 
 @app.route("/registration_error", methods=["GET"])
