@@ -748,6 +748,7 @@ def set_weight_class(entries):
     updated_entries = []
     for entry in entries:
         age_group = get_age_group(entry["age"]["N"])
+        entry["age_group"] = age_group
         gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
         weight_class_ranges = weight_classes[age_group][gender]
         entry["weight_class"] = next(
@@ -767,6 +768,7 @@ def set_weight_class(entries):
 def entries_api():
     entries = dynamodb.scan(TableName=app.config["reg_table_name"])["Items"]
     entries = set_weight_class(entries)
+    entries
     for i, e in enumerate(entries):
         if "events" in e:
             e["events"]["S"] = e["events"]["S"].split(",")
