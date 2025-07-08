@@ -767,14 +767,17 @@ def set_weight_class(entries):
 @app.route("/api/entries", methods=["GET"])
 def entries_api():
     entries = dynamodb.scan(TableName=app.config["reg_table_name"])["Items"]
-    entries = set_weight_class(entries)
-    entries
-    for i, e in enumerate(entries):
+
+    competitor_entries = [e for e in entries if e["reg_type"]["S"] == "competitor"]
+    competitor_entries = set_weight_class(competitor_entries)
+    for i, e in enumerate(competitor_entries):
         if "events" in e:
             e["events"]["S"] = e["events"]["S"].split(",")
-            entries[i] = e
+            competitor_entries[i] = e
 
-    return {"data": entries}
+    coach_entries = [e for e in entries if e["reg_type"]["S"] == "coach"]
+
+    return {"data": competitor_entries + coach_entries}
 
 
 @app.route("/entries", methods=["GET"])
