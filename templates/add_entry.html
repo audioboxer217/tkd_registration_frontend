@@ -17,12 +17,6 @@
     {% include "form/profile.html" %}
     {% endif %}
     {% endif %}
-    {% include "form/class.html" %}
-    {% include "form/parent.html" %}
-    {% if enable_badges %}
-    {% include "form/profile.html" %}
-    {% endif %}
-    {% endif %}
     {% include "form/school.html" %}
     {% if reg_type == 'competitor' %}
     {% include "form/belt.html" %}
@@ -38,6 +32,12 @@
       </div>
     </div>
   </form>
-  {% include "form/lookup_modal.html" %}
-  {% include "script/okgp_prices.html" %}
+  <script id="autofill"></script>
+  <!-- Modal -->
+  <div class="modal fade" id="lookupModal" tabindex="-1" aria-labelledby="lookupModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div id="lookupOptions" class="modal-content"></div>
+    </div>
+  </div>
+  {% include "script/okc_prices.html" %}
 </div>
