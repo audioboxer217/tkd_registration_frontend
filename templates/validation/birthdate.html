@@ -15,7 +15,7 @@
 {% if date_valid %}
     <input type="text" hx-swap-oob="true" class="form-control is-valid" name="age" id="inputAge" value="{{age}}" readonly>
     <p hx-swap-oob="true" id="ageClass">Age Group is <b>{{age_group}}</b></p>
-    {% if age_group == "tiger" or age_group == "dragon" %}
+    {% if age|int <= 6 %}
     <input hx-swap-oob="true" class="form-check-input" type="checkbox" name="events" id="little_tiger"
         onchange="updateEventList(this.id)">
     {% else %}

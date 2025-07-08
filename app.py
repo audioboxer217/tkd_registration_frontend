@@ -727,12 +727,12 @@ def info_page():
 
 def get_age_group(age):
     age_groups = {
-        "too_young": list(range(0, 3)),
-        "tiger": [4, 5, 6, 7],
-        "dragon": [8, 9],
-        "youth": [10, 11],
-        "cadet": [12, 13, 14],
-        "junior": [15, 16],
+        "too_young": list(range(0, 4)),
+        "tiger": list(range(4, 5)),  # originally 4-7
+        "dragon": list(range(5, 9)),  # originally 8-9
+        "youth": list(range(9, 13)),  # originally 10-11
+        "cadet": list(range(13, 15)),  # originally 12-14
+        "junior": list(range(15, 17)),
         "senior": list(range(17, 33)),
         "ultra": list(range(33, 100)),
     }
