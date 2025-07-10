@@ -356,6 +356,9 @@ function updateTotal() {
     total += parseInt(window.tkdreg.price_dict.little_tiger)
     events_selected -= 1
     if (events_selected == 0) {
+      if (today < early_reg_date) {
+      total -= window.tkdreg.price_dict.coupon
+    }
       document.getElementById("total").value = "$" + total;
       return;
     }
