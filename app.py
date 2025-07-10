@@ -575,6 +575,16 @@ def handle_form():
 
 @app.route("/success", methods=["GET"])
 def success_page():
+    # Code to have 'convenience fee' transfered to separate acct ###
+    price_dict = get_price_details()
+    session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
+    paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
+    stripe.Transfer.create(
+        amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+        currency="usd",
+        source_transaction=paymentIntent.latest_charge,
+        destination=os.getenv("CONNECT_ACCT"),
+    )
     page_params = {
         "reg_type": request.args.get("reg_type"),
         "session_id": request.args.get("session_id"),
