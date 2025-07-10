@@ -294,9 +294,32 @@
                 </div>
               </div>
             </div>
-            <div class="row">
+            <div class="row" id="world-class poomsae Input" hidden>
               <div class="col-sm-4">
                 <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="events" id="world-class poomsae"
+                    onclick="updateEventList(this.id,calculateTotal=false)" {{ "checked" if "world-class poomsae" in
+                    entry.events.S.split(',') else "" }}>
+                  <label class="form-check-label" for="world-class poomsae">World Class Poomsae</label>
+                </div>
+              </div>
+              <div class="col" id="world-class poomsaeFormSection" {{ "hidden" if entry.poomsae_form.S=='' }}>
+                <div class="form-check">
+                  <select class="form-select" name="world-class poomsae form" id="world-class poomsae form">
+                    <option {{ "selected" if entry.poomsae_form.S=="" else "" }} value=""></option>
+                    <option {{ "selected" if entry.poomsae_form.S=="Koryo" else "" }} value="Koryo">Koryo</option>
+                    <option {{ "selected" if entry.poomsae_form.S=="Keumgang" else "" }} value="Keumgang">Keumgang
+                    </option>
+                    <option {{ "selected" if entry.poomsae_form.S=="Taebaek" else "" }} value="Taebaek">Taebaek</option>
+                    <option {{ "selected" if entry.poomsae_form.S=="Pyongwon" else "" }} value="Pyongwon">Pyongwon
+                    </option>
+                  </select>
+                </div>
+              </div>
+            </div>
+                  <div class="row">
+                    <div class="col-sm-4">
+                      <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="events" id="pair poomsae"
                     onclick="updateEventList(this.id,calculateTotal=false)" {{ "checked" if "pair poomsae" in
                     entry.events.S.split(',') else "" }}>

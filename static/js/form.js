@@ -240,18 +240,20 @@ function updateEventOptions() {
   // const colorBelt = "The first event for Color Belts is $" + colorBeltPrice + "  and each additional event is $" + window.tkdreg.price_dict.addl_event
   
   document.getElementById("costDetail").innerHTML = "The first event is $" + price_detail + " and each additional event is $" + window.tkdreg.price_dict.addl_event + early_reg_warn;
-  if (document.getElementById('blackBelt').checked) {
-    // document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn;
-    document.getElementById("sparring").hidden = true;
-    document.getElementById("sparring-gr").hidden = false;
-    document.getElementById("sparring-wc").hidden = false;
-  }
-  else {
-    // document.getElementById("costDetail").innerHTML = colorBelt + early_reg_warn
-    document.getElementById("sparring").hidden = false;
-    document.getElementById("sparring-gr").hidden = true;
-    document.getElementById("sparring-wc").hidden = true;
-  }
+  // if (document.getElementById('blackBelt').checked) {
+  //   // document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn;
+  //   document.getElementById("sparring").hidden = true;
+  //   document.getElementById("sparring-gr").hidden = false;
+  //   document.getElementById("sparring-wc").hidden = false;
+  //   document.getElementById("world-class poomsae").hidden = false;
+  // }
+  // else {
+  //   // document.getElementById("costDetail").innerHTML = colorBelt + early_reg_warn
+  //   document.getElementById("sparring").hidden = false;
+  //   document.getElementById("sparring-gr").hidden = true;
+  //   document.getElementById("sparring-wc").hidden = true;
+  //   document.getElementById("world-class poomsae").hidden = true;
+  // }
   document.getElementById("costDetail").classList = "bg-secondary text-white"
   toggleBlackBeltDanSection()
   updateTotal()
@@ -262,6 +264,7 @@ function toggleBlackBeltDanSection() {
     document.getElementById("sparring").checked = false;
     document.getElementById("sparring-grInput").hidden = false;
     document.getElementById("sparring-wcInput").hidden = false;
+    document.getElementById("world-class poomsae Input").hidden = false;
     document.getElementById("blackBeltDanSection").hidden = false;
     document.getElementById("blackBeltDan").required = true;
   }
@@ -271,6 +274,9 @@ function toggleBlackBeltDanSection() {
     document.getElementById("sparring-gr").checked = false;
     document.getElementById("sparring-wcInput").hidden = true;
     document.getElementById("sparring-wc").checked = false;
+    document.getElementById("world-class poomsae Input").hidden = true;
+    document.getElementById("world-class poomsae").checked = false;
+    document.getElementById("world-class poomsae form").value = "";
     document.getElementById("blackBeltDanSection").hidden = true;
     document.getElementById("blackBeltDan").required = false;
   }
@@ -320,6 +326,7 @@ function updateEventList(clickedEvent, calculateTotal=true) {
   getPoomsaeForms("pair poomsae")
   getPoomsaeForms("team poomsae")
   getPoomsaeForms("family poomsae")
+  getPoomsaeForms("world-class poomsae")
 }
 // function checkForUnlisted(school) {
 //   if (school == "unlisted") {
