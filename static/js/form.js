@@ -378,9 +378,9 @@ function updateTotal() {
     //   var eventPrice = parseInt(window.tkdreg.price_dict.addl_event)
     //   total += parseInt(window.tkdreg.price_dict.color_belt)
     // }
-    if (document.getElementById('sparring-wc').checked) {
-      total += parseInt(window.tkdreg.price_dict.world_class)
-    }
+    // if (document.getElementById('sparring-wc').checked) {
+    //   total += parseInt(window.tkdreg.price_dict.world_class)
+    // }
     if (document.getElementById('breaking').checked) {
       total += parseInt(window.tkdreg.price_dict.breaking)
     }
