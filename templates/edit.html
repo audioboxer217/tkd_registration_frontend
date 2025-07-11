@@ -231,7 +231,7 @@
                   <input class="form-check-input" type="checkbox" name="events" id="sparring-gr"
                     onclick="updateEventList(this.id,calculateTotal=false)" {{ "checked" if "sparring-gr" in
                     entry.events.S.split(',') else "" }}>
-                  <label class="form-check-label" for="sparring-gr">Sparring - Grass Roots</label>
+                  <label class="form-check-label" for="sparring-gr">Grass Roots Sparring
                 </div>
               </div>
               <div class="col-sm-6" id="sparring-wcInput" {{ "hidden" if "black" not in entry.beltRank.S else "" }}>
@@ -239,7 +239,7 @@
                   <input class="form-check-input" type="checkbox" name="events" id="sparring-wc"
                     onclick="updateEventList(this.id,calculateTotal=false)" {{ "checked" if "sparring-wc" in
                     entry.events.S.split(',') else "" }}>
-                  <label class="form-check-label" for="sparring-wc">Sparring - World Class</label>
+                  <label class="form-check-label" for="sparring-wc">World Class Sparring
                 </div>
               </div>
             </div>
