@@ -147,6 +147,7 @@ def index():
         "today": datetime.today(),
         "email": os.getenv("CONTACT_EMAIL"),
         "early_reg_date": datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]),
+        "late_reg_date": datetime.strptime(os.getenv("LATE_REG_DATE"), "%B %d, %Y"),
         "reg_close_date": os.getenv("REG_CLOSE_DATE"),
         "poster_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
     }
@@ -339,6 +340,7 @@ def display_form():
         page_params = {
             "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
             "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
+            "late_reg_date": datetime.strptime(os.getenv("LATE_REG_DATE"), "%B %d, %Y"),
             "price_dict": get_price_details(),
             "reg_type": reg_type,
             "schools": school_list,
@@ -543,6 +545,13 @@ def handle_form():
             }
             if reg_type == "competitor" and current_time < early_reg_date:
                 checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
+            elif reg_type == "competitor" and current_time > datetime.strptime(os.getenv("LATE_REG_DATE"), "%B %d, %Y"):
+                checkout_details["line_items"].append(
+                    {
+                        "price": price_dict["Late Registration Fee"]["price_id"],
+                        "quantity": 1,
+                    }
+                )
             checkout_session = stripe.checkout.Session.create(
                 line_items=checkout_details["line_items"],
                 mode=checkout_details["mode"],

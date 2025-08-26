@@ -221,14 +221,23 @@ function updateFields() {
 function updateEventOptions() {
   const today = new Date()
   const early_reg_date = window.tkdreg.early_reg_date
-  var price_detail = window.tkdreg.price_dict.registration
+  const late_reg_date = window.tkdreg.late_reg_date
+  const late_reg_date_pretty = late_reg_date.toLocaleDateString('en-us', { month:"long", day:"numeric"}) 
+  var price_detail = parseInt(window.tkdreg.price_dict.registration)
   var early_reg_warn = ""
+  var late_reg_warn = ""
   if (today < early_reg_date) {
-    price_detail -= window.tkdreg.price_dict.coupon
+    price_detail -= parseInt(window.tkdreg.price_dict.coupon)
     // var blackBeltPrice = window.tkdreg.price_dict.black_belt - window.tkdreg.price_dict.coupon
     // var colorBeltPrice = window.tkdreg.price_dict.color_belt - window.tkdreg.price_dict.coupon
     const early_reg_date_pretty = early_reg_date.toLocaleDateString('en-us', { month:"long", day:"numeric"}) 
     var early_reg_warn = "<br>After " + early_reg_date_pretty + ", prices increase $" + window.tkdreg.price_dict.coupon
+  }
+  else if (today < late_reg_date) {
+    var late_reg_warn = "<br>After " + late_reg_date_pretty + ", a late fee of $" + window.tkdreg.price_dict.late_fee + " applies"
+  }
+  else {
+    price_detail += parseInt(window.tkdreg.price_dict.late_fee)
   }
   // else {
   //   var blackBeltPrice = window.tkdreg.price_dict.black_belt
@@ -239,7 +248,7 @@ function updateEventOptions() {
   // const blackBelt = "The first event for Black Belts is $" + blackBeltPrice + " and each additional event is $" + window.tkdreg.price_dict.addl_event
   // const colorBelt = "The first event for Color Belts is $" + colorBeltPrice + "  and each additional event is $" + window.tkdreg.price_dict.addl_event
   
-  document.getElementById("costDetail").innerHTML = "The first event is $" + price_detail + " and each additional event is $" + window.tkdreg.price_dict.addl_event + early_reg_warn;
+  document.getElementById("costDetail").innerHTML = "The first event is $" + price_detail + " and each additional event is $" + window.tkdreg.price_dict.addl_event + early_reg_warn + late_reg_warn;
   // if (document.getElementById('blackBelt').checked) {
   //   // document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn;
   //   document.getElementById("sparring").hidden = true;
@@ -355,6 +364,7 @@ function updateTotal() {
 
   const today = new Date()
   const early_reg_date = window.tkdreg.early_reg_date
+  const late_reg_date = window.tkdreg.late_reg_date
   const belt_selected = document.querySelectorAll('input[name="beltRank"]:checked').length
   var events_selected = document.querySelectorAll('input[name="events"]:checked').length
   var total = 0
@@ -364,8 +374,11 @@ function updateTotal() {
     events_selected -= 1
     if (events_selected == 0) {
       if (today < early_reg_date) {
-      total -= window.tkdreg.price_dict.coupon
-    }
+        total -= parseInt(window.tkdreg.price_dict.coupon)
+      }
+      else if (today > late_reg_date) {
+        total += parseInt(window.tkdreg.price_dict.late_fee)
+      }
       document.getElementById("total").value = "$" + total;
       return;
     }
@@ -394,7 +407,10 @@ function updateTotal() {
     total += eventPrice * (events_selected - 1)
     
     if (today < early_reg_date) {
-      total -= window.tkdreg.price_dict.coupon
+      total -= parseInt(window.tkdreg.price_dict.coupon)
+    }
+    else if (today > late_reg_date) {
+      total += parseInt(window.tkdreg.price_dict.late_fee)
     }
 
     document.getElementById("total").value = "$" + total
