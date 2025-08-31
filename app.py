@@ -4,6 +4,7 @@ import urllib
 from datetime import date, datetime, timedelta
 
 import boto3
+import pytz
 import stripe
 from authlib.integrations.flask_client import OAuth
 from email_validator import EmailNotValidError, validate_email
@@ -70,6 +71,12 @@ def get_price_details():
         }
 
     return price_dict
+
+
+def convert_to_local(utc_dt):
+    local_tz = pytz.timezone(os.getenv("LOCAL_TIMEZONE", "US/Central"))
+    local_dt = utc_dt.astimezone(local_tz)
+    return local_dt
 
 
 def get_s3_file(bucket, file_name):
@@ -144,10 +151,10 @@ def render_base(content_file, **page_params):
 @app.route("/", methods=["GET"])
 def index():
     page_params = {
-        "today": datetime.today(),
+        "today": convert_to_local(datetime.today()),
         "email": os.getenv("CONTACT_EMAIL"),
-        "early_reg_date": datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]),
-        "late_reg_date": datetime.strptime(os.getenv("LATE_REG_DATE"), "%B %d, %Y"),
+        "early_reg_date": convert_to_local(datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"])),
+        "late_reg_date": convert_to_local(datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M")),
         "reg_close_date": os.getenv("REG_CLOSE_DATE"),
         "poster_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
     }
@@ -338,9 +345,9 @@ def display_form():
 
         # Display the form
         page_params = {
-            "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
+            "early_reg_date": convert_to_local(datetime.fromtimestamp(early_reg_coupon["redeem_by"])),
             "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
-            "late_reg_date": datetime.strptime(os.getenv("LATE_REG_DATE"), "%B %d, %Y"),
+            "late_reg_date": (datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M")),
             "price_dict": get_price_details(),
             "reg_type": reg_type,
             "schools": school_list,
@@ -530,8 +537,8 @@ def handle_form():
     else:
         early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
         try:
-            early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"])
-            current_time = datetime.now()
+            early_reg_date = convert_to_local(datetime.fromtimestamp(early_reg_coupon["redeem_by"]))
+            current_time = convert_to_local(datetime.now())
             checkout_timeout = current_time + timedelta(minutes=30)
             checkout_details = {
                 "line_items": registration_items,
@@ -545,7 +552,9 @@ def handle_form():
             }
             if reg_type == "competitor" and current_time < early_reg_date:
                 checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
-            elif reg_type == "competitor" and current_time > datetime.strptime(os.getenv("LATE_REG_DATE"), "%B %d, %Y"):
+            elif reg_type == "competitor" and current_time.date() > convert_to_local(
+                datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M")
+            ):
                 checkout_details["line_items"].append(
                     {
                         "price": price_dict["Late Registration Fee"]["price_id"],
@@ -829,7 +838,7 @@ def add_entry_form():
     school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
     page_params = {
         "price_dict": get_price_details(),
-        "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
+        "early_reg_date": convert_to_local(datetime.fromtimestamp(early_reg_coupon["redeem_by"])),
         "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
         "badge_enabled": badges_enabled,
         "address_enabled": address_enabled,
