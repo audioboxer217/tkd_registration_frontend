@@ -552,7 +552,7 @@ def handle_form():
             }
             if reg_type == "competitor" and current_time < early_reg_date:
                 checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
-            elif reg_type == "competitor" and current_time.date() > convert_to_local(
+            elif reg_type == "competitor" and current_time > convert_to_local(
                 datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M")
             ):
                 checkout_details["line_items"].append(
