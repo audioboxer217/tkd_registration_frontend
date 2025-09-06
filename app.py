@@ -9,6 +9,7 @@ import stripe
 from authlib.integrations.flask_client import OAuth
 from email_validator import EmailNotValidError, validate_email
 from flask import Flask, abort, flash, redirect, render_template, render_template_string, request, session, url_for
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
@@ -23,6 +24,7 @@ app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["reg_table_name"] = os.getenv("REG_DB_TABLE")
 app.config["auth_table_name"] = os.getenv("AUTH_DB_TABLE", "admin_auth_table")
 app.config["lookup_table_name"] = os.getenv("LOOKUP_DB_TABLE", "reg_lookup_table")
+app.config["TZ_LOCAL"] = ZoneInfo(os.getenv("LOCAL_TIMEZONE", "US/Central"))
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 maps_api_key = os.getenv("MAPS_API_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
@@ -153,8 +155,12 @@ def index():
     page_params = {
         "today": convert_to_local(datetime.today()),
         "email": os.getenv("CONTACT_EMAIL"),
-        "early_reg_date": convert_to_local(datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"])),
-        "late_reg_date": convert_to_local(datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M")),
+        "early_reg_date": datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).replace(
+            tzinfo=app.config["TZ_LOCAL"]
+        ),
+        "late_reg_date": datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M").replace(
+            tzinfo=app.config["TZ_LOCAL"]
+        ),
         "reg_close_date": os.getenv("REG_CLOSE_DATE"),
         "poster_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
     }
@@ -345,9 +351,11 @@ def display_form():
 
         # Display the form
         page_params = {
-            "early_reg_date": convert_to_local(datetime.fromtimestamp(early_reg_coupon["redeem_by"])),
+            "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"]),
             "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
-            "late_reg_date": (datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M")),
+            "late_reg_date": datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M").replace(
+                tzinfo=app.config["TZ_LOCAL"]
+            ),
             "price_dict": get_price_details(),
             "reg_type": reg_type,
             "schools": school_list,
@@ -537,7 +545,7 @@ def handle_form():
     else:
         early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
         try:
-            early_reg_date = convert_to_local(datetime.fromtimestamp(early_reg_coupon["redeem_by"]))
+            early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"])
             current_time = convert_to_local(datetime.now())
             checkout_timeout = current_time + timedelta(minutes=30)
             checkout_details = {
@@ -552,9 +560,9 @@ def handle_form():
             }
             if reg_type == "competitor" and current_time < early_reg_date:
                 checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
-            elif reg_type == "competitor" and current_time > convert_to_local(
-                datetime.strptime(f'{os.getenv("LATE_REG_DATE")} 23:59', "%B %d, %Y %H:%M")
-            ):
+            elif reg_type == "competitor" and current_time > datetime.strptime(
+                f'{os.getenv("LATE_REG_DATE")} 23:59:00-05:00', "%B %d, %Y %H:%M:%S%z"
+            ).replace(tzinfo=app.config["TZ_LOCAL"]):
                 checkout_details["line_items"].append(
                     {
                         "price": price_dict["Late Registration Fee"]["price_id"],
@@ -838,7 +846,7 @@ def add_entry_form():
     school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
     page_params = {
         "price_dict": get_price_details(),
-        "early_reg_date": convert_to_local(datetime.fromtimestamp(early_reg_coupon["redeem_by"])),
+        "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"]),
         "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
         "badge_enabled": badges_enabled,
         "address_enabled": address_enabled,
