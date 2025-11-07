@@ -335,7 +335,11 @@ def api_validate_school():
 
 @app.route("/register", methods=["GET"])
 def display_form():
-    if date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date():
+    today = datetime.now(app.config["TZ_LOCAL"])
+    reg_close_date = datetime.strptime(f"{os.getenv('REG_CLOSE_DATE')} 23:59", "%B %d, %Y %H:%M").replace(
+        tzinfo=app.config["TZ_LOCAL"]
+    )
+    if today > reg_close_date:
         page_params = {
             "email": os.getenv("CONTACT_EMAIL"),
             "competition_name": os.getenv("COMPETITION_NAME"),
