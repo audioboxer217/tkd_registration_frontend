@@ -1,23 +1,21 @@
-{% extends "base.html" -%}
-{% block content -%}
 <div class="row justify-content-md-center">
-  <div class="col-md-12 center-block" align="center">
-      <div class="col-md-8" align="left">
-        <h1>Registration already exists!</h1>
-        <p>
-          A registration with these details already exists.<br> 
-        </p>
-        <p>
-          If you think this is in error you can contact us at <a href="mailto:{{ email }}">{{ email }}</a>.
-        </p>
-        <p>
-          Thanks,
-          {{ competition_name }}
-        </p>
-        <p>
-          <a class="btn {{ button_style }}" href="/register?reg_type={{ reg_type }}" role="button">Try Again?</a>
-        </p>
-      </div>
-  </div>
+    <div class="col-md-12 center-block" align="center">
+        <div class="col-md-8" align="left">
+            <h1>Registration already exists!</h1>
+            <p>
+                A registration with these details already exists.<br>
+            </p>
+            <p>
+                If you think this is in error you can contact us at <a href="mailto:{{ email }}">{{ email }}</a>.
+            </p>
+            <p>
+                Thanks,
+                {{ competition_name }}
+            </p>
+            <p>
+                <a class="btn {{ button_style }}" hx-get="/register?reg_type={{ reg_type }}" hx-trigger="click"
+                    hx-target="#content-div" hx-replace-url="true" hx-push-url="true" role="button">Try Again?</a>
+            </p>
+        </div>
+    </div>
 </div>
-{%- endblock content %}

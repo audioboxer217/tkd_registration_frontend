@@ -1,0 +1,35 @@
+<div class="row" id="beltSection">
+    <div class="col-md-4">
+      <div class="row g-3 mt-0">
+        <label for="belt" class="form-check-label h5">Belt Rank</label>
+      </div>
+      <div class="row">
+        {% for belt in ['black', 'brown', 'red', 'blue', 'green', 'orange', 'yellow', 'white'] %}
+        <div class="col-sm-6">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="beltRank" id="{{ belt }}Belt" value="{{ belt }}"
+              onclick="updateEventOptions()" {{ "required" if reg_type=='competitor' else "" }}>
+            <label class="form-check-label" for="{{ belt }}Belt">{{ belt.capitalize() }}</label>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="row" id="blackBeltDanSection" hidden>
+        <div class="col-md-6">
+          <label for="blackBeltDan" class="form-check-label h5">Black Belt Dan/Poom</label>
+          <select id="blackBeltDan" class="form-select" name="blackBeltDan">
+            <option selected value="1">1st</option>
+            <option value="2">2nd</option>
+            <option value="3">3rd</option>
+            <option value="4">4th or higher</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2"></div>
+    <div class="col-md-6">
+      <div class="row g-2 mt-2">
+        <p id="costDetail"></p>
+      </div>
+    </div>
+  </div>

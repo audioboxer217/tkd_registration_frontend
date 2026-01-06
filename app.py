@@ -6,7 +6,8 @@ from datetime import date, datetime, timedelta
 import boto3
 import stripe
 from authlib.integrations.flask_client import OAuth
-from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from email_validator import EmailNotValidError, validate_email
+from flask import Flask, abort, flash, redirect, render_template, render_template_string, request, session, url_for
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
@@ -28,9 +29,6 @@ s3 = boto3.client("s3")
 sqs = boto3.client("sqs")
 dynamodb = boto3.client("dynamodb")
 dynamodb_res = boto3.resource("dynamodb")
-# visitor_info_url = os.getenv("VISITOR_INFO_URL")
-# visitor_info_text = os.getenv("VISITOR_INFO_TEXT")
-button_style = os.getenv("BUTTON_STYLE", "btn-primary")
 badges_enabled = os.getenv("ENABLE_BADGES", False)
 address_enabled = os.getenv("ENABLE_ADDRESS", False)
 
@@ -84,7 +82,11 @@ def get_s3_file(bucket, file_name):
     output = f"public_media/{os.path.basename(file_name)}"
 
     if not os.path.exists(output):
-        s3.download_file(bucket, file_name, f"static/{output}")
+        try:
+            s3.download_file(bucket, file_name, f"static/{output}")
+        except Exception as e:
+            print(f"Error downloading {file_name} from S3: {e}")
+            return None
 
     return output
 
@@ -113,32 +115,48 @@ def authorize():
 
 @app.route("/logout")
 def logout():
-    index_page_uri = urllib.parse.quote_plus(url_for("index_page", _external=True))
+    index_page_uri = urllib.parse.quote_plus(url_for("index", _external=True))
     logout_uri = f"{os.getenv('COGNITO_AUTH_URL')}/logout?client_id={os.getenv('COGNITO_CLIENT_ID')}&logout_uri={index_page_uri}"
     session.pop("user", None)
     return redirect(logout_uri)
 
 
-@app.route("/")
-def index_page():
+def render_base(content_file, **page_params):
+    user = session.get("user")
+    if user and "Admins" in user.get("cognito:groups", []):
+        page_params["admin"] = True
     return render_template(
-        "index.html",
+        "base.html",
         title=os.getenv("COMPETITION_NAME"),
-        email=os.getenv("CONTACT_EMAIL"),
-        competition_name=os.getenv("COMPETITION_NAME"),
-        early_reg_date=datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).strftime("%B %d, %Y"),
-        reg_close_date=os.getenv("REG_CLOSE_DATE"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
         event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        poster_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
+        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+        form_js=url_for("static", filename="js/form.js"),
+        address_enabled=address_enabled,
+        maps_api_key=maps_api_key if address_enabled else None,
+        content_file=content_file,
+        **page_params,
     )
 
 
-@app.route("/lookup_entry")
+@app.route("/", methods=["GET"])
+def index():
+    page_params = {
+        "email": os.getenv("CONTACT_EMAIL"),
+        "early_reg_date": datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).strftime("%B %d, %Y"),
+        "reg_close_date": os.getenv("REG_CLOSE_DATE"),
+        "poster_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("landing.html", **page_params)
+    else:
+        return render_base("landing.html", **page_params)
+
+
+@app.route("/lookup_entry", methods=["POST"])
 def lookup_entry():
-    email = request.args.get("email")
-    name = f"{request.args.get('fname','').lower()} {request.args.get('lname','').lower()}"
+    email = request.form.get("email")
+    name = f"{request.form.get('fname','').lower()} {request.form.get('lname','').lower()}"
     entries = dynamodb.scan(
         TableName=app.config["lookup_table_name"],
         IndexName="email-index",
@@ -154,59 +172,177 @@ def lookup_entry():
         if name != " ":
             entries = [e for e in entries if name.strip() in e["name"]["S"].lower()]
 
-    return entries
+    return render_template("form/lookup_modal.html", entries=entries)
 
 
-@app.route("/register")
+@app.route("/api/autofill", methods=["GET"])
+def autofill():
+    entry = json.loads(request.args.get("entry"))
+    entry["fname"] = entry["name"]["S"].split()[0]
+    entry["lname"] = entry["name"]["S"].split()[1]
+    birthdate = datetime.strptime(entry["birthdate"]["S"], "%m/%d/%Y")
+    entry["birthdate"] = birthdate.strftime("%Y-%m-%d")
+    entry["age"] = str(date.today().year - birthdate.year)
+    entry["age_group"] = get_age_group(int(entry["age"]))
+    schools = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+    entry["allergy_list"] = [a["S"] for a in entry["medical_form"]["M"]["allergies"]["L"]]
+    entry["meds_list"] = [m["S"] for m in entry["medical_form"]["M"]["medications"]["L"]]
+    entry["medicalConditionsList"] = [mc["S"] for mc in entry["medical_form"]["M"]["medicalConditions"]["L"]]
+
+    return render_template(
+        "form/autofill.html",
+        entry=entry,
+        schools=schools,
+    )
+
+
+@app.route("/api/validate/name/<string:form_item_name>", methods=["POST"])
+def api_validate_name(form_item_name):
+    form_item = request.form.get(form_item_name)
+    form_item_id = request.args.get(id, form_item_name)
+    if form_item != "" and form_item.replace(" ", "").isalpha():
+        form_item_valid = True
+    else:
+        form_item_valid = False
+
+    return render_template(
+        "validation/name.html",
+        form_item=form_item,
+        form_item_id=form_item_id,
+        form_item_name=form_item_name,
+        form_item_valid=form_item_valid,
+    )
+
+
+@app.route("/api/validate/number/<string:form_item_name>", methods=["POST"])
+def api_validate_number(form_item_name):
+    form_item = request.form.get(form_item_name)
+    form_item_id = request.args.get("id", form_item_name)
+    form_item_step = request.args.get("step", "1")
+    form_item_min = request.args.get("min", "")
+    form_item_max = request.args.get("max", "")
+
+    if form_item != "" and form_item.isdigit():
+        form_item_valid = True
+    else:
+        form_item_valid = False
+
+    return render_template(
+        "validation/number.html",
+        form_item=form_item,
+        form_item_id=form_item_id,
+        form_item_step=form_item_step,
+        form_item_min=form_item_min,
+        form_item_max=form_item_max,
+        form_item_name=form_item_name,
+        form_item_valid=form_item_valid,
+    )
+
+
+@app.route("/api/validate/email", methods=["POST"])
+def api_validate_email():
+    email = request.form.get("email")
+    reg_type = request.form.get("regType")
+    try:
+        validate_email(email)
+        email_valid = True
+    except EmailNotValidError:
+        email_valid = False
+
+    return render_template(
+        "validation/email.html",
+        email=email,
+        email_valid=email_valid,
+        reg_type=reg_type,
+        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+    )
+
+
+@app.route("/api/validate/phone", methods=["POST"])
+def api_validate_phone():
+    phone_num = request.form.get("phone").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if phone_num != "" and phone_num.isdigit() and len(phone_num) == 10:
+        phone_num = phone_num[0:3] + "-" + phone_num[3:6] + "-" + phone_num[6:]
+        phone_valid = True
+    else:
+        phone_valid = False
+
+    return render_template(
+        "validation/phone.html",
+        phone_num=phone_num,
+        phone_valid=phone_valid,
+    )
+
+
+@app.route("/api/validate/birthdate", methods=["POST"])
+def api_validate_birthdate():
+    birthdate = datetime.strptime(request.form.get("birthdate"), "%Y-%m-%d")
+    try:
+        birthyear = birthdate.year
+        curr_year = datetime.now().year
+        age = curr_year - birthyear
+        age_group = get_age_group(age)
+        date_valid = True
+    except ValueError:
+        age = ""
+        age_group = ""
+        date_valid = False
+
+    return render_template(
+        "validation/birthdate.html",
+        birthdate=request.form.get("birthdate"),
+        date_valid=date_valid,
+        age=str(age),
+        age_group=age_group,
+    )
+
+
+@app.route("/api/validate/school", methods=["POST"])
+def api_validate_school():
+    school_selection = request.form.get("school")
+    if school_selection != "":
+        school_valid = True
+    else:
+        school_valid = False
+
+    return render_template(
+        "validation/school.html",
+        school_selection=school_selection,
+        school_valid=school_valid,
+        schools=json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]),
+    )
+
+
+@app.route("/register", methods=["GET"])
 def display_form():
     if date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date():
-        return render_template(
-            "disabled.html",
-            title="Registration Closed",
-            favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-            event_city=os.getenv("EVENT_CITY"),
-            button_style=button_style,
-            competition_name=os.getenv("COMPETITION_NAME"),
-            email=os.getenv("CONTACT_EMAIL"),
-        )
+        page_params = {
+            "email": os.getenv("CONTACT_EMAIL"),
+            "competition_name": os.getenv("COMPETITION_NAME"),
+        }
+        if request.headers.get("HX-Request"):
+            return render_template("disabled.html", **page_params)
+        else:
+            return render_base("disabled.html", **page_params)
     else:
         early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
         reg_type = request.args.get("reg_type")
         school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
 
         # Display the form
-        return render_template(
-            "form.html",
-            title="Registration",
-            favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-            event_city=os.getenv("EVENT_CITY"),
-            button_style=button_style,
-            competition_name=os.getenv("COMPETITION_NAME"),
-            competition_year=os.getenv("COMPETITION_YEAR"),
-            early_reg_date=datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
-            early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
-            price_dict=get_price_details(),
-            reg_type=reg_type,
-            schools=school_list,
-            enable_badges=badges_enabled,
-            enable_address=address_enabled,
-            additional_scripts=[
-                dict(
-                    src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
-                    async_bool="true",
-                    defer="true",
-                ),
-                dict(
-                    src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
-                    integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
-                ),
-                dict(
-                    src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
-                    integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
-                ),
-                dict(src=url_for("static", filename="js/form.js")),
-            ],
-        )
+        page_params = {
+            "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
+            "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
+            "price_dict": get_price_details(),
+            "reg_type": reg_type,
+            "schools": school_list,
+            "enable_badges": badges_enabled,
+            "enable_address": address_enabled,
+        }
+        if request.headers.get("HX-Request"):
+            return render_template("form.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+        else:
+            return render_base("form.html", **page_params)
 
 
 @app.route("/register", methods=["POST"])
@@ -225,16 +361,16 @@ def handle_form():
     coach = request.form.get("coach").strip()
 
     # Check if registration already exists
-    if not os.getenv("FLASK_DEBUG"):
-        pk_school_name = school.replace(" ", "_")
-        pk_exists = dynamodb.get_item(
-            TableName=app.config["reg_table_name"],
-            Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
-        )
+    # if not os.getenv("FLASK_DEBUG"):
+    pk_school_name = school.replace(" ", "_")
+    pk_exists = dynamodb.get_item(
+        TableName=app.config["reg_table_name"],
+        Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
+    )
 
-        if "Item" in pk_exists:
-            print("registration exists")
-            return redirect(f'{app.config["URL"]}/registration_error?reg_type={reg_type}')
+    if "Item" in pk_exists:
+        print("registration exists")
+        return redirect(f'{app.config["URL"]}/registration_error?reg_type={reg_type}')
 
     # Base Form Data
     form_data = dict(
@@ -330,8 +466,7 @@ def handle_form():
                     },
                 ]
             else:
-                num_add_event -= 1
-                registration_items.append(
+                registration_items.append = (
                     {
                         "price": price_dict["Little Dragon Obstacle Course"]["price_id"],
                         "quantity": 1,
@@ -358,11 +493,7 @@ def handle_form():
         # For Testing Form Data
         return render_template(
             "success.html",
-            title="Registration Submitted",
             competition_name=os.getenv("COMPETITION_NAME"),
-            favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-            event_city=os.getenv("EVENT_CITY"),
-            button_style=button_style,
             email=os.getenv("CONTACT_EMAIL"),
             reg_detail=form_data,
             cost_detail=registration_items,
@@ -413,18 +544,91 @@ def handle_form():
         return redirect(checkout_session.url, code=303)
 
 
+@app.route("/registration_error", methods=["GET"])
+def error_page():
+    page_params = {
+        "reg_type": request.args.get("reg_type"),
+        "email": os.getenv("CONTACT_EMAIL"),
+        "competition_name": os.getenv("COMPETITION_NAME"),
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("registration_error.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("registration_error.html", **page_params)
+
+
+@app.route("/visit", methods=["GET"])
+def visit_page():
+    if request.headers.get("HX-Request"):
+        return render_template("tulsa.html")
+    else:
+        return render_base("tulsa.html")
+
+
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
-    schedule_img = url_for("static", filename=get_s3_file(app.config["configBucket"], "schedule.png"))
-    return render_template(
-        "schedule.html",
-        title="Schedule",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        schedule_img=schedule_img,
-    )
+    if request.headers.get("HX-Request"):
+        return render_template("schedule.html")
+    else:
+        return render_base("schedule.html")
+
+
+@app.route("/get_schedule_details", methods=["GET"])
+def schedule_details():
+    if schedule_img_file := get_s3_file(app.config["configBucket"], "schedule.png"):
+        schedule_img = url_for("static", filename=schedule_img_file)
+        return render_template_string(
+            """
+            <div class="row g-1 mb-1 justify-content-md-center">
+                <div class="col-md-12 center-block" align="center">
+                    <img src="{{ schedule_img }}"" class=" img-fluid"><img><br />
+                </div>
+            </div>
+            """,
+            schedule_img=schedule_img,
+        )
+    elif schedule_json := get_s3_file(app.config["configBucket"], "schedule.json"):
+        schedule_dict = json.load(open(os.path.join(app.static_folder, schedule_json), "r"))
+        return render_template_string(
+            """
+            <div class="table-responsive" align="center">
+                <table class="table table-striped table-bordered">
+                    {% for day in schedule_dict %}
+                    <thead>
+                        <tr>
+                            <th class="{{ day.class }}" scope="col" colspan="{{ day.colspan }}">
+                                <h4>{{day.date}}</h4>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in day['items'] %}
+                        <tr>
+                            {% if item.time is defined %}
+                            <th scope="row" class="table-primary" {% if item.time_rowspan is defined
+                                %}rowspan="{{item.time_rowspan}}" {%endif%}>
+                                {{item.time }}
+                            </th>
+                            {%endif%}
+                            <td {% if item.title_class is defined -%}class="{{item.title_class}}" {%endif%}>{{ item.title | safe }}
+                            </td>
+                            {% if item.location is defined %}
+                            <td {% if item.location.class is defined -%}class="{{item.location.class}}" {%endif%}{% if
+                                item.location.rowspan is defined %}rowspan="{{item.location.rowspan}}" {%endif%}><a
+                                    href="{{item.location.link}}" target="_blank">{{
+                                    item.location.name }}</a></td>
+                            {%endif%}
+                        </tr>
+                        {%endfor%}
+                    </tbody>
+                    {%endfor%}
+                </table>
+            </div>
+            """,
+            schedule_dict=schedule_dict,
+        )
+    else:
+        return render_template_string('<div align="center">Schedule not found</div>')
 
 
 @app.route("/api/upload/<string:resource>", methods=["GET"])
@@ -435,7 +639,7 @@ def upload_form(resource):
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
         event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
+        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
         resource=resource,
     )
 
@@ -460,126 +664,22 @@ def upload_item(resource):
     return redirect(f'{app.config["URL"]}/admin', code=303)
 
 
-@app.route("/events", methods=["GET"])
-def events_page():
-    return render_template(
-        "placeholder.html",
-        title="Page to be Created",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-    )
-
-
 @app.route("/information", methods=["GET"])
 def info_page():
     s3_addl_images = s3.list_objects(Bucket=app.config["mediaBucket"], Prefix="additional_information_images/")["Contents"]
-    return render_template(
-        "information.html",
-        title="Information",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        information_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
-        poomsae_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "poomsae_booklet.pdf")),
-        breaking_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "breaking_booklet.pdf")),
-        demo_booklet_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "demo_booklet.pdf")),
-        additional_imgs=[
+    page_params = {
+        "information_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
+        "additional_imgs": [
             url_for("static", filename=get_s3_file(app.config["mediaBucket"], i["Key"])) for i in s3_addl_images if i["Size"] > 0
         ],
-    )
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("information.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("information.html", **page_params)
 
 
-@app.route("/visit", methods=["GET"])
-def visit_page():
-    return render_template(
-        f"{os.getenv('EVENT_CITY').lower()}.html",
-        title=f"Visit {os.getenv('EVENT_CITY')}",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-    )
-
-
-@app.route("/coaches", methods=["GET"])
-def coaches_page():
-    entries = dynamodb.scan(
-        TableName=app.config["reg_table_name"],
-        FilterExpression="reg_type = :type",
-        ExpressionAttributeValues={
-            ":type": {
-                "S": "coach",
-            },
-        },
-    )["Items"]
-    return render_template(
-        "coaches.html",
-        title="Coaches",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        entries=entries,
-        additional_stylesheets=[
-            dict(
-                href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css",
-                integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM",
-            ),
-            dict(
-                href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css",
-                integrity="sha384-ok3J6xA9oQqai5C9ytYveFsBeKgoGk4T+NExsr6hoIKjZdv9SJcmx2mafwUWRNf9",
-            ),
-            dict(
-                href="https://cdn.datatables.net/searchpanes/2.2.0/css/searchPanes.bootstrap5.min.css",
-                integrity="sha384-sSvv6aRPZo6vPaGdGfO1YzjvkZXlAUTygB+HHYd8C6DPz0BYxpd/K+iPavXPNy1u",
-            ),
-            dict(
-                href="https://cdn.datatables.net/select/1.7.0/css/select.bootstrap5.min.css",
-                integrity="sha384-BQuA/IRHdZd4G0fkajPKOBOE6lIuKmN2G95L52+ULcI1T/NGKY+gWsB/qDn6xxv7",
-            ),
-        ],
-        additional_scripts=[
-            dict(
-                src="https://code.jquery.com/jquery-3.7.0.js",
-                integrity="sha384-ogycHROOTGA//2Q8YUfjz1Sr7xMOJTUmY2ucsPVuXAg4CtpgQJQzGZsX768KqetU",
-            ),
-            dict(
-                src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js",
-                integrity="sha384-cjmdOgDzOE22dUheI5E6Gzd3upfmReW8N1y/4jwKQE50KYcvFKZJA9JxWgQOzqwQ",
-            ),
-            dict(
-                src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js",
-                integrity="sha384-PgPBH0hy6DTJwu7pTf6bkRqPlf/+pjUBExpr/eIfzszlGYFlF9Wi9VTAJODPhgCO",
-            ),
-            dict(
-                src="https://cdn.datatables.net/searchpanes/2.2.0/js/dataTables.searchPanes.min.js",
-                integrity="sha384-j4rbW9ZgUxkxeMU1PIa5BaTj0qDOc/BV0zkbRqPAGPkIvaOzwTSVlDGGXw+XQ4uW",
-            ),
-            dict(
-                src="https://cdn.datatables.net/searchpanes/2.2.0/js/searchPanes.bootstrap5.min.js",
-                integrity="sha384-JTAq4Zc/HXNcaOy1Hv04w4mpSr7ouMGXxlXwTuwov0Wzv62QwPey9T58VPE1rVSf",
-            ),
-            dict(
-                src="https://cdn.datatables.net/select/1.7.0/js/dataTables.select.min.js",
-                integrity="sha384-5UUEYV/x07jNYpizRK5+tnFvFPDDq5s5wVr5mc802xveN8Ve7kuFu4Ym6mN+QcmZ",
-            ),
-            dict(
-                src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js",
-                integrity="sha384-VUnyCeQcqiiTlSM4AISHjJWKgLSM5VSyOeipcD9S/ybCKR3OhChZrPPjjrLfVV0y",
-            ),
-            dict(
-                src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js",
-                integrity="sha384-T6YQaHyTPTbybQQV23jtlugHCneQYjePXdcEU+KMWGQY8EUQygBW9pRx0zpSU0/i",
-            ),
-            dict(src=url_for("static", filename="js/coaches.js")),
-        ],
-    )
-
-
-def get_age_group(entry):
+def get_age_group(age):
     age_groups = {
         "dragon": [4, 5, 6, 7],
         "tiger": [8, 9],
@@ -590,7 +690,7 @@ def get_age_group(entry):
         "ultra": list(range(33, 100)),
     }
 
-    age_group = next((group for group, ages in age_groups.items() if int(entry["age"]["N"]) in ages))
+    age_group = next((group for group, ages in age_groups.items() if int(age) in ages))
 
     return age_group
 
@@ -600,7 +700,7 @@ def set_weight_class(entries):
     weight_classes = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="weight_classes.json")["Body"])
     updated_entries = []
     for entry in entries:
-        age_group = get_age_group(entry)
+        age_group = get_age_group(entry["age"]["N"])
         gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
         weight_class_ranges = weight_classes[age_group][gender]
         entry["weight_class"] = next(
@@ -616,119 +716,24 @@ def set_weight_class(entries):
     return updated_entries
 
 
-@app.route("/competitors", methods=["GET"])
-def competitors_page():
-    entries = dynamodb.scan(
-        TableName=app.config["reg_table_name"],
-        FilterExpression="reg_type = :type",
-        ExpressionAttributeValues={
-            ":type": {
-                "S": "competitor",
-            },
-        },
-    )["Items"]
+@app.route("/api/entries", methods=["GET"])
+def entries_api():
+    entries = dynamodb.scan(TableName=app.config["reg_table_name"])["Items"]
     entries = set_weight_class(entries)
-    return render_template(
-        "competitors.html",
-        title="Competitors",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        entries=entries,
-        additional_stylesheets=[
-            dict(
-                href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css",
-                integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM",
-            ),
-            dict(
-                href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css",
-                integrity="sha384-ok3J6xA9oQqai5C9ytYveFsBeKgoGk4T+NExsr6hoIKjZdv9SJcmx2mafwUWRNf9",
-            ),
-            dict(
-                href="https://cdn.datatables.net/searchpanes/2.2.0/css/searchPanes.bootstrap5.min.css",
-                integrity="sha384-sSvv6aRPZo6vPaGdGfO1YzjvkZXlAUTygB+HHYd8C6DPz0BYxpd/K+iPavXPNy1u",
-            ),
-            dict(
-                href="https://cdn.datatables.net/select/1.7.0/css/select.bootstrap5.min.css",
-                integrity="sha384-BQuA/IRHdZd4G0fkajPKOBOE6lIuKmN2G95L52+ULcI1T/NGKY+gWsB/qDn6xxv7",
-            ),
-        ],
-        additional_scripts=[
-            dict(
-                src="https://code.jquery.com/jquery-3.7.0.js",
-                integrity="sha384-ogycHROOTGA//2Q8YUfjz1Sr7xMOJTUmY2ucsPVuXAg4CtpgQJQzGZsX768KqetU",
-            ),
-            dict(
-                src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js",
-                integrity="sha384-cjmdOgDzOE22dUheI5E6Gzd3upfmReW8N1y/4jwKQE50KYcvFKZJA9JxWgQOzqwQ",
-            ),
-            dict(
-                src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js",
-                integrity="sha384-PgPBH0hy6DTJwu7pTf6bkRqPlf/+pjUBExpr/eIfzszlGYFlF9Wi9VTAJODPhgCO",
-            ),
-            dict(
-                src="https://cdn.datatables.net/searchpanes/2.2.0/js/dataTables.searchPanes.min.js",
-                integrity="sha384-j4rbW9ZgUxkxeMU1PIa5BaTj0qDOc/BV0zkbRqPAGPkIvaOzwTSVlDGGXw+XQ4uW",
-            ),
-            dict(
-                src="https://cdn.datatables.net/searchpanes/2.2.0/js/searchPanes.bootstrap5.min.js",
-                integrity="sha384-JTAq4Zc/HXNcaOy1Hv04w4mpSr7ouMGXxlXwTuwov0Wzv62QwPey9T58VPE1rVSf",
-            ),
-            dict(
-                src="https://cdn.datatables.net/select/1.7.0/js/dataTables.select.min.js",
-                integrity="sha384-5UUEYV/x07jNYpizRK5+tnFvFPDDq5s5wVr5mc802xveN8Ve7kuFu4Ym6mN+QcmZ",
-            ),
-            dict(
-                src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js",
-                integrity="sha384-VUnyCeQcqiiTlSM4AISHjJWKgLSM5VSyOeipcD9S/ybCKR3OhChZrPPjjrLfVV0y",
-            ),
-            dict(
-                src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js",
-                integrity="sha384-T6YQaHyTPTbybQQV23jtlugHCneQYjePXdcEU+KMWGQY8EUQygBW9pRx0zpSU0/i",
-            ),
-            dict(src=url_for("static", filename="js/competitors.js")),
-        ],
-    )
+    for i, e in enumerate(entries):
+        if "events" in e:
+            e["events"]["S"] = e["events"]["S"].split(",")
+            entries[i] = e
+
+    return {"data": entries}
 
 
-@app.route("/success", methods=["GET"])
-def success_page():
-    price_dict = get_price_details()
-    # Code to have 'convenience fee' transfered to separate acct ###
-    if request.args.get("reg_type") == "competitor":
-        stripe_session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
-        paymentIntent = stripe.PaymentIntent.retrieve(stripe_session.payment_intent)
-        stripe.Transfer.create(
-            amount=int(price_dict["Convenience Fee"]["price"]) * 100,
-            currency="usd",
-            source_transaction=paymentIntent.latest_charge,
-            destination=os.getenv("CONNECT_ACCT"),
-        )
-    return render_template(
-        "success.html",
-        title="Registration Submitted",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        email=os.getenv("CONTACT_EMAIL"),
-    )
-
-
-@app.route("/registration_error", methods=["GET"])
-def error_page():
-    reg_type = request.args.get("reg_type")
-    return render_template(
-        "registration_error.html",
-        title="Registration Error",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        email=os.getenv("CONTACT_EMAIL"),
-        reg_type=reg_type,
-    )
+@app.route("/entries", methods=["GET"])
+def entries_page():
+    if request.headers.get("HX-Request"):
+        return render_template("entries.html")
+    else:
+        return render_base("entries.html")
 
 
 @app.route("/admin")
@@ -737,154 +742,11 @@ def admin_page():
     entries = dynamodb.scan(
         TableName=app.config["reg_table_name"],
     )["Items"]
-    return render_template(
-        "admin.html",
-        title="Administration",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        entries=entries,
-        additional_stylesheets=[
-            dict(
-                href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css",
-                integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM",
-            ),
-            dict(
-                href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css",
-                integrity="sha384-ok3J6xA9oQqai5C9ytYveFsBeKgoGk4T+NExsr6hoIKjZdv9SJcmx2mafwUWRNf9",
-            ),
-            dict(
-                href="https://cdn.datatables.net/searchpanes/2.2.0/css/searchPanes.bootstrap5.min.css",
-                integrity="sha384-sSvv6aRPZo6vPaGdGfO1YzjvkZXlAUTygB+HHYd8C6DPz0BYxpd/K+iPavXPNy1u",
-            ),
-            dict(
-                href="https://cdn.datatables.net/select/1.7.0/css/select.bootstrap5.min.css",
-                integrity="sha384-BQuA/IRHdZd4G0fkajPKOBOE6lIuKmN2G95L52+ULcI1T/NGKY+gWsB/qDn6xxv7",
-            ),
-        ],
-        additional_scripts=[
-            dict(
-                src="https://code.jquery.com/jquery-3.7.0.js",
-                integrity="sha384-ogycHROOTGA//2Q8YUfjz1Sr7xMOJTUmY2ucsPVuXAg4CtpgQJQzGZsX768KqetU",
-            ),
-            dict(
-                src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js",
-                integrity="sha384-cjmdOgDzOE22dUheI5E6Gzd3upfmReW8N1y/4jwKQE50KYcvFKZJA9JxWgQOzqwQ",
-            ),
-            dict(
-                src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js",
-                integrity="sha384-PgPBH0hy6DTJwu7pTf6bkRqPlf/+pjUBExpr/eIfzszlGYFlF9Wi9VTAJODPhgCO",
-            ),
-            dict(
-                src="https://cdn.datatables.net/searchpanes/2.2.0/js/dataTables.searchPanes.min.js",
-                integrity="sha384-j4rbW9ZgUxkxeMU1PIa5BaTj0qDOc/BV0zkbRqPAGPkIvaOzwTSVlDGGXw+XQ4uW",
-            ),
-            dict(
-                src="https://cdn.datatables.net/searchpanes/2.2.0/js/searchPanes.bootstrap5.min.js",
-                integrity="sha384-JTAq4Zc/HXNcaOy1Hv04w4mpSr7ouMGXxlXwTuwov0Wzv62QwPey9T58VPE1rVSf",
-            ),
-            dict(
-                src="https://cdn.datatables.net/select/1.7.0/js/dataTables.select.min.js",
-                integrity="sha384-5UUEYV/x07jNYpizRK5+tnFvFPDDq5s5wVr5mc802xveN8Ve7kuFu4Ym6mN+QcmZ",
-            ),
-            dict(
-                src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js",
-                integrity="sha384-VUnyCeQcqiiTlSM4AISHjJWKgLSM5VSyOeipcD9S/ybCKR3OhChZrPPjjrLfVV0y",
-            ),
-            dict(
-                src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js",
-                integrity="sha384-T6YQaHyTPTbybQQV23jtlugHCneQYjePXdcEU+KMWGQY8EUQygBW9pRx0zpSU0/i",
-            ),
-            dict(src=url_for("static", filename="js/admin.js")),
-        ],
-    )
-
-
-@app.route("/edit")
-@login_required
-def edit_entry_form():
-    pk = request.args.get("pk")
-    entry = dynamodb.get_item(
-        TableName=app.config["reg_table_name"],
-        Key={"pk": {"S": pk}},
-    )["Item"]
-    school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
-    return render_template(
-        "edit.html",
-        title="Edit Entry",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        schools=school_list,
-        entry=entry,
-        additional_scripts=[
-            dict(
-                src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
-                integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
-            ),
-            dict(
-                src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
-                integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
-            ),
-            dict(src=url_for("static", filename="js/form.js")),
-        ],
-    )
-
-
-@app.route("/edit", methods=["POST"])
-@login_required
-def edit_entry():
-    form_data = dict(
-        full_name={"S": request.form.get("full_name")},
-        email={"S": request.form.get("email")},
-        phone={"S": request.form.get("phone")},
-        school={"S": request.form.get("school")},
-        reg_type={"S": request.form.get("regType")},
-    )
-    if form_data["reg_type"]["S"] == "competitor":
-        belt = request.form.get("beltRank")
-        if belt == "black":
-            dan = request.form.get("blackBeltDan")
-            if dan == "4":
-                belt = "Master"
-            else:
-                belt = f"{dan} degree {belt}"
-        form_data.update(
-            dict(
-                parent={"S": request.form.get("parentName")},
-                birthdate={"S": request.form.get("birthdate")},
-                age={"N": request.form.get("age")},
-                gender={"S": request.form.get("gender")},
-                weight={"N": request.form.get("weight")},
-                height={"N": request.form.get("height")},
-                coach={"S": request.form.get("coach").strip()},
-                beltRank={"S": belt},
-                events={"S": request.form.get("eventList")},
-                poomsae_form={"S": request.form.get("poomsae form")},
-                pair_poomsae_form={"S": request.form.get("pair poomsae form")},
-                team_poomsae_form={"S": request.form.get("team poomsae form")},
-                family_poomsae_form={"S": request.form.get("family poomsae form")},
-            )
-        )
-        update_expression = "SET {}".format(",".join(f"#{k}=:{k}" for k in form_data))
-        expression_attribute_values = {f":{k}": v for k, v in form_data.items()}
-        expression_attribute_names = {f"#{k}": k for k in form_data}
-
-        dynamodb.update_item(
-            TableName=app.config["reg_table_name"],
-            Key={
-                "pk": {"S": request.args.get("pk")},
-            },
-            UpdateExpression=update_expression,
-            ExpressionAttributeValues=expression_attribute_values,
-            ExpressionAttributeNames=expression_attribute_names,
-            ReturnValues="UPDATED_NEW",
-        )
-
-    flash(f'{form_data["full_name"]["S"]} updated successfully!', "success")
-    return redirect(f'{app.config["URL"]}/admin', code=303)
+    page_params = {"entries": entries}
+    if request.headers.get("HX-Request"):
+        return render_template("admin.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("admin.html", **page_params)
 
 
 @app.route("/add_entry")
@@ -893,39 +755,22 @@ def add_entry_form():
     early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
     reg_type = request.args.get("reg_type")
     school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
-    # Display the form
-    return render_template(
-        "add_entry.html",
-        title="Registration",
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=button_style,
-        competition_name=os.getenv("COMPETITION_NAME"),
-        competition_year=os.getenv("COMPETITION_YEAR"),
-        early_reg_date=datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
-        early_reg_coupon_amount=f'{int(early_reg_coupon["amount_off"]/100)}',
-        price_dict=get_price_details(),
-        reg_type=reg_type,
-        schools=school_list,
-        enable_badges=badges_enabled,
-        enable_address=address_enabled,
-        additional_scripts=[
-            dict(
-                src=f"https://maps.googleapis.com/maps/api/js?key={maps_api_key}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA",  # noqa
-                async_bool="true",
-                defer="true",
-            ),
-            dict(
-                src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js",
-                integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh",
-            ),
-            dict(
-                src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js",
-                integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13",
-            ),
-            dict(src=url_for("static", filename="js/form.js")),
-        ],
-    )
+    page_params = {
+        "price_dict": get_price_details(),
+        "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
+        "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
+        "badge_enabled": badges_enabled,
+        "address_enabled": address_enabled,
+        "maps_api_key": maps_api_key,
+        "reg_type": reg_type,
+        "schools": school_list,
+        "enable_badges": badges_enabled,
+        "enable_address": address_enabled,
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("add_entry.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("add_entry.html", **page_params)
 
 
 @app.route("/add_entry", methods=["POST"])
@@ -1022,11 +867,7 @@ def add_entry():
         # For Testing Form Data
         return render_template(
             "success.html",
-            title="Registration Submitted",
             competition_name=os.getenv("COMPETITION_NAME"),
-            favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-            event_city=os.getenv("EVENT_CITY"),
-            button_style=button_style,
             email=os.getenv("CONTACT_EMAIL"),
             reg_detail=form_data,
         )
@@ -1049,6 +890,78 @@ def add_entry():
         return redirect(f'{app.config["URL"]}/admin', code=303)
 
 
+@app.route("/edit_entry")
+@login_required
+def edit_entry_form():
+    pk = request.args.get("pk")
+    entry = dynamodb.get_item(
+        TableName=app.config["reg_table_name"],
+        Key={"pk": {"S": pk}},
+    )["Item"]
+    school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+    page_params = {
+        "schools": school_list,
+        "entry": entry,
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("edit.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("edit.html", **page_params)
+
+
+@app.route("/edit", methods=["POST"])
+@login_required
+def edit_entry():
+    form_data = dict(
+        full_name={"S": request.form.get("full_name")},
+        email={"S": request.form.get("email")},
+        phone={"S": request.form.get("phone")},
+        school={"S": request.form.get("school")},
+        reg_type={"S": request.form.get("regType")},
+    )
+    if form_data["reg_type"]["S"] == "competitor":
+        belt = request.form.get("beltRank")
+        if belt == "black":
+            dan = request.form.get("blackBeltDan")
+            if dan == "4":
+                belt = "Master"
+            else:
+                belt = f"{dan} degree {belt}"
+        form_data.update(
+            dict(
+                parent={"S": request.form.get("parentName")},
+                birthdate={"S": request.form.get("birthdate")},
+                age={"N": request.form.get("age")},
+                gender={"S": request.form.get("gender")},
+                weight={"N": request.form.get("weight")},
+                height={"N": request.form.get("height")},
+                coach={"S": request.form.get("coach").strip()},
+                beltRank={"S": belt},
+                poomsae_form={"S": request.form.get("poomsae form")},
+                pair_poomsae_form={"S": request.form.get("pair poomsae form")},
+                team_poomsae_form={"S": request.form.get("team poomsae form")},
+                family_poomsae_form={"S": request.form.get("family poomsae form")},
+            )
+        )
+        update_expression = "SET {}".format(",".join(f"#{k}=:{k}" for k in form_data))
+        expression_attribute_values = {f":{k}": v for k, v in form_data.items()}
+        expression_attribute_names = {f"#{k}": k for k in form_data}
+
+        dynamodb.update_item(
+            TableName=app.config["reg_table_name"],
+            Key={
+                "pk": {"S": request.args.get("pk")},
+            },
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_attribute_values,
+            ExpressionAttributeNames=expression_attribute_names,
+            ReturnValues="UPDATED_NEW",
+        )
+
+    flash(f'{form_data["full_name"]["S"]} updated successfully!', "success")
+    return redirect(f'{app.config["URL"]}/admin', code=303)
+
+
 @app.route("/export")
 @login_required
 def generate_csv():
@@ -1067,9 +980,14 @@ def generate_csv():
         competition_year=os.getenv("COMPETITION_YEAR"),
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        button_style=button_style,
+        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
         entries=entries,
     )
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_base("404.html"), 404
 
 
 if __name__ == "__main__":

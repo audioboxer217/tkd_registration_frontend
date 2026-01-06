@@ -204,20 +204,20 @@ function updateFields() {
     updateTotal()
   }
 }
-function formatPhoneNumber(input) {
-  // Remove any non-digits from the input
-  var phoneNum = input.replace(/[^0-9]/g, "");
+// function formatPhoneNumber(input) {
+//   // Remove any non-digits from the input
+//   var phoneNum = input.replace(/[^0-9]/g, "");
 
-  // Check if the input is a valid phone number
-  if (phoneNum.length !== 10) {
-    return;
-  }
+//   // Check if the input is a valid phone number
+//   if (phoneNum.length !== 10) {
+//     return;
+//   }
 
-  // Format the phone number
-  phoneNumFormatted = phoneNum.substring(0, 3) + "-" + phoneNum.substring(3, 6) + "-" + phoneNum.substring(6);
+//   // Format the phone number
+//   phoneNumFormatted = phoneNum.substring(0, 3) + "-" + phoneNum.substring(3, 6) + "-" + phoneNum.substring(6);
 
-  document.getElementById("inputPhone").value = phoneNumFormatted;
-}
+//   document.getElementById("inputPhone").value = phoneNumFormatted;
+// }
 function updateEventOptions() {
   const today = new Date()
   const early_reg_date = window.tkdreg.early_reg_date
@@ -287,6 +287,18 @@ function updateEventList(clickedEvent, calculateTotal=true) {
     }
   }
   else if (clickedEvent == 'sparring-wc') {
+  if (clickedEvent == 'little_dragon') {
+    if (document.getElementById("little_dragon").checked) {
+      document.getElementById("t-shirt_option").hidden = false;
+      document.getElementById("t-shirt").required = true;
+    }
+    else {
+      document.getElementById("t-shirt_option").hidden = true;
+      document.getElementById("t-shirt").value = "";
+      document.getElementById("t-shirt").required = false;
+    }
+  }
+  else if (clickedEvent == 'sparring-wc') {
     document.getElementById("sparring-gr").checked = false;
   }
   else if (clickedEvent == 'sparring-gr') {
@@ -317,16 +329,16 @@ function updateEventList(clickedEvent, calculateTotal=true) {
   getPoomsaeForms("team poomsae")
   getPoomsaeForms("family poomsae")
 }
-function checkForUnlisted(school) {
-  if (school == "unlisted") {
-    document.getElementById("unlistedSchoolSection").hidden = false;
-    document.getElementById("inputUnlistedSchool").required = true;
-  }
-  else {
-    document.getElementById("unlistedSchoolSection").hidden = true;
-    document.getElementById("inputUnlistedSchool").required = false;
-  }
-}
+// function checkForUnlisted(school) {
+//   if (school == "unlisted") {
+//     document.getElementById("unlistedSchoolSection").hidden = false;
+//     document.getElementById("inputUnlistedSchool").required = true;
+//   }
+//   else {
+//     document.getElementById("unlistedSchoolSection").hidden = true;
+//     document.getElementById("inputUnlistedSchool").required = false;
+//   }
+// }
 function updateMedicalConditionsList() {
   var conditionList = []
 

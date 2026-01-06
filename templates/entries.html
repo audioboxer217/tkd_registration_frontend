@@ -1,0 +1,127 @@
+<div class="col-md-12 center-block" align="center">
+  <h1>Entries</h1>
+</div>
+<div class="table-responsive">
+  <table id="entries" class="display table table-striped table-hover dt-responsive">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Role</th>
+        <th>Gender</th>
+        <th>Belt</th>
+        <th>Age Group</th>
+        <th>Weight Class</th>
+        <th>School</th>
+        <th>Events</th>
+      </tr>
+    </thead>
+    <tfoot>
+      <tr>
+        <th>Name</th>
+        <th>Role</th>
+        <th>Gender</th>
+        <th>Belt</th>
+        <th>Age Group</th>
+        <th>Weight Class</th>
+        <th>School</th>
+        <th>Events</th>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+<script>
+  $(document).ready(function () {
+    var table = $('#entries').DataTable({
+      reponsive: true,
+      ajax: '/api/entries',
+      searchPanes: {
+        cascadePanes: true,
+        initCollapsed: true,
+      },
+      columns: [
+        {
+          targets: 0,
+          data: "full_name.S"
+        },
+        {
+          target: 1,
+          data: "reg_type.S",
+          visible: false,
+          searchable: true,
+          searchPanes: {
+            show: true
+          }
+        },
+        {
+          target: 2,
+          data: "gender.S",
+          defaultContent: "",
+          searchable: true,
+          searchPanes: {
+            show: true
+          },
+        },
+        {
+          target: 3,
+          data: "beltRank.S",
+          searchable: true,
+          searchPanes: {
+            show: true
+          },
+          render: function (data, type, row) {
+            if (row.beltRank === undefined) {
+              return "";
+            }
+            else {
+              if ((row.beltRank.S).includes('black')) {
+                return "black";
+              }
+              else {
+                return row.beltRank.S;
+              }
+            }
+          }
+        },
+        {
+          target: 4,
+          data: "age_group",
+          defaultContent: "",
+          searchable: true,
+          searchPanes: {
+            show: true
+          }
+        },
+        {
+          target: 5,
+          data: "weight_class",
+          defaultContent: "",
+          searchable: true,
+          searchPanes: {
+            show: true
+          },
+        },
+        {
+          target: 6,
+          data: "school.S",
+          searchable: true
+        },
+        {
+          target: 7,
+          data: "events.S",
+          defaultContent: "",
+          searchable: true,
+          render: {
+            _: '[, ]',
+            sp: '[]'
+          },
+          searchPanes: {
+            orthogonal: 'sp'
+          }
+        }
+      ]
+    });
+    table.searchPanes.container().prependTo(table.table().container());
+    table.searchPanes.resizePanes();
+  });
+
+</script>

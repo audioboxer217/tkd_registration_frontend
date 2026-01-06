@@ -1,0 +1,20 @@
+<!-- Modal for Entry Lookup Prompt -->
+<div id="lookupOptions" class="modal-content">
+  <div class="modal-header">
+    <h5 class="modal-title" id="lookupModalLabel">Previous Registrations</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  </div>
+  <div class="modal-body">
+    {% if entries|length == 0 %}
+    <p>No previous registrations found.</p>
+    {% else %}
+    {% for entry in entries %}
+    <button class="dropdown-item" type="button" hx-get="/api/autofill?entry={{ entry | tojson | urlencode }}"
+      data-bs-dismiss="modal">{{entry.name.S}}</button>
+    {% endfor %}
+    {% endif %}
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+  </div>
+</div>

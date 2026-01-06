@@ -1,0 +1,9 @@
+<div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+    <input type="text" class="form-control is-{% if not form_item_valid %}in{% endif %}valid" id='{{form_item_id}}'
+        name="{{form_item_name}}" required hx-post="/api/validate/name/{{form_item_name}}?id={{form_item_id}}" value="{{form_item}}">
+    {% if not form_item_valid %}
+    <div id="input{{form_item_id}}Feedback" class="invalid-feedback">
+        Please enter a valid name
+    </div>
+    {% endif %}
+</div>

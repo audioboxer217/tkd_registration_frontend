@@ -1,0 +1,17 @@
+<div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+    <select id="inputSchool" class="form-select is-{% if not school_valid %}in{% endif %}valid" name="school"
+        hx-post="/api/validate/school" required>
+        {% for school in schools %}
+        <option {% if school==school_selection %}selected {% endif %}value="{{ school }}">{{ school }}</option>
+        {% endfor %}
+        <option {% if school_selection=="unlisted" %}selected {% endif %}value="unlisted">Not Listed - Please Specify
+            Below</option>
+    </select>
+    {% if school_selection == 'unlisted' %}
+    <label for="inputUnlistedSchool" class="form-check-label">School Name</label>
+    <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+        <input type="text" class="form-control" name="unlistedSchool" id="inputUnlistedSchool" required
+            hx-post="/api/validate/name/unlistedSchool">
+    </div>
+    {% endif %}
+</div>

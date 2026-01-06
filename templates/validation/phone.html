@@ -1,0 +1,9 @@
+<div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+    <input type="tel" class="form-control is-{% if not phone_valid %}in{% endif %}valid" name="phone" id="inputPhone"
+        required hx-post="/api/validate/phone" value="{{phone_num}}">
+    {% if not phone_valid %}
+    <div id="inputPhoneFeedback" class="invalid-feedback">
+        Please enter a valid phone number in the format 123-456-7890
+    </div>
+    {% endif %}
+</div>

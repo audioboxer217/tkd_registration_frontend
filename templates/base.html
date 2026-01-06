@@ -1,69 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
+<script src="https://unpkg.com/htmx.org@2.0.4"
+  integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+  integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.js"
+  integrity="sha384-ogycHROOTGA//2Q8YUfjz1Sr7xMOJTUmY2ucsPVuXAg4CtpgQJQzGZsX768KqetU" crossorigin="anonymous"></script>
+<script
+  src="https://cdn.datatables.net/v/bs5/jq-3.7.0/dt-2.2.1/b-3.2.1/b-html5-3.2.1/b-print-3.2.1/sp-2.3.3/sl-3.0.0/datatables.min.js"></script>
+{% if address_enabled %}
+<script
+  src="https://maps.googleapis.com/maps/api/js?key={{ maps_api_key }}&libraries=places&callback=initMap&solution_channel=GMP_QB_addressselection_v1_cA&loading=async"
+  async defer></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"
+  integrity="sha384-vk5WoKIaW/vJyUAd9n/wmopsmNhiy+L2Z+SBxGYnUkunIxVxAv/UtMOhba/xskxh" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.min.js"
+  integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13" crossorigin="anonymous"></script>
+{% endif %}
+<script src="{{ form_js }}"></script>
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ title }}</title>
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>{{ competition_name }}</title>
   <link rel="icon" type="image/x-icon" href="{{ favicon_url }}">
-  {% for stylesheet in additional_stylesheets %}
-  <link href={{ stylesheet.href }} rel="stylesheet" 
-  {%- if stylesheet.integrity is defined %}
-  integrity="{{stylesheet.integrity}}" crossorigin="anonymous"
-  {% endif -%}
-  >
-  {% endfor %}
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"
+    integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+  <link
+    href="https://cdn.datatables.net/v/bs5/jq-3.7.0/dt-2.2.1/b-3.2.1/b-html5-3.2.1/b-print-3.2.1/sp-2.3.3/sl-3.0.0/datatables.min.css"
+    rel="stylesheet">
 </head>
+
 <body>
   <div class="container shadow p-3 mb-5 bg-white rounded">
     <div class="row justify-content-md-center">
       <div class="col-md-12 center-block" align="center">
-        <a href="/"><img src="{{ favicon_url }}" alt="{{ org }}" class="img-fluid"><img></a>
+        <a hx-get="/" hx-trigger="click" hx-target="#content-div" hx-replace-url="true" hx-push-url="true">
+          <img src="{{ favicon_url }}" alt="{{ competition_name }}" class="img-fluid"><img></a>
       </div>
     </div>
     <div class="row justify-content-md-center">
       <div class="col-sm-3">
         <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/register?reg_type=competitor" role="button">Competitor Registration</a>
+          <a class="btn {{ button_style }}" hx-get="/register?reg_type=competitor" hx-trigger="click"
+            hx-target="#content-div" hx-replace-url="true" hx-push-url="true" role="button">Competitor
+            Registration</a>
         </div>
         <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/register?reg_type=coach" role="button">Coach Registration</a>
+          <a class="btn {{ button_style }}" hx-get="/register?reg_type=coach" hx-trigger="click"
+            hx-target="#content-div" hx-replace-url="true" hx-push-url="true" role="button">Coach Registration</a>
         </div>
       </div>
       <div class="col-sm-3">
         <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/schedule" role="button">Schedule of Events</a>
+          <a class="btn {{ button_style }}" hx-get="/schedule" hx-trigger="click" hx-target="#content-div"
+            hx-replace-url="true" hx-push-url="true" role="button">Schedule of Events</a>
         </div>
-        <!-- <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/competitors" role="button">Events & Divisions</a>
-        </div> -->
+        {% if admin %}
+        <div class="row g-1 mb-1">
+          <a class="btn {{ button_style }}" hx-get="/admin" hx-trigger="click" hx-target="#content-div"
+            hx-replace-url="true" hx-push-url="true" role="button">Admin</a>
+        </div>
+        {% endif %}
       </div>
       <div class="col-sm-3">
         <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" href="/information" role="button">Information</a>
+          <a class="btn {{ button_style }}" hx-get="/information" hx-trigger="click" hx-target="#content-div"
+            hx-replace-url="true" hx-push-url="true" role="button">Information</a>
         </div>
         <div class="row g-1 mb-1">
           <!-- <a class="btn {{ button_style }}" href="{{ visitor_info_url }}" role="button" target="_blank">{{ visitor_info_text }}</a> -->
-          <a class="btn {{ button_style }}" href="/visit" role="button">Things to do in {{ event_city }}</a>
+          <a class="btn {{ button_style }}" hx-get="/visit" hx-trigger="click" hx-target="#content-div"
+            hx-replace-url="true" hx-push-url="true" role="button">Things to do in {{ event_city }}</a>
         </div>
       </div>
     </div>
-    <hr/>
+    <hr />
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-        <div class="row justify-content-md-center flashes">
-          <div class="col-md-12 center-block" align="center">
-            <h3 class="{{ category }}">{{ message }}</h3>
-          </div>
-        </div>
-        {% endfor %}
-      {% endif %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="row justify-content-md-center flashes">
+      <div class="col-md-12 center-block" align="center">
+        <h3 class="{{ category }}">{{ message }}</h3>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
     {% endwith %}
-    {% block content %}{% endblock content %}
+    <div id="content-div">
+      {% include content_file %}
+    </div>
+    {% if not admin %}
+    <div class="row justify-content-md-right">
+      <div class="col-md-12" align="right">
+        <a class="btn {{ button_style }} btn-sm" href="/admin" role="button">Admin Login</a>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </body>
 <script>
@@ -127,19 +165,5 @@
     }
   }
 </script>
-{% for script in additional_scripts %}
-<script src={{ script.src }} 
-{%- if script.async_bool == 'true' %}
- async
-{% endif -%}
-{%- if script.defer == 'true' %}
- defer
-{% endif -%}
-{%- if script.integrity is defined %}
- integrity="{{script.integrity}}" crossorigin="anonymous"
-{% endif -%}
-></script>
-{% endfor %}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-  integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
 </html>
