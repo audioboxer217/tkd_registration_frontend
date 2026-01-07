@@ -74,9 +74,14 @@
             hx-replace-url="true" hx-push-url="true" role="button">Information</a>
         </div>
         <div class="row g-1 mb-1">
-          <!-- <a class="btn {{ button_style }}" href="{{ visitor_info_url }}" role="button" target="_blank">{{ visitor_info_text }}</a> -->
+          {% if visitor_info_url and visitor_info_text %}
+          <a class="btn {{ button_style }}" href="{{ visitor_info_url }}" role="button" target="_blank">{{
+            visitor_info_text
+            }}</a>
+          {% else %}
           <a class="btn {{ button_style }}" hx-get="/visit" hx-trigger="click" hx-target="#content-div"
             hx-replace-url="true" hx-push-url="true" role="button">Things to do in {{ event_city }}</a>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -96,7 +101,7 @@
       {% include content_file %}
     </div>
     {% if not admin %}
-    <div class="row justify-content-md-right">
+    <div class="row justify-content-md-right mt-2">
       <div class="col-md-12" align="right">
         <a class="btn {{ button_style }} btn-sm" href="/admin" role="button">Admin Login</a>
       </div>
