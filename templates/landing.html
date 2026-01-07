@@ -1,7 +1,9 @@
 <div class="row justify-content-md-center mt-4">
     <div class="col" align="center">
-        <h2>Early Registration Ends <font color="red">{{early_reg_date}}</font>
+    {% if today < early_reg_date %} <h2>Early Registration Ends <font color="red">{{early_reg_date.strftime("%B %d, %Y")}}
+        </font>
         </h2>
+        {% endif %}
         <h2>Registration Closes <font color="red">{{reg_close_date}}</font>
         </h2>
     </div>
