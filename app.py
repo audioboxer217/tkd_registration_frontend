@@ -85,14 +85,14 @@ def get_s3_file(bucket, file_name):
     """
     Function to download a given file from an S3 bucket
     """
-    if not os.path.exists("/tmp/public_media"):
-        os.makedirs("/tmp/public_media")
+    if not os.path.exists("static/public_media"):
+        os.makedirs("static/public_media")
 
     output = f"public_media/{os.path.basename(file_name)}"
 
     if not os.path.exists(output):
         try:
-            s3.download_file(bucket, file_name, f"/tmp/{output}")
+            s3.download_file(bucket, file_name, f"static/{output}")
         except Exception as e:
             print(f"Error downloading {file_name} from S3: {e}")
             return None
