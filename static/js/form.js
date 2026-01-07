@@ -315,6 +315,7 @@ function updateEventList(clickedEvent, calculateTotal=true) {
       choicesElement.value = '';
     }
   }
+}
 
   var checked_items = document.querySelectorAll('input[name="events"]:checked')
   for (i = 0; i < checked_items.length; i++) {
