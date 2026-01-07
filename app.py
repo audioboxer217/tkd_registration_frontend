@@ -4,10 +4,12 @@ import urllib
 from datetime import date, datetime, timedelta
 
 import boto3
+import pytz
 import stripe
 from authlib.integrations.flask_client import OAuth
 from email_validator import EmailNotValidError, validate_email
 from flask import Flask, abort, flash, redirect, render_template, render_template_string, request, session, url_for
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
@@ -22,6 +24,7 @@ app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
 app.config["reg_table_name"] = os.getenv("REG_DB_TABLE")
 app.config["auth_table_name"] = os.getenv("AUTH_DB_TABLE", "admin_auth_table")
 app.config["lookup_table_name"] = os.getenv("LOOKUP_DB_TABLE", "reg_lookup_table")
+app.config["TZ_LOCAL"] = ZoneInfo(os.getenv("LOCAL_TIMEZONE", "US/Central"))
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 maps_api_key = os.getenv("MAPS_API_KEY")
 aws_region = os.getenv("AWS_REGION", "us-east-1")
@@ -72,18 +75,24 @@ def get_price_details():
     return price_dict
 
 
+def convert_to_local(utc_dt):
+    local_tz = pytz.timezone(os.getenv("LOCAL_TIMEZONE", "US/Central"))
+    local_dt = utc_dt.astimezone(local_tz)
+    return local_dt
+
+
 def get_s3_file(bucket, file_name):
     """
     Function to download a given file from an S3 bucket
     """
-    if not os.path.exists("static/public_media"):
-        os.makedirs("static/public_media")
+    if not os.path.exists("/tmp/public_media"):
+        os.makedirs("/tmp/public_media")
 
     output = f"public_media/{os.path.basename(file_name)}"
 
     if not os.path.exists(output):
         try:
-            s3.download_file(bucket, file_name, f"static/{output}")
+            s3.download_file(bucket, file_name, f"/tmp/{output}")
         except Exception as e:
             print(f"Error downloading {file_name} from S3: {e}")
             return None
@@ -129,7 +138,7 @@ def render_base(content_file, **page_params):
         "base.html",
         title=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
+        event_city=os.getenv("EVENT_CITY", None),
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
         form_js=url_for("static", filename="js/form.js"),
         address_enabled=address_enabled,
@@ -142,8 +151,11 @@ def render_base(content_file, **page_params):
 @app.route("/", methods=["GET"])
 def index():
     page_params = {
+        "today": convert_to_local(datetime.today()),
         "email": os.getenv("CONTACT_EMAIL"),
-        "early_reg_date": datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).strftime("%B %d, %Y"),
+        "early_reg_date": datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).replace(
+            tzinfo=app.config["TZ_LOCAL"]
+        ),
         "reg_close_date": os.getenv("REG_CLOSE_DATE"),
         "poster_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
     }
@@ -288,6 +300,9 @@ def api_validate_birthdate():
         age_group = ""
         date_valid = False
 
+    if age_group == "too_young":
+        date_valid = False
+
     return render_template(
         "validation/birthdate.html",
         birthdate=request.form.get("birthdate"),
@@ -315,7 +330,11 @@ def api_validate_school():
 
 @app.route("/register", methods=["GET"])
 def display_form():
-    if date.today() > datetime.strptime(os.getenv("REG_CLOSE_DATE"), "%B %d, %Y").date():
+    today = datetime.now(app.config["TZ_LOCAL"])
+    reg_close_date = datetime.strptime(f"{os.getenv('REG_CLOSE_DATE')} 23:59", "%B %d, %Y %H:%M").replace(
+        tzinfo=app.config["TZ_LOCAL"]
+    )
+    if today > reg_close_date:
         page_params = {
             "email": os.getenv("CONTACT_EMAIL"),
             "competition_name": os.getenv("COMPETITION_NAME"),
@@ -331,7 +350,7 @@ def display_form():
 
         # Display the form
         page_params = {
-            "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
+            "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"]),
             "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
             "price_dict": get_price_details(),
             "reg_type": reg_type,
@@ -501,8 +520,8 @@ def handle_form():
     else:
         early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
         try:
-            early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"])
-            current_time = datetime.now()
+            early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"])
+            current_time = convert_to_local(datetime.now())
             checkout_timeout = current_time + timedelta(minutes=30)
             checkout_details = {
                 "line_items": registration_items,
@@ -541,7 +560,34 @@ def handle_form():
             MessageBody=json.dumps(form_data),
         )
 
-        return redirect(checkout_session.url, code=303)
+        # return redirect(checkout_session.url, code=303)
+        return render_template_string(
+            '<meta http-equiv="refresh" content="0; url={{ checkout_url }}" />', checkout_url=checkout_session.url
+        )
+
+
+@app.route("/success", methods=["GET"])
+def success_page():
+    # Code to have 'convenience fee' transfered to separate acct ###
+    price_dict = get_price_details()
+    session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
+    paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
+    stripe.Transfer.create(
+        amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+        currency="usd",
+        source_transaction=paymentIntent.latest_charge,
+        destination=os.getenv("CONNECT_ACCT"),
+    )
+    page_params = {
+        "reg_type": request.args.get("reg_type"),
+        "session_id": request.args.get("session_id"),
+        "email": os.getenv("CONTACT_EMAIL"),
+        "competition_name": os.getenv("COMPETITION_NAME"),
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("success.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("success.html", **page_params)
 
 
 @app.route("/registration_error", methods=["GET"])
@@ -633,15 +679,17 @@ def schedule_details():
 
 @app.route("/api/upload/<string:resource>", methods=["GET"])
 def upload_form(resource):
-    return render_template(
-        "upload.html",
-        title=f"Upload {resource.capitalize()}",
-        competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-        event_city=os.getenv("EVENT_CITY"),
-        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
-        resource=resource,
-    )
+    page_params = {"resource": resource}
+    return render_base("upload.html", **page_params)
+    # return render_template(
+    #     "upload.html",
+    #     title=f"Upload {resource.capitalize()}",
+    #     competition_name=os.getenv("COMPETITION_NAME"),
+    #     favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+    #     event_city=os.getenv("EVENT_CITY"),
+    #     button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+    #     resource=resource,
+    # )
 
 
 @app.route("/api/upload/<string:resource>", methods=["POST"])
@@ -668,7 +716,8 @@ def upload_item(resource):
 def info_page():
     s3_addl_images = s3.list_objects(Bucket=app.config["mediaBucket"], Prefix="additional_information_images/")["Contents"]
     page_params = {
-        "information_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
+        "information_booklet_url": f'https://{ app.config["mediaBucket"] }.s3.us-east-1.amazonaws.com/information_booklet.pdf',
+        # "information_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
         "additional_imgs": [
             url_for("static", filename=get_s3_file(app.config["mediaBucket"], i["Key"])) for i in s3_addl_images if i["Size"] > 0
         ],
@@ -681,6 +730,7 @@ def info_page():
 
 def get_age_group(age):
     age_groups = {
+        "too_young": list(range(0, 4)),
         "dragon": [4, 5, 6, 7],
         "tiger": [8, 9],
         "youth": [10, 11],
@@ -700,19 +750,18 @@ def set_weight_class(entries):
     weight_classes = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="weight_classes.json")["Body"])
     updated_entries = []
     for entry in entries:
-        if entry["reg_type"] == "competitor":
-            age_group = get_age_group(entry["age"]["N"])
-            gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
-            weight_class_ranges = weight_classes[age_group][gender]
-            entry["weight_class"] = next(
-                (
-                    weight_class
-                    for weight_class, weights in weight_class_ranges.items()
-                    if float(entry["weight"]["N"]) >= float(weights[0]) and float(entry["weight"]["N"]) < float(weights[1])
-                ),
-                "UNKNOWN",
-            )
-
+        age_group = get_age_group(entry["age"]["N"])
+        entry["age_group"] = age_group
+        gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
+        weight_class_ranges = weight_classes[age_group][gender]
+        entry["weight_class"] = next(
+            (
+                weight_class
+                for weight_class, weights in weight_class_ranges.items()
+                if float(entry["weight"]["N"]) >= float(weights[0]) and float(entry["weight"]["N"]) < float(weights[1])
+            ),
+            "UNKNOWN",
+        )
         updated_entries.append(entry)
 
     return updated_entries
@@ -721,13 +770,17 @@ def set_weight_class(entries):
 @app.route("/api/entries", methods=["GET"])
 def entries_api():
     entries = dynamodb.scan(TableName=app.config["reg_table_name"])["Items"]
-    entries = set_weight_class(entries)
-    for i, e in enumerate(entries):
+
+    competitor_entries = [e for e in entries if e["reg_type"]["S"] == "competitor"]
+    competitor_entries = set_weight_class(competitor_entries)
+    for i, e in enumerate(competitor_entries):
         if "events" in e:
             e["events"]["S"] = e["events"]["S"].split(",")
-            entries[i] = e
+            competitor_entries[i] = e
 
-    return {"data": entries}
+    coach_entries = [e for e in entries if e["reg_type"]["S"] == "coach"]
+
+    return {"data": competitor_entries + coach_entries}
 
 
 @app.route("/entries", methods=["GET"])
@@ -759,7 +812,7 @@ def add_entry_form():
     school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
     page_params = {
         "price_dict": get_price_details(),
-        "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]),
+        "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"]),
         "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
         "badge_enabled": badges_enabled,
         "address_enabled": address_enabled,
@@ -844,6 +897,7 @@ def add_entry():
                 beltRank={"S": belt},
                 events={"S": eventList},
                 poomsae_form={"S": request.form.get("poomsae form")},
+                wc_poomsae_form={"S": request.form.get("world-class poomsae form")},
                 pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                 team_poomsae_form={"S": request.form.get("team poomsae form")},
                 family_poomsae_form={"S": request.form.get("family poomsae form")},
