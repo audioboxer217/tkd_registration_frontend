@@ -685,19 +685,13 @@ def schedule_details():
         return render_template_string('<div align="center">Schedule not found</div>')
 
 
-@app.route("/api/upload/<string:resource>", methods=["GET"])
+@app.route("/upload/<string:resource>", methods=["GET"])
 def upload_form(resource):
     page_params = {"resource": resource}
-    return render_base("upload.html", **page_params)
-    # return render_template(
-    #     "upload.html",
-    #     title=f"Upload {resource.capitalize()}",
-    #     competition_name=os.getenv("COMPETITION_NAME"),
-    #     favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
-    #     event_city=os.getenv("EVENT_CITY"),
-    #     button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
-    #     resource=resource,
-    # )
+    if request.headers.get("HX-Request"):
+        return render_template("upload.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    else:
+        return render_base("upload.html", **page_params)
 
 
 @app.route("/api/upload/<string:resource>", methods=["POST"])
