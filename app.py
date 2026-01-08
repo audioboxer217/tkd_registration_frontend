@@ -288,8 +288,8 @@ def api_validate_phone():
 
 @app.route("/api/validate/birthdate", methods=["POST"])
 def api_validate_birthdate():
-    birthdate = datetime.strptime(request.form.get("birthdate"), "%Y-%m-%d")
     try:
+        birthdate = datetime.strptime(request.form.get("birthdate"), "%Y-%m-%d")
         birthyear = birthdate.year
         curr_year = datetime.now().year
         age = curr_year - birthyear
@@ -300,7 +300,7 @@ def api_validate_birthdate():
         age_group = ""
         date_valid = False
 
-    if age_group == "too_young":
+    if age_group == "too_young" or age_group == "too_old":
         date_valid = False
 
     return render_template(
@@ -748,7 +748,7 @@ def get_age_group(age):
         "ultra": list(range(33, 100)),
     }
 
-    age_group = next((group for group, ages in age_groups.items() if int(age) in ages))
+    age_group = next((group for group, ages in age_groups.items() if int(age) in ages), "too_old")
 
     return age_group
 

@@ -5,7 +5,7 @@
           <label class="form-check-label h5" for="date">Birthday</label>
           <div class="input-group date" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
             <input class="form-control" type="date" name="birthdate" id="birthdate" placeholder="MM/DD/YYYY"
-              required hx-post="/api/validate/birthdate">
+              required hx-post="/api/validate/birthdate" hx-trigger="keyup changed delay:500ms">
           </div>
         </div>
         <div class="col-md-2">
