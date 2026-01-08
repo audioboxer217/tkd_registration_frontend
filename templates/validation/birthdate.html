@@ -3,9 +3,58 @@
         required hx-post="/api/validate/birthdate" value="{{birthdate}}">
     {% if not date_valid %}
     <div id="inputBirthdayFeedback" class="invalid-feedback">
+        {% if age_group == "too_young" %}
+        You must be at least 4 years old to register for this event.
+        <input type="text" hx-swap-oob="true" class="form-control is-invalid" name="age" id="inputAge" value="{{age}}" readonly>
+        {% else %}
         Please enter a valid date in the format MM/DD/YYYY
+        {% endif %}
     </div>
     {% endif %}
 </div>
-<input type="text" hx-swap-oob="true" class="form-control is-valid" name="age" id="inputAge" value="{{age}}" readonly>
-<p hx-swap-oob="true" id="ageClass">Age Group is <b>{{age_group}}</b></p>
+{% if date_valid %}
+    <input type="text" hx-swap-oob="true" class="form-control is-valid" name="age" id="inputAge" value="{{age}}" readonly>
+    <p hx-swap-oob="true" id="ageClass">Age Group is <b>{{age_group}}</b></p>
+    {% if age|int <= 7 %} <input hx-swap-oob="true" class="form-check-input" type="checkbox" name="events"
+        id="little_dragon" onchange="updateEventList(this.id)">
+        {% else %}
+        <input hx-swap-oob="true" class="form-check-input" type="checkbox" name="events" id="little_dragon"
+            onchange="updateEventList(this.id)" disabled>
+        <div hx-swap-oob="true" class="row" id="t-shirt_option" hidden>
+            <div class="col-sm-8">
+                <div class="form-check">
+                    <label for="t-shirt" class="form-check-label">T-Shirt Size</label>
+                    <select id="t-shirt" class="form-select" name="t-shirt">
+                        <option selected value="">Choose...</option>
+                        <option value="XXS">XXS</option>
+                        <option value="XS">XS</option>
+                        <option value="S">S</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    
+        {% if age|int > 4 and age|int < 18 %} <div hx-swap-oob="true" class="row mt-2" id="parentNameSection">
+            <div class="col-md-6" hx-target="this" hx-swap="innerHTML" hx-replace-url="false" hx-push-url="false">
+                <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
+                <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+                    <input type="text" class="form-control" id='inputParentName' name="parentName"
+                        placeholder="Parent's full name" aria-label="Parent's name"
+                        hx-post="/api/validate/name/parentName?id=inputParentName" required>
+                </div>
+            </div>
+            </div>
+            {% else %}
+            <div hx-swap-oob="true" class="row mt-2" id="parentNameSection" hidden>
+                <div class="col-md-6" hx-target="this" hx-swap="innerHTML" hx-replace-url="false" hx-push-url="false">
+                    <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
+                    <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
+                        <input type="text" class="form-control" id='inputParentName' name="parentName"
+                            placeholder="Parent's full name" aria-label="Parent's name"
+                            hx-post="/api/validate/name/parentName?id=inputParentName">
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
