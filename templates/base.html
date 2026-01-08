@@ -61,12 +61,10 @@
           <a class="btn {{ button_style }}" hx-get="/schedule" hx-trigger="click" hx-target="#content-div"
             hx-replace-url="true" hx-push-url="true" role="button">Schedule of Events</a>
         </div>
-        {% if admin %}
         <div class="row g-1 mb-1">
-          <a class="btn {{ button_style }}" hx-get="/admin" hx-trigger="click" hx-target="#content-div"
-            hx-replace-url="true" hx-push-url="true" role="button">Admin</a>
+          <a class="btn {{ button_style }}" hx-get="/hotel" hx-trigger="click" hx-target="#content-div" hx-replace-url="true"
+            hx-push-url="true" role="button">Host Hotel</a>
         </div>
-        {% endif %}
       </div>
       <div class="col-sm-3">
         <div class="row g-1 mb-1">
@@ -85,6 +83,18 @@
         </div>
       </div>
     </div>
+    {% if admin %}
+    <div class="row justify-content-md-center">
+      <div class="col-sm-3"></div>
+      <div class="col-sm-3">
+        <div class="row g-1 mb-1">
+          <a class="btn {{ button_style }}" hx-get="/admin" hx-trigger="click" hx-target="#content-div"
+            hx-replace-url="true" hx-push-url="true" role="button">Admin</a>
+        </div>
+      </div>
+      <div class="col-sm-3"></div>
+    </div>
+    {% endif %}
     <hr />
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

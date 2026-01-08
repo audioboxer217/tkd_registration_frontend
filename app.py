@@ -611,6 +611,14 @@ def visit_page():
         return render_base("tulsa.html")
 
 
+@app.route("/hotel", methods=["GET"])
+def hotel_page():
+    if request.headers.get("HX-Request"):
+        return render_template("hotel.html")
+    else:
+        return render_base("hotel.html")
+
+
 @app.route("/schedule", methods=["GET"])
 def schedule_page():
     if request.headers.get("HX-Request"):
