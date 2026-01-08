@@ -614,7 +614,7 @@ def visit_page():
 @app.route("/hotel", methods=["GET"])
 def hotel_page():
     if request.headers.get("HX-Request"):
-        return render_template("hotel.html")
+        return render_template("hotel.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"))
     else:
         return render_base("hotel.html")
 
