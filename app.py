@@ -718,8 +718,10 @@ def upload_item(resource):
 def info_page():
     s3_addl_images = s3.list_objects(Bucket=app.config["mediaBucket"], Prefix="additional_information_images/")["Contents"]
     page_params = {
-        "information_booklet_url": f'https://{ app.config["mediaBucket"] }.s3.us-east-1.amazonaws.com/information_booklet.pdf',
-        # "information_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
+        # "information_booklet_url": f'https://{ app.config["mediaBucket"] }.s3.us-east-1.amazonaws.com/information_booklet.pdf',
+        "information_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
+        "poomsae_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "poomsae_booklet.pdf")),
+        "breaking_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "breaking_booklet.pdf")),
         "additional_imgs": [
             url_for("static", filename=get_s3_file(app.config["mediaBucket"], i["Key"])) for i in s3_addl_images if i["Size"] > 0
         ],
