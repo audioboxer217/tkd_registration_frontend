@@ -136,7 +136,7 @@ def render_base(content_file, **page_params):
         page_params["admin"] = True
     return render_template(
         "base.html",
-        title=os.getenv("COMPETITION_NAME"),
+        competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
         event_city=os.getenv("EVENT_CITY", None),
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
