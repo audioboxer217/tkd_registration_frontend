@@ -192,7 +192,7 @@
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="events" id="little_dragon"
                     onchange="updateEventList(this.id)" {{ "checked" if "little_dragon" in entry.events.S.split(',')
-                    else "" }} {{ "disabled" if entry.age.N | int> 8 else "" }}>
+                    else "" }} {{ "disabled" if entry.age.N | int> 10 else "" }}>
                   <label class="form-check-label" for="little_dragon">Little Dragon Obstacle Course</label>
                 </div>
               </div>
