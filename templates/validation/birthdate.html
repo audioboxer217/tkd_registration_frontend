@@ -1,6 +1,6 @@
 <div class="input-group date" hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
     <input class="form-control is-{% if not date_valid %}in{% endif %}valid" type="date" name="birthdate" id="birthdate"
-        required hx-post="/api/validate/birthdate" hx-trigger="keyup changed delay:500ms" value="{{birthdate}}">
+        required hx-post="/api/validate/birthdate" hx-trigger="change delay:500ms" value="{{birthdate}}">
     {% if not date_valid %}
     <div id="inputBirthdayFeedback" class="invalid-feedback">
         {% if age_group == "too_young" %}
