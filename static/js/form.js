@@ -233,22 +233,34 @@ function updateEventOptions() {
     var early_reg_warn = ""
   }
 
+  const addl_cost_info = `
+    <div class="row g-2 mt-2 bg-warning">
+      Little Dragon Obstacle Course is a separate charge of $50<br />regardless of the number of events entered.
+    </div>
+    <div class="row g-2 mt-2">
+      Additional items available at the event:
+      <b>Cash Only</b>
+        - Spectator Admission (ages 4+): $15<br />
+        - Breaking Boards: $5/board<br />
+    </div>
+  `
+
   const blackBelt = "The first event for Black Belts is $" + blackBeltPrice + " and each additional event is $" + window.tkdreg.price_dict.addl_event
   const colorBelt = "The first event for Color Belts is $" + colorBeltPrice + "  and each additional event is $" + window.tkdreg.price_dict.addl_event
 
+  document.getElementById("costDetail").classList = "bg-secondary text-white"
   if (document.getElementById('blackBelt').checked) {
-    document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn;
+    document.getElementById("costDetail").innerHTML = blackBelt + early_reg_warn + addl_cost_info;
     document.getElementById("sparring").hidden = true;
     document.getElementById("sparring-gr").hidden = false;
     document.getElementById("sparring-wc").hidden = false;
   }
   else {
-    document.getElementById("costDetail").innerHTML = colorBelt + early_reg_warn
+    document.getElementById("costDetail").innerHTML = colorBelt + early_reg_warn + addl_cost_info;
     document.getElementById("sparring").hidden = false;
     document.getElementById("sparring-gr").hidden = true;
     document.getElementById("sparring-wc").hidden = true;
   }
-  document.getElementById("costDetail").classList = "bg-secondary text-white"
   toggleBlackBeltDanSection()
   updateTotal()
 }
