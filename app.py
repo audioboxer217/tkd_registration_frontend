@@ -570,22 +570,33 @@ def handle_form():
 def success_page():
     # Code to have 'convenience fee' transfered to separate acct ###
     price_dict = get_price_details()
-    session = stripe.checkout.Session.retrieve(request.args.get("session_id"))
-    paymentIntent = stripe.PaymentIntent.retrieve(session.payment_intent)
-    stripe.Transfer.create(
-        amount=int(price_dict["Convenience Fee"]["price"]) * 100,
-        currency="usd",
-        source_transaction=paymentIntent.latest_charge,
-        destination=os.getenv("CONNECT_ACCT"),
-    )
+    full_session = stripe.checkout.Session.retrieve(request.args.get("session_id"), expand=["payment_intent"])
+    payment_intent = full_session.payment_intent
+    if payment_intent:
+        print(f"Payment Intent ID: {payment_intent.id}")
+        transfer_group = payment_intent.transfer_group
+        if transfer_group:
+            print(f"Transfer already completed: {transfer_group}")
+        else:
+            transfer_obj = stripe.Transfer.create(
+                amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+                currency="usd",
+                source_transaction=payment_intent.latest_charge,
+                destination=os.getenv("CONNECT_ACCT"),
+            )
+            print(f"Transfer created: {transfer_obj.transfer_group}")
     page_params = {
         "reg_type": request.args.get("reg_type"),
         "session_id": request.args.get("session_id"),
         "email": os.getenv("CONTACT_EMAIL"),
-        "competition_name": os.getenv("COMPETITION_NAME"),
     }
     if request.headers.get("HX-Request"):
-        return render_template("success.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+        return render_template(
+            "success.html",
+            button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+            competition_name=os.getenv("COMPETITION_NAME"),
+            **page_params,
+        )
     else:
         return render_base("success.html", **page_params)
 
