@@ -1,0 +1,80 @@
+<div class="row justify-content-md-center">
+    <div class="col-md-12 center-block" align="center">
+        <h1>Update Schools</h1>
+    </div>
+</div>
+<div class="row justify-content-md-center">
+    <div class="col-md-12 center-block" align="center">
+        <form hx-post="/api/upload/schools" hx-trigger="click" hx-target="#admin-content-div" hx-swap="innerHTML">
+            <input type="text" id="schoolList" name="schoolList" value="{{ schools | join(',') }}" hidden>
+            <button type="submit" class="btn {{ button_style }}">Save</button>
+        </form>
+    </div>
+</div>
+<div class="row g-3 mt-2 justify-content-md-center">
+    <div class="col-md-4"></div>
+    <div class="col-md-6">
+        <form hx-post="/api/schools/add" hx-target="#school-list" hx-swap="beforeend" hx-include="#schoolList"
+            hx-on::after-request="this.reset()">
+            <input type="text" name="school" placeholder="New school..." required>
+            <button id="add_school_btn" type="submit" class="btn {{ button_style }}" hx-replace-url="false"
+                hx-push-url="false">Add</button>
+        </form>
+    </div>
+    <div class="col-md-2"></div>
+</div>
+<div class="row g-3 mt-1 justify-content-md-center" id="school-list">
+    {% for school in schools %}
+    <div class="row g-3 mt-2" id="row-{{ loop.index0 if loop is defined else index }}">
+        <div class="col-md-4"></div>
+        <div class="col-md-4">
+            <input type="text" class="form-control" id="item-{{ loop.index0 if loop is defined else index }}"
+                value="{{ school }}" disabled>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn"
+                hx-delete="/api/schools/remove/{{ loop.index0 if loop is defined else index }}"
+                hx-target="#row-{{ loop.index0 if loop is defined else index }}" hx-trigger="click"
+                hx-include="#schoolList" hx-replace-url="false" hx-push-url="false" hx-swap="outerHTML">
+                ❌
+            </button>
+        </div>
+        <div class="col-md-2"></div>
+    </div>
+    {% endfor %}
+</div>
+<!-- <form action="/api/schools" method="post" enctype=multipart/form-data id="eventRegistration">
+    <div class="row g-3 mt-2 justify-content-md-center">
+        <div class="col-md-12">
+            {% for school in schools %}
+            <div class="row mt-3" id="{{ school }}Entry">
+                <div class="col-md-4"></div>
+                <div class="col-md-4">
+                    <input type="text" class="form-control" name="schoolList" id="{{ school }}" value="{{ school }}"
+                        disabled>
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn {{ button_style }}" hx-post="/api/school/remove/{{ school }}"
+                        hx-target="#lookupOptions" hx-trigger="click" hx-replace-url="false" hx-push-url="false">
+                        ❌
+                    </button>
+                </div>
+                <div class="col-md-2"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="row g-3 mt-2">
+        <div class="col-md-4"></div>
+        <div class="col-sm-2">
+            <button id="add_row_btn" class="btn {{ button_style }}">Add</button>
+        </div>
+        <div class="col-md-6"></div>
+    </div>
+    <div class="row g-3 mt-2 justify-content-md-center">
+        <div class="col-md-4">
+            <button id="submit_btn" type="submit" class="btn {{ button_style }}">Update</button>
+            <a class="btn {{ button_style }}" href="/admin" role="button" target="_blank">Cancel</a>
+        </div>
+    </div>
+</form> -->
