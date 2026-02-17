@@ -707,22 +707,65 @@ def upload_form(resource):
 
 @app.route("/api/upload/<string:resource>", methods=["POST"])
 def upload_item(resource):
-    upload_item = request.files["uploadFile"]
-    if resource == "schedule":
-        bucket = app.config["configBucket"]
-        filename = "schedule.png"
-    elif resource == "booklet":
-        bucket = app.config["mediaBucket"]
-        filename = "information_booklet.pdf"
+    if resource == "schedule" or resource == "booklet":
+        upload_conf_dict = {
+            "schedule": {"bucket": "configBucket", "filename": "schedule.png"},
+            "booklet": {"bucket": "mediaBucket", "filename": "information_booklet.pdf"},
+        }
+        upload_item = request.files["uploadFile"]
+        bucket = app.config[upload_conf_dict[resource]["bucket"]]
+        filename = upload_conf_dict[resource]["bucket"]
 
-    s3.upload_fileobj(
-        upload_item,
-        bucket,
-        filename,
-    )
+        s3.upload_fileobj(
+            upload_item,
+            bucket,
+            filename,
+        )
+    elif resource == "schools":
+        schools = list(set(request.form.get("schoolList").split(",")))
+        if "REMOVE" in schools:
+            schools.remove("REMOVE")
+        schools.sort()
+        schools_json = json.dumps(schools)
 
-    flash(f"{resource} updated successfully!", "success")
-    return redirect(f'{app.config["URL"]}/admin', code=303)
+        s3.put_object(Bucket=app.config["configBucket"], Key="schools.json", Body=schools_json, ContentType="application/json")
+
+    flash(f"{resource.capitalize()} updated successfully!", "success")
+    return redirect(f"{url_for('admin_page')}?redirect=True", code=303)
+
+
+@app.route("/schools", methods=["GET"])
+@login_required
+def schools_page():
+    schools_json = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+
+    if request.headers.get("HX-Request"):
+        return render_template("api/schools.html", schools=schools_json, button_style=os.getenv("BUTTON_STYLE", "btn-primary"))
+    else:
+        return render_base("api/schools.html", schools=schools_json)
+
+
+@app.route("/api/schools/add", methods=["POST"])
+def add_item():
+    school = request.form.get("school")
+    school_list = request.form.get("schoolList").split(",")
+    if school:
+        school_list.append(school)
+        # school_list.sort()
+        # idx = school_list.index(school)
+    return render_template("school_fragment.html", school=school, index=len(school_list) - 1, schools=school_list)  # idx)
+
+
+@app.route("/api/schools/remove/<int:index>", methods=["DELETE"])
+def remove_school(index):
+    school_list = request.args.get("schoolList").split(",")
+    school_list[index] = "REMOVE"
+    schools = ",".join(school_list)
+    return render_template_string(
+        f"""
+        <input type="text"  hx-swap-oob="true" id="schoolList" name="schoolList" value="{schools}" hidden>
+        """,
+    ), 200
 
 
 @app.route("/information", methods=["GET"])
@@ -806,17 +849,21 @@ def entries_page():
         return render_base("entries.html")
 
 
-@app.route("/admin")
+@app.route("/admin", methods=["GET"])
 @login_required
 def admin_page():
     entries = dynamodb.scan(
         TableName=app.config["reg_table_name"],
     )["Items"]
     page_params = {"entries": entries}
+
+    redirect = bool(request.args.get("redirect"))
+    page_template = "admin.html" if not redirect else "admin_entries.html"
+
     if request.headers.get("HX-Request"):
-        return render_template("admin.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+        return render_template(page_template, button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
     else:
-        return render_base("admin.html", **page_params)
+        return render_base(page_template, **page_params)
 
 
 @app.route("/add_entry")

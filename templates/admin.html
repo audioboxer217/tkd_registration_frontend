@@ -2,9 +2,13 @@
     <div class="col-md-6" align="left">
         <a class="btn {{ button_style }}" href="/export" role="button">Export</a>
         <a class="btn {{ button_style }}" hx-get="/upload/schedule" hx-trigger="click" hx-target="#admin-content-div"
+            hx-swap="innerHTML"
             hx-replace-url="true" hx-push-url="true" role="button">Upload Schedule</a>
         <a class="btn {{ button_style }}" hx-get="/upload/booklet" hx-trigger="click" hx-target="#admin-content-div"
+            hx-swap="innerHTML"
             hx-replace-url="true" hx-push-url="true" role="button">Upload Information Booklet</a>
+        <a class="btn {{ button_style }}" hx-get="/schools" hx-trigger="click" hx-target="#admin-content-div"
+            hx-swap="innerHTML" hx-replace-url="true" hx-push-url="true" role="button">Update Schools</a>
     </div>
     <div class="col-md-6" align="right">
         <a class="btn {{ button_style }}" hx-get="/add_entry?reg_type=competitor" hx-trigger="click"
@@ -15,90 +19,5 @@
     </div>
 </div>
 <div id="admin-content-div">
-    <div class="row">
-        <div class="col-md-12 center-block" align="center">
-            <h1>Entries</h1>
-        </div>
+    {% include "admin_entries.html" %}
     </div>
-    <div class="table-responsive">
-        <table id="entries" class="display table table-striped table-hover dt-responsive">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Type</th>
-                    <th>School</th>
-                    <th>Edit</th>
-                </tr>
-            </thead>
-            <tfoot>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Type</th>
-                    <th>School</th>
-                    <th>Edit</th>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
-</div>
-<script>
-    $(document).ready(function () {
-        var table = $('#entries').DataTable({
-            reponsive: true,
-            ajax: '/api/entries',
-            searchPanes: {
-                cascadePanes: true,
-                initCollapsed: true,
-            },
-            columns: [
-                {
-                    targets: 0,
-                    data: "full_name.S"
-                },
-                {
-                    target: 1,
-                    data: "email.S",
-                    searchable: true,
-                },
-                {
-                    target: 2,
-                    data: "phone.S",
-                    searchable: true,
-                },
-                {
-                    target: 3,
-                    data: "reg_type.S",
-                    searchable: true,
-                    searchPanes: {
-                        show: true
-                    }
-                },
-                {
-                    target: 4,
-                    data: "school.S",
-                    searchable: true,
-                    searchPanes: {
-                        show: true
-                    }
-                },
-                {
-                    target: 5,
-                    data: "pk.S",
-                    searchable: false,
-                    render: {
-                        _: function (data, type, row) {
-                            return '<a class="btn {{ button_style }}" href="/edit_entry?pk=' + data + '" role="button">Edit</a>';
-                        }
-                    }
-
-                }
-            ],
-        });
-        table.searchPanes.container().prependTo(table.table().container());
-        table.searchPanes.resizePanes();
-    });
-</script>

@@ -1,0 +1,17 @@
+<div class="row g-3 mt-2" id="row-{{ loop.index0 if loop is defined else index }}">
+    <div class="col-md-4"></div>
+    <div class="col-md-4">
+        <input type="text" class="form-control" id="item-{{ loop.index0 if loop is defined else index }}"
+            value="{{ school }}" disabled>
+    </div>
+    <div class="col-md-2">
+        <button type="button" class="btn"
+            hx-delete="/api/schools/remove/{{ loop.index0 if loop is defined else index }}"
+            hx-target="#row-{{ loop.index0 if loop is defined else index }}" hx-trigger="click" hx-include="#schoolList"
+            hx-replace-url="false" hx-push-url="false" hx-swap="outerHTML">
+            ❌
+        </button>
+    </div>
+    <div class="col-md-2"></div>
+</div>
+<input type="text" hx-swap-oob="true" id="schoolList" name="schoolList" value="{{ schools | join(',') }}" hidden>
