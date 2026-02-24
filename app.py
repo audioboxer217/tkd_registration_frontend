@@ -485,7 +485,7 @@ def handle_form():
                     },
                 ]
             else:
-                registration_items.append = (
+                registration_items.append(
                     {
                         "price": price_dict["Little Dragon Obstacle Course"]["price_id"],
                         "quantity": 1,
