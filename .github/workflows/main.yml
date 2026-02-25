@@ -50,4 +50,4 @@ jobs:
         CONTACT_EMAIL: "${{ vars.CONTACT_EMAIL }}"
         EARLY_REG_DATE: "${{ vars.EARLY_REG_DATE }}"
         REG_CLOSE_DATE: "${{ vars.REG_CLOSE_DATE }}"
-      run: uv run pytest -qrA --tb=no >> $GITHUB_STEP_SUMMARY
+      run: uv run pytest  >> $GITHUB_STEP_SUMMARY
