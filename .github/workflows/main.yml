@@ -19,9 +19,7 @@ jobs:
     - name: Set ENVIRONMENT variable based on branch
       run: |
         BRANCH_NAME="${{ github.ref_name }}"
-        if [[ "$BRANCH_NAME" == "main" ]]; then
-          echo "ENVIRONMENT=production" >> "$GITHUB_ENV"
-        elif [[ "$BRANCH_NAME" == "env/okgp" ]]; then
+        if [[ "$BRANCH_NAME" == "main" || "$BRANCH_NAME" == "env/okgp" ]]; then
           echo "ENVIRONMENT=OKGP" >> "$GITHUB_ENV"
         else
           echo "ENVIRONMENT=OKCC" >> "$GITHUB_ENV"
