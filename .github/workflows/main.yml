@@ -47,7 +47,10 @@ jobs:
     - name: Run Tests
       env:
         COMPETITION_NAME: "${{ vars.COMPETITION_NAME }}"
+        CONFIG_BUCKET: "${{ vars.CONFIG_BUCKET }}"
         CONTACT_EMAIL: "${{ vars.CONTACT_EMAIL }}"
         EARLY_REG_DATE: "${{ vars.EARLY_REG_DATE }}"
+        PUBLIC_MEDIA_BUCKET: "${{ vars.PUBLIC_MEDIA_BUCKET }}"
         REG_CLOSE_DATE: "${{ vars.REG_CLOSE_DATE }}"
+        STRIPE_API_KEY: "${{ vars.STRIPE_API_KEY }}"
       run: uv run pytest  >> $GITHUB_STEP_SUMMARY
