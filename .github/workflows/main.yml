@@ -1,8 +1,11 @@
-name: 'Frontend Tests'
+name: Main Frontend Tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+    - "main"
+    - "env/okgp"
+    - "env/okc-chmp"
   pull_request:
 
 permissions:
@@ -10,64 +13,22 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: 'Frontend Tests'
+  frontend_tests:
     runs-on: ubuntu-latest
-    environment: Test
-
-    defaults:
-      run:
-        shell: bash
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-        role-session-name: FrontendTest
-        aws-region: ${{ vars.AWS_DEFAULT_REGION }}
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        # Install a specific version of uv.
-        version: "0.6.3"
-
-    - name: Set up Python
-      run: uv python install
-
-    - name: Install the project
-      run: uv sync --all-extras --dev
+    - name: Set ENVIRONMENT variable based on branch
+      run: |
+        BRANCH_NAME="${{ github.ref_name }}"
+        if [[ "$BRANCH_NAME" == "main" ]]; then
+          echo "ENVIRONMENT=production" >> "$GITHUB_ENV"
+        elif [[ "$BRANCH_NAME" == "env/okgp" ]]; then
+          echo "ENVIRONMENT=OKGP" >> "$GITHUB_ENV"
+        else
+          echo "ENVIRONMENT=OKCC" >> "$GITHUB_ENV"
+        fi
+      shell: bash
 
     - name: Run Tests
-      env:
-        COMPETITION_NAME: "${{ vars.COMPETITION_NAME }}"
-        COMPETITION_YEAR: "${{ vars.COMPETITION_YEAR }}"
-        EARLY_REG_DATE: "${{ vars.EARLY_REG_DATE }}"
-        REG_CLOSE_DATE: "${{ vars.REG_CLOSE_DATE }}"
-        BADGE_BUCKET: "${{ vars.BADGE_BUCKET }}"
-        CONFIG_BUCKET: "${{ vars.CONFIG_BUCKET }}"
-        CONTACT_EMAIL: "${{ vars.CONTACT_EMAIL }}"
-        DB_TABLE: "${{ vars.DB_TABLE }}"
-        MAPS_API_KEY: "${{ secrets.MAPS_API_KEY }}"
-        PROFILE_PIC_BUCKET: "${{ vars.PROFILE_PIC_BUCKET }}"
-        PUBLIC_MEDIA_BUCKET: "${{ vars.PUBLIC_MEDIA_BUCKET }}"
-        REG_URL: "${{ vars.REG_URL }}"
-        SQS_QUEUE_URL: "${{ vars.SQS_QUEUE_URL }}"
-        STRIPE_API_KEY: "${{ secrets.STRIPE_API_KEY }}"
-        VISITOR_INFO_URL: "${{ vars.VISITOR_INFO_URL }}"
-        VISITOR_INFO_TEXT: "${{ vars.VISITOR_INFO_TEXT }}"
-      run: uv run pytest -qrA --tb=no >> $GITHUB_STEP_SUMMARY
-
-  security:
-    runs-on: ubuntu-latest
-    environment: Test
-    steps:
-      - uses: actions/checkout@main
-      - name: Run Safety CLI to check for vulnerabilities
-        uses: pyupio/safety-action@v1
-        with:
-          api-key: "${{ secrets.SAFETY_API_KEY }}"
+      uses: ./.github/workflows/frontend_tests.yml
+      with:
+        environment: $ENVIRONMENT
