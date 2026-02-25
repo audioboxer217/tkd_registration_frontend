@@ -14,6 +14,10 @@ class TestHomepage:
     def test_response_code(self):
         assert self.response.status_code == 200
 
+    def test_competition_name(self):
+        competition_name = os.environ.get("COMPETITION_NAME")
+        assert competition_name.encode() in self.response.data
+
     def test_early_reg(self):
         html_line = f'<h2>Early Registration Ends <font color="red">{os.environ.get("EARLY_REG_DATE")}'
         assert html_line.encode() in self.response.data
