@@ -13,9 +13,24 @@ permissions:
   contents: read
 
 jobs:
-  frontend_tests:
+  setup:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        # Install a specific version of uv.
+        version: "0.6.3"
+
+    - name: Set up Python
+      run: uv python install
+
+    - name: Install the project
+      run: uv sync --all-extras --dev
+
     - name: Set ENVIRONMENT variable based on branch
       run: |
         BRANCH_NAME="${{ github.ref_name }}"
@@ -26,7 +41,7 @@ jobs:
         fi
       shell: bash
 
-    - name: Run Tests
+    - name: Run Frontend Tests
       uses: ./.github/workflows/frontend_tests.yml
       with:
         environment: $ENVIRONMENT
