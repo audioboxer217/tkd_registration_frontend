@@ -9,6 +9,7 @@ dependencies = [
     "boto3~=1.36.6",
     "email-validator>=2.2.0",
     "flask~=3.1.0",
+    "pytz>=2025.2",
     "stripe~=11.4.1",
 ]
 
