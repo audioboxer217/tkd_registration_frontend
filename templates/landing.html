@@ -1,6 +1,6 @@
 <div class="row justify-content-md-center mt-4">
     <div class="col" align="center">
-    {% if today < early_reg_date %} <h2>Early Registration Ends <font color="red">{{early_reg_date.strftime("%B %d, %Y")}}
+    {% if early_reg_date and today < early_reg_date %} <h2>Early Registration Ends <font color="red">{{early_reg_date.strftime("%B %d, %Y")}}
         </font>
         </h2>
         {% endif %}
