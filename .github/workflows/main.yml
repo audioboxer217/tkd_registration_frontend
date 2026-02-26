@@ -54,4 +54,6 @@ jobs:
         PUBLIC_MEDIA_BUCKET: "${{ vars.PUBLIC_MEDIA_BUCKET }}"
         REG_CLOSE_DATE: "${{ vars.REG_CLOSE_DATE }}"
         STRIPE_API_KEY: "${{ vars.STRIPE_API_KEY }}"
-      run: uv run pytest  >> $GITHUB_STEP_SUMMARY
+      run: |
+        set -o pipefail
+        uv run pytest 2>&1 | tee -a $GITHUB_STEP_SUMMARY
