@@ -134,10 +134,11 @@ def render_base(content_file, **page_params):
     user = session.get("user")
     if user and "Admins" in user.get("cognito:groups", []):
         page_params["admin"] = True
+    s3_favicon = get_s3_file(app.config["mediaBucket"], "favicon.png")
     return render_template(
         "base.html",
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+        favicon_url=url_for("static", filename=s3_favicon) if s3_favicon else None,
         event_city=os.getenv("EVENT_CITY", None),
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
         form_js=url_for("static", filename="js/form.js"),
@@ -161,12 +162,13 @@ def index():
             early_reg_date = datetime.strptime(early_reg_date_str, "%B %d, %Y").replace(tzinfo=app.config["TZ_LOCAL"]) if early_reg_date_str else None
         except ValueError:
             early_reg_date = None
+    s3_poster = get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")
     page_params = {
         "today": convert_to_local(datetime.today()),
         "email": os.getenv("CONTACT_EMAIL"),
         "early_reg_date": early_reg_date,
         "reg_close_date": os.getenv("REG_CLOSE_DATE"),
-        "poster_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
+        "poster_url": url_for("static", filename=s3_poster) if s3_poster else None,
     }
     if request.headers.get("HX-Request"):
         return render_template("landing.html", **page_params)
