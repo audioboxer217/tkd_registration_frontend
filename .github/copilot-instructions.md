@@ -9,7 +9,6 @@ This is the **Frontend** of the TKD Registration Project — a Flask-based web a
 - **Language**: Python 3.11+
 - **Web Framework**: Flask ~3.1.0
 - **Package Manager**: [uv](https://github.com/astral-sh/uv)
-- **Task Runner**: [just](https://github.com/casey/just) (see `justfile`)
 - **Linter**: [ruff](https://github.com/astral-sh/ruff) (config in `ruff.toml`)
 - **Test Framework**: pytest
 - **Deployment**: [Zappa](https://github.com/Zappa/Zappa) to AWS Lambda
@@ -18,11 +17,13 @@ This is the **Frontend** of the TKD Registration Project — a Flask-based web a
 
 ## Development Environment Setup
 
-1. Install `uv` (bootstrapped via `just bootstrap`):
+1. Install `uv`:
    ```bash
-   just bootstrap
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   uv python install
+   uv sync --all-extras --dev
    ```
-   This installs `uv`, the correct Python version, and all dependencies including dev.
+   This installs the correct Python version and all dependencies including dev.
 
 2. Create a `frontend.env` file with required environment variables (see `README.md` for the full list).
 
@@ -68,7 +69,6 @@ templates/          # Jinja2 HTML templates
 static/             # Static assets (CSS, images, etc.)
 tests/              # pytest test suite
 envs/               # Zappa deployment config YAML files (one per environment)
-justfile            # Common developer tasks
 pyproject.toml      # Project metadata and dependencies
 ruff.toml           # Ruff linter configuration
 ```
@@ -93,13 +93,13 @@ ruff.toml           # Ruff linter configuration
 
 ## Deployment
 
-Deployments use Zappa with per-environment config files in `envs/`. Use `just` targets:
+Deployments use Zappa with per-environment config files in `envs/`:
 
 ```bash
-just deploy <account> <env>   # First-time deploy
-just update <account> <env>   # Update existing deployment
-just certify <account> <env>  # Set up custom domain TLS cert
-just status <account> <env>   # Check deployment status
-just logs <account> <env>     # Tail live logs
-just undeploy <account> <env> # Tear down deployment
+uv run zappa deploy <env> -s envs/<account>.yml   # First-time deploy
+uv run zappa update <env> -s envs/<account>.yml   # Update existing deployment
+uv run zappa certify <env> -s envs/<account>.yml  # Set up custom domain TLS cert
+uv run zappa status <env> -s envs/<account>.yml   # Check deployment status
+uv run zappa tail <env> -s envs/<account>.yml     # Tail live logs
+uv run zappa undeploy <env> -s envs/<account>.yml # Tear down deployment
 ```
