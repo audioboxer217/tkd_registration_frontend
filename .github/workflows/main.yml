@@ -19,7 +19,8 @@ jobs:
       ${{
         github.ref_name == 'main' && 'OKGP'
       || github.ref_name == 'env/okgp' && 'OKGP'
-      ||                                'OKCC'
+      || github.base_ref == 'main' && 'OKGP'
+      ||                              'OKCC'
       }}
     steps:
     - name: Checkout

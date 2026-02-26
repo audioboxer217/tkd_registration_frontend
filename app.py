@@ -150,12 +150,16 @@ def render_base(content_file, **page_params):
 
 @app.route("/", methods=["GET"])
 def index():
+    early_reg_date_str = os.getenv("EARLY_REG_DATE")
+    try:
+        early_reg_date = datetime.strptime(early_reg_date_str, "%B %d, %Y").replace(tzinfo=app.config["TZ_LOCAL"]) if early_reg_date_str else None
+    except ValueError:
+        print(f"Invalid EARLY_REG_DATE format '{early_reg_date_str}'. Expected format: 'Month DD, YYYY' (e.g., 'March 08, 2026')")
+        early_reg_date = None
     page_params = {
         "today": convert_to_local(datetime.today()),
         "email": os.getenv("CONTACT_EMAIL"),
-        "early_reg_date": datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).replace(
-            tzinfo=app.config["TZ_LOCAL"]
-        ),
+        "early_reg_date": early_reg_date,
         "reg_close_date": os.getenv("REG_CLOSE_DATE"),
         "poster_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
     }
