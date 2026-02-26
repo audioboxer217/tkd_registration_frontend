@@ -143,7 +143,7 @@ def render_base(content_file, **page_params):
 def index():
     page_params = {
         "email": os.getenv("CONTACT_EMAIL"),
-        "early_reg_date": datetime.fromtimestamp(stripe.Coupon.list(limit=1).data[0]["redeem_by"]).strftime("%B %d, %Y"),
+        "early_reg_date": os.getenv("EARLY_REG_DATE"),
         "reg_close_date": os.getenv("REG_CLOSE_DATE"),
         "poster_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")),
     }
