@@ -2,6 +2,7 @@ import io
 import json
 import os
 import sys
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 base_path = os.path.dirname(os.path.realpath(__file__))
@@ -333,7 +334,8 @@ class TestBirthdateValidation:
         assert b"is-invalid" in response.data
 
     def test_too_young_birthdate(self):
-        response = self.client.post("/api/validate/birthdate", data={"birthdate": "2025-01-01"})
+        too_young_date = (datetime.now() - timedelta(days=3 * 365)).strftime("%Y-%m-%d")
+        response = self.client.post("/api/validate/birthdate", data={"birthdate": too_young_date})
         assert response.status_code == 200
         assert b"is-invalid" in response.data
 
