@@ -1,0 +1,16 @@
+{% macro poomsae_options(include_freestyle=False) %}
+<option selected value="">Choose...</option>
+{% if include_freestyle %}<option value="Freestyle">Freestyle</option>{% endif %}
+<option value="1">Taegeuk 1 Jang</option>
+<option value="2">Taegeuk 2 Jang</option>
+<option value="3">Taegeuk 3 Jang</option>
+<option value="4">Taegeuk 4 Jang</option>
+<option value="5">Taegeuk 5 Jang</option>
+<option value="6">Taegeuk 6 Jang</option>
+<option value="7">Taegeuk 7 Jang</option>
+<option value="8">Taegeuk 8 Jang</option>
+<option value="Koryo">Koryo</option>
+<option value="Keumgang">Keumgang</option>
+<option value="Taebaek">Taebaek</option>
+<option value="Pyongwon">Pyongwon</option>
+{% endmacro %}
