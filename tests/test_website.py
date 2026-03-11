@@ -43,7 +43,7 @@ def make_stripe_product_mock():
         product.default_price = f"price_{name.replace(' ', '_').lower()}"
         products.append(product)
     product_list = MagicMock()
-    product_list.__iter__ = lambda self: iter(products)
+    product_list.__iter__.return_value = iter(products)
     return product_list
 
 
