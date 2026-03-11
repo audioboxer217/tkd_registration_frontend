@@ -83,6 +83,9 @@ class TestAuthRoutes:
     client = app.test_client()
 
     def test_login_redirects(self):
+        # The login route redirects to Cognito OAuth. Without COGNITO_AUTHORITY_URL
+        # configured (as in the test environment), the OAuth call may fail with a 500.
+        # In production with proper Cognito configuration, this will always be a 302.
         response = self.client.get("/login")
         assert response.status_code in (302, 500)
 
