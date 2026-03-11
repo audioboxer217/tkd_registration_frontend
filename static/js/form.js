@@ -338,6 +338,7 @@ function updateEventList(clickedEvent, calculateTotal=true) {
     updateTotal();
   }
   getPoomsaeForms("poomsae")
+  getPoomsaeForms("world-class poomsae")
   getPoomsaeForms("pair poomsae")
   getPoomsaeForms("team poomsae")
   getPoomsaeForms("family poomsae")

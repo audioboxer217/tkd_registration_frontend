@@ -88,6 +88,34 @@
     <div class="row">
       <div class="col-sm-4">
         <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="events" id="world-class poomsae"
+            onclick="updateEventList(this.id)">
+          <label class="form-check-label" for="world-class poomsae">World Class Poomsae</label>
+        </div>
+      </div>
+      <div class="col-sm-5" id="world-class poomsaeFormSection" hidden>
+        <div class="form-check">
+          <select class="form-select" name="world-class poomsae form" id="world-class poomsae form">
+            <option selected value="">Choose...</option>
+            <option value="1">Taegeuk 1 Jang</option>
+            <option value="2">Taegeuk 2 Jang</option>
+            <option value="3">Taegeuk 3 Jang</option>
+            <option value="4">Taegeuk 4 Jang</option>
+            <option value="5">Taegeuk 5 Jang</option>
+            <option value="6">Taegeuk 6 Jang</option>
+            <option value="7">Taegeuk 7 Jang</option>
+            <option value="8">Taegeuk 8 Jang</option>
+            <option value="Koryo">Koryo</option>
+            <option value="Keumgang">Keumgang</option>
+            <option value="Taebaek">Taebaek</option>
+            <option value="Pyongwon">Pyongwon</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-4">
+        <div class="form-check">
           <input class="form-check-input" type="checkbox" name="events" id="pair poomsae"
             onclick="updateEventList(this.id)">
           <label class="form-check-label" for="pair poomsae">Pair Poomsae</label>
