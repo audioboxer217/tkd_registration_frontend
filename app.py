@@ -970,11 +970,11 @@ def add_entry():
                 coach={"S": coach},
                 beltRank={"S": belt},
                 events={"S": eventList},
-                poomsae_form={"S": request.form.get("poomsae form")},
-                wc_poomsae_form={"S": request.form.get("world-class poomsae form")},
-                pair_poomsae_form={"S": request.form.get("pair poomsae form")},
-                team_poomsae_form={"S": request.form.get("team poomsae form")},
-                family_poomsae_form={"S": request.form.get("family poomsae form")},
+                poomsae_form={"S": request.form.get("poomsae form", "")},
+                wc_poomsae_form={"S": request.form.get("world-class poomsae form", "")},
+                pair_poomsae_form={"S": request.form.get("pair poomsae form", "")},
+                team_poomsae_form={"S": request.form.get("team poomsae form", "")},
+                family_poomsae_form={"S": request.form.get("family poomsae form", "")},
                 medical_form={"M": medical_form},
             )
         )
