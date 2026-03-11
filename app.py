@@ -348,10 +348,9 @@ def display_form():
     if today > reg_close_date:
         page_params = {
             "email": os.getenv("CONTACT_EMAIL"),
-            "competition_name": os.getenv("COMPETITION_NAME"),
         }
         if request.headers.get("HX-Request"):
-            return render_template("disabled.html", **page_params)
+            return render_template("disabled.html", competition_name=os.getenv("COMPETITION_NAME"), **page_params)
         else:
             return render_base("disabled.html", **page_params)
     else:
@@ -618,10 +617,14 @@ def error_page():
     page_params = {
         "reg_type": request.args.get("reg_type"),
         "email": os.getenv("CONTACT_EMAIL"),
-        "competition_name": os.getenv("COMPETITION_NAME"),
     }
     if request.headers.get("HX-Request"):
-        return render_template("registration_error.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+        return render_template(
+            "registration_error.html",
+            button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+            competition_name=os.getenv("COMPETITION_NAME"),
+            **page_params,
+        )
     else:
         return render_base("registration_error.html", **page_params)
 
@@ -889,8 +892,6 @@ def add_entry_form():
         "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"]),
         "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
         "badge_enabled": badges_enabled,
-        "address_enabled": address_enabled,
-        "maps_api_key": maps_api_key,
         "reg_type": reg_type,
         "schools": school_list,
         "enable_badges": badges_enabled,
@@ -1105,11 +1106,12 @@ def generate_csv():
         },
     )["Items"]
     entries = sorted(data, key=lambda item: item["full_name"]["S"].split()[-1])
+    s3_favicon = get_s3_file(app.config["mediaBucket"], "favicon.png")
     return render_template(
         "export.html",
         competition_year=os.getenv("COMPETITION_YEAR"),
         competition_name=os.getenv("COMPETITION_NAME"),
-        favicon_url=url_for("static", filename=get_s3_file(app.config["mediaBucket"], "favicon.png")),
+        favicon_url=url_for("static", filename=s3_favicon) if s3_favicon else None,
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
         entries=entries,
     )
