@@ -1058,6 +1058,7 @@ def edit_entry():
                 belt = "Master"
             else:
                 belt = f"{dan} degree {belt}"
+        eventList = request.form.get("eventList")
         form_data.update(
             dict(
                 parent={"S": request.form.get("parentName")},
@@ -1068,6 +1069,7 @@ def edit_entry():
                 height={"N": request.form.get("height")},
                 coach={"S": request.form.get("coach").strip()},
                 beltRank={"S": belt},
+                events={"S": eventList},
                 poomsae_form={"S": request.form.get("poomsae form")},
                 pair_poomsae_form={"S": request.form.get("pair poomsae form")},
                 team_poomsae_form={"S": request.form.get("team poomsae form")},

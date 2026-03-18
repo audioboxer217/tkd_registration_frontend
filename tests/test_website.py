@@ -546,6 +546,40 @@ class TestEditEntryForm:
         assert response.status_code == 200
 
 
+    def test_edit_entry_updates_events(self):
+        client = app.test_client()
+        make_admin_session(client)
+        form_data = {
+            "full_name": "John Doe",
+            "email": "john@example.com",
+            "phone": "123-456-7890",
+            "school": "Test School",
+            "regType": "competitor",
+            "parentName": "",
+            "birthdate": "2005-06-15",
+            "age": "19",
+            "gender": "M",
+            "weight": "150",
+            "height": "68",
+            "coach": "Coach Smith",
+            "beltRank": "black",
+            "blackBeltDan": "1",
+            "eventList": "sparring,breaking",
+            "poomsae form": "",
+            "pair poomsae form": "",
+            "team poomsae form": "",
+            "family poomsae form": "",
+        }
+        with patch("app.dynamodb") as mock_db, patch("app.get_s3_file", return_value=None):
+            mock_db.update_item.return_value = {}
+            response = client.post("/edit?pk=TestSchool-competitor-John_Doe", data=form_data)
+        assert response.status_code == 303
+        call_kwargs = mock_db.update_item.call_args.kwargs
+        expression_values = call_kwargs["ExpressionAttributeValues"]
+        assert ":events" in expression_values
+        assert expression_values[":events"] == {"S": "sparring,breaking"}
+
+
 class TestExportPage:
     """Test export page with authenticated admin session."""
 
