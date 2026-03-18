@@ -299,18 +299,6 @@ function updateEventList(clickedEvent, calculateTotal=true) {
     }
   }
   else if (clickedEvent == 'sparring-wc') {
-  if (clickedEvent == 'little_dragon') {
-    if (document.getElementById("little_dragon").checked) {
-      document.getElementById("t-shirt_option").hidden = false;
-      document.getElementById("t-shirt").required = true;
-    }
-    else {
-      document.getElementById("t-shirt_option").hidden = true;
-      document.getElementById("t-shirt").value = "";
-      document.getElementById("t-shirt").required = false;
-    }
-  }
-  else if (clickedEvent == 'sparring-wc') {
     document.getElementById("sparring-gr").checked = false;
   }
   else if (clickedEvent == 'sparring-gr') {
@@ -327,7 +315,6 @@ function updateEventList(clickedEvent, calculateTotal=true) {
       choicesElement.value = '';
     }
   }
-}
 
   var checked_items = document.querySelectorAll('input[name="events"]:checked')
   for (i = 0; i < checked_items.length; i++) {
