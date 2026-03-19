@@ -67,8 +67,13 @@ class TestHomepage:
         assert competition_name.encode() in self.response.data
 
     def test_early_reg(self):
-        html_line = f'<h2>Early Registration Ends <font color="red">{os.environ.get("EARLY_REG_DATE")}'
-        assert html_line.encode() in self.response.data
+        early_reg_date_str = os.environ.get("EARLY_REG_DATE")
+        html_line = f'<h2>Early Registration Ends <font color="red">{early_reg_date_str}'
+        early_reg_date = datetime.strptime(early_reg_date_str, "%B %d, %Y")
+        if datetime.now() < early_reg_date:
+            assert html_line.encode() in self.response.data
+        else:
+            assert html_line.encode() not in self.response.data
 
     def test_reg_close(self):
         html_line = f'<h2>Registration Closes <font color="red">{os.environ.get("REG_CLOSE_DATE")}</font>'
