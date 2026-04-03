@@ -1,0 +1,18 @@
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <h2 class="mb-4 text-center">Admin Login</h2>
+        <form method="POST" action="{{ url_for('ui.login_post') }}">
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" name="email" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            <div class="d-grid">
+                <button type="submit" class="btn {{ button_style | default('btn-primary') }}">Login</button>
+            </div>
+        </form>
+    </div>
+</div>
