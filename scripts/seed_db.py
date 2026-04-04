@@ -11,8 +11,6 @@ import os
 import uuid
 from pathlib import Path
 
-confirm_db_url()
-
 from app import app
 from models import Registration, db
 
@@ -82,6 +80,7 @@ def make_checkout_session_id():
 
 def seed():
     with app.app_context():
+        confirm_db_url(app.config["SQLALCHEMY_DATABASE_URI"])
         db.create_all()
 
         existing = db.session.query(Registration).count()

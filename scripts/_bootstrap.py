@@ -6,6 +6,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 
 def add_repo_root_to_path() -> None:
     """Ensure repository root is importable when running scripts from scripts/."""
@@ -15,11 +17,8 @@ def add_repo_root_to_path() -> None:
         sys.path.insert(0, root_str)
 
 
-def confirm_db_url() -> None:
+def confirm_db_url(db_url) -> None:
     """Print the DATABASE_URL being affected and require confirmation if it is not SQLite."""
-    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-    default_db = Path(__file__).resolve().parent.parent / "instance" / "app.db"
-    db_url = os.environ.get("DATABASE_URL", f"sqlite:///{default_db}")
     print(f"DATABASE_URL: {db_url}")
     if not db_url.startswith("sqlite"):
         try:

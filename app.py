@@ -1062,7 +1062,7 @@ def create_app():
     if os.getenv("FLASK_DEBUG"):
         _default_db = Path(__file__).resolve().parent / "instance" / "app.db"
         _default_db.parent.mkdir(exist_ok=True)
-        db_url = os.getenv("DATABASE_URL", f"sqlite:///{_default_db}")
+        db_url = f"sqlite:///{_default_db}"
     else:
         db_url = os.getenv("DATABASE_URL")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = db_url
