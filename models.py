@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 
 from flask_sqlalchemy import SQLAlchemy
@@ -11,7 +10,7 @@ db = SQLAlchemy()
 class Registration(db.Model):
     __tablename__ = "registrations"
 
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
     # Core fields (competitor and coach)
     full_name = db.Column(String(200), nullable=False)
