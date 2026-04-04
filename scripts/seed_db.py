@@ -7,8 +7,17 @@ except ModuleNotFoundError:  # Allows `python scripts/seed_db.py`
 
 add_repo_root_to_path()
 
+import os
 import uuid
-from datetime import date, datetime
+from pathlib import Path
+
+# Ensure a file-based SQLite DB is used when DATABASE_URL isn't explicitly set,
+# so seeded data persists after the script exits.
+if not os.environ.get("DATABASE_URL"):
+    default_db = Path(__file__).resolve().parent.parent / "instance" / "app.db"
+    default_db.parent.mkdir(exist_ok=True)
+    os.environ["DATABASE_URL"] = f"sqlite:///{default_db}"
+    print(f"DATABASE_URL not set — using {os.environ['DATABASE_URL']}")
 
 from app import app
 from models import Registration, db
