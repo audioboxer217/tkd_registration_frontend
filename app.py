@@ -2,6 +2,7 @@ import json
 import os
 from datetime import date, datetime, timedelta
 from functools import wraps
+from pathlib import Path
 
 import boto3
 import pytz
@@ -1058,7 +1059,12 @@ def create_app():
     flask_app.config["ENABLE_ADDRESS"] = os.getenv("ENABLE_ADDRESS", False)
 
     # SQLAlchemy — serverless-safe pool settings for Supabase connection pooler
-    db_url = os.getenv("DATABASE_URL", "sqlite:///:memory:")
+    if os.getenv("FLASK_DEBUG"):
+        _default_db = Path(__file__).resolve().parent / "instance" / "app.db"
+        _default_db.parent.mkdir(exist_ok=True)
+        db_url = os.getenv("DATABASE_URL", f"sqlite:///{_default_db}")
+    else:
+        db_url = os.getenv("DATABASE_URL")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = db_url
     if not db_url.startswith("sqlite"):
         flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
