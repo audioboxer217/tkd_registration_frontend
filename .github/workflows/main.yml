@@ -17,10 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: |-
       ${{
-        github.ref_name == 'main' && 'OKGP'
+        github.ref_name == 'main' && 'TEST'
       || github.ref_name == 'env/okgp' && 'OKGP'
-      || github.base_ref == 'main' && 'OKGP'
-      ||                              'OKCC'
+      || github.ref_name == 'env/okc-chmp' && 'OKCC'
+      || github.base_ref == 'main' && 'TEST'
+      ||                              'TEST'
       }}
     steps:
     - name: Checkout
@@ -47,6 +48,7 @@ jobs:
 
     - name: Run Tests
       env:
+        DATABASE_URL: "${{ vars.DATABASE_URL }}"
         COMPETITION_NAME: "${{ vars.COMPETITION_NAME }}"
         CONFIG_BUCKET: "${{ vars.CONFIG_BUCKET }}"
         CONTACT_EMAIL: "${{ vars.CONTACT_EMAIL }}"
