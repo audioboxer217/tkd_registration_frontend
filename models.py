@@ -1,13 +1,11 @@
 import uuid
 from datetime import datetime
 
-from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Numeric, String, Text
 from sqlalchemy.types import JSON
 
 db = SQLAlchemy()
-migrate = Migrate()
 
 
 class Registration(db.Model):
@@ -95,6 +93,5 @@ class Registration(db.Model):
 
 
 def init_db(app):
-    """Bind SQLAlchemy and Alembic migrate instances to the Flask app."""
+    """Bind SQLAlchemy to the Flask app."""
     db.init_app(app)
-    migrate.init_app(app, db)
