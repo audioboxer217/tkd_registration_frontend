@@ -5,9 +5,6 @@ except ModuleNotFoundError:  # Allows `python scripts/reset_db.py`
 
 add_repo_root_to_path()
 
-import os
-import sys
-
 from app import app
 from models import db
 

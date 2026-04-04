@@ -117,7 +117,12 @@ pyproject.toml
 3. Initialize the database (first time only):
     ```bash
     set -a && source frontend.env && set +a
-    uv run flask --app app db upgrade
+    uv run python scripts/init_db.py
+    ```
+    If you need to recreate the local database from scratch, use:
+    ```bash
+    set -a && source frontend.env && set +a
+    uv run python scripts/reset_db.py
     ```
 
 4. Run the local development server:

@@ -12,6 +12,7 @@ from flask import (
     Blueprint,
     Flask,
     abort,
+    current_app,
     flash,
     g,
     redirect,
@@ -159,8 +160,8 @@ def render_base(content_file, **page_params):
         event_city=os.getenv("EVENT_CITY", None),
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
         form_js=url_for("static", filename="js/form.js"),
-        address_enabled=os.getenv("ENABLE_ADDRESS", False),
-        maps_api_key=os.getenv("MAPS_API_KEY") if os.getenv("ENABLE_ADDRESS") else None,
+        address_enabled=current_app.config.get("ENABLE_ADDRESS", False),
+        maps_api_key=os.getenv("MAPS_API_KEY") if current_app.config.get("ENABLE_ADDRESS") else None,
         content_file=content_file,
         **page_params,
     )
@@ -168,8 +169,6 @@ def render_base(content_file, **page_params):
 
 def _current_app_config():
     """Return current Flask app config as a dict for use outside app context."""
-    from flask import current_app
-
     return current_app.config
 
 
@@ -200,7 +199,8 @@ def login_post():
         }
         return redirect(url_for("ui.admin_page"))
     except Exception as e:
-        flash(f"Login failed: {e}", "danger")
+        current_app.logger.exception("Login error for %s", email)
+        flash("Login failed. Please check your email/password.", "danger")
         return render_base("login.html")
 
 
@@ -1044,7 +1044,13 @@ def page_not_found(e):
 # ---------------------------------------------------------------------------
 
 
-def create_app():
+def _parse_bool_env(name: str, default: bool = False) -> bool:
+    """Return True only when the env var value is a truthy string (true/1/yes)."""
+    val = os.getenv(name, "")
+    return val.lower() in ("true", "1", "yes") if val else default
+
+
+def create_app(test_config=None):
     flask_app = Flask(__name__)
     flask_app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 
@@ -1055,18 +1061,20 @@ def create_app():
     flask_app.config["URL"] = "http://localhost:5001" if os.getenv("FLASK_DEBUG") else os.getenv("REG_URL")
     flask_app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
     flask_app.config["TZ_LOCAL"] = ZoneInfo(os.getenv("LOCAL_TIMEZONE", "US/Central"))
-    flask_app.config["ENABLE_BADGES"] = os.getenv("ENABLE_BADGES", False)
-    flask_app.config["ENABLE_ADDRESS"] = os.getenv("ENABLE_ADDRESS", False)
+    flask_app.config["ENABLE_BADGES"] = _parse_bool_env("ENABLE_BADGES")
+    flask_app.config["ENABLE_ADDRESS"] = _parse_bool_env("ENABLE_ADDRESS")
 
     # SQLAlchemy — serverless-safe pool settings for Supabase connection pooler
-    if os.getenv("FLASK_DEBUG"):
+    if test_config and "SQLALCHEMY_DATABASE_URI" in test_config:
+        db_url = test_config["SQLALCHEMY_DATABASE_URI"]
+    elif os.getenv("FLASK_DEBUG"):
         _default_db = Path(__file__).resolve().parent / "instance" / "app.db"
         _default_db.parent.mkdir(exist_ok=True)
         db_url = f"sqlite:///{_default_db}"
     else:
         db_url = os.getenv("DATABASE_URL")
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = db_url
-    if not db_url.startswith("sqlite"):
+    if db_url and not db_url.startswith("sqlite"):
         flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
             "pool_pre_ping": True,
             "pool_recycle": 300,
@@ -1074,6 +1082,9 @@ def create_app():
             "max_overflow": 2,
         }
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    if test_config:
+        flask_app.config.update({k: v for k, v in test_config.items() if k != "SQLALCHEMY_DATABASE_URI"})
 
     stripe.api_key = os.getenv("STRIPE_API_KEY")
 

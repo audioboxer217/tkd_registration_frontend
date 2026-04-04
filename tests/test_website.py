@@ -11,10 +11,7 @@ sys.path.append(app_path)
 from app import create_app
 from models import db as _db
 
-_test_app = create_app()
-_test_app.config["TESTING"] = True
-_test_app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
-_test_app.config["WTF_CSRF_ENABLED"] = False
+_test_app = create_app(test_config={"SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", "TESTING": True, "WTF_CSRF_ENABLED": False})
 
 with _test_app.app_context():
     _db.create_all()
@@ -106,7 +103,8 @@ class TestAuthRoutes:
     client = app.test_client()
 
     def test_login_get_returns_form(self):
-        response = self.client.get("/login")
+        with patch("app.get_s3_file", return_value=None):
+            response = self.client.get("/login")
         assert response.status_code == 200
         assert b"Login" in response.data or b"login" in response.data.lower()
 
@@ -257,7 +255,9 @@ class TestEntriesAPI:
         with patch("api.set_weight_class", return_value=[{"id": str(c_id), "full_name": "Jane Doe", "reg_type": "competitor"}]):
             response = self.client.get("/api/v1/entries")
         data = json.loads(response.data)
-        assert len(data["data"]) >= 2
+        entries = data["data"]
+        assert any(entry.get("id") == c_id and entry.get("reg_type") == "competitor" for entry in entries)
+        assert any(entry.get("id") == co_id and entry.get("reg_type") == "coach" for entry in entries)
 
 
 class TestUploadForm:

@@ -24,3 +24,6 @@ dev = [
     "setuptools==74.1.2",
     "zappa>=0.59.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -17,7 +17,7 @@
       "request": "launch",
       "module": "flask",
       "env": {
-        "FLASK_APP": "app.py",
+        "FLASK_APP": "app.py"
       },
       "args": [
         "run",
@@ -34,7 +34,7 @@
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
-      "console": "integratedTerminal",
-    },
+      "console": "integratedTerminal"
+    }
   ]
 }

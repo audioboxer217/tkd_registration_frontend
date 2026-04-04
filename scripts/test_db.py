@@ -10,6 +10,9 @@ load_dotenv()
 # Fetch variables
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+if not DATABASE_URL or not DATABASE_URL.strip():
+    raise SystemExit("DATABASE_URL is not set or is empty. Set DATABASE_URL before running scripts/test_db.py.")
+
 # Create the SQLAlchemy engine
 engine = create_engine(DATABASE_URL)
 # If using Transaction Pooler or Session Pooler, we want to ensure we disable SQLAlchemy client side pooling -

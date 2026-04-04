@@ -7,9 +7,7 @@ except ModuleNotFoundError:  # Allows `python scripts/seed_db.py`
 
 add_repo_root_to_path()
 
-import os
 import uuid
-from pathlib import Path
 
 from app import app
 from models import Registration, db

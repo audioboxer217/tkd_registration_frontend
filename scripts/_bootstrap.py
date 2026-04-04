@@ -17,8 +17,11 @@ def add_repo_root_to_path() -> None:
         sys.path.insert(0, root_str)
 
 
-def confirm_db_url(db_url) -> None:
+def confirm_db_url(db_url: str | None) -> None:
     """Print the DATABASE_URL being affected and require confirmation if it is not SQLite."""
+    if not isinstance(db_url, str) or not db_url.strip():
+        print("Error: SQLALCHEMY_DATABASE_URI is not configured.")
+        sys.exit(1)
     print(f"DATABASE_URL: {db_url}")
     if not db_url.startswith("sqlite"):
         try:

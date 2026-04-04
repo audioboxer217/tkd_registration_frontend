@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # This script is used to switch between different environments (e.g., dev or prod).
-# Usage: ./switch_env.sh [dev|prod] [--force]
+# Usage: ./switch_env.sh [okgp|okcc] [dev|prod] [--force]
 set -e
 
 # Determine repository root (one level up from this script's directory)
@@ -11,7 +11,7 @@ ENV=""
 CLIENT=""
 FORCE=0
 
-# Basic argument parsing: environment is required, optional --force
+# Basic argument parsing: client and environment are required, optional --force
 if [[ $# -lt 2 || $# -gt 3 ]]; then
   echo "Usage: $0 [okgp|okcc] [dev|prod] [--force]"
   exit 1
@@ -24,20 +24,20 @@ if [[ "$CLIENT" != "okgp" && "$CLIENT" != "okcc" ]]; then
   exit 1
 fi
 
-if [[ $# -eq 2 ]]; then
-  if [[ "$2" == "--force" ]]; then
-    FORCE=1
-  else
-    ENV="$2"
-    if [[ "$ENV" != "dev" && "$ENV" != "prod" ]]; then
-      echo "Unknown environment: $ENV"
-      echo "Usage: $0 [okgp|okcc] [dev|prod] [--force]"
-      exit 1
-    fi
-  fi
-elif [[ $# -eq 3 ]]; then
+ENV="$2"
+if [[ "$ENV" != "dev" && "$ENV" != "prod" ]]; then
+  echo "Unknown environment: $ENV"
+  echo "Usage: $0 [okgp|okcc] [dev|prod] [--force]"
+  exit 1
+fi
+
+if [[ $# -eq 3 ]]; then
   if [[ "$3" == "--force" ]]; then
     FORCE=1
+  else
+    echo "Unknown option: $3"
+    echo "Usage: $0 [okgp|okcc] [dev|prod] [--force]"
+    exit 1
   fi
 fi
 
