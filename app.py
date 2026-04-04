@@ -26,7 +26,7 @@ from supabase import Client, create_client
 from zoneinfo import ZoneInfo
 
 from api import api_bp
-from models import Registration, db, init_db
+from models import Registration, Competitor, Coach, School, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
 
@@ -441,6 +441,27 @@ def display_form():
     return render_base("form.html", **page_params)
 
 
+def _get_or_create_school(school_name: str) -> School:
+    """Get school by name or create if it doesn't exist."""
+    if not school_name:
+        return None
+    school = School.query.filter_by(name=school_name).first()
+    if not school:
+        school = School(name=school_name)
+        db.session.add(school)
+        db.session.flush()  # Ensure it has an ID without committing
+    return school
+
+
+def _get_or_create_coach(coach_name: str, school_id: int) -> Coach:
+    """Get coach by name and school_id, or return None if not found."""
+    if not coach_name or not school_id:
+        return None
+    # For now, look up exact match - can be enhanced with fuzzy matching
+    coach = Coach.query.filter_by(full_name=coach_name, school_id=school_id).first()
+    return coach
+
+
 @ui_bp.route("/register", methods=["POST"])
 def handle_form():
     config = _current_app_config()
@@ -450,28 +471,31 @@ def handle_form():
     fname = request.form.get("fname").strip()
     lname = request.form.get("lname").strip()
     full_name = f"{fname} {lname}"
-    school = request.form.get("school")
-    if school == "unlisted":
-        school = request.form.get("unlistedSchool").strip()
-    coach = request.form.get("coach", "").strip()
+    school_name = request.form.get("school")
+    if school_name == "unlisted":
+        school_name = request.form.get("unlistedSchool").strip()
+    coach_name = request.form.get("coach", "").strip()
+
+    # Get or create school
+    school = _get_or_create_school(school_name)
+    if not school:
+        abort(400, "School is required")
 
     # Check for duplicate registration
-    duplicate = Registration.query.filter_by(
-        full_name=full_name,
-        school=school,
-        reg_type=reg_type,
-    ).first()
+    if reg_type == "competitor":
+        duplicate = Competitor.query.filter_by(
+            full_name=full_name,
+            school_id=school.id,
+        ).first()
+    else:
+        duplicate = Coach.query.filter_by(
+            full_name=full_name,
+            school_id=school.id,
+        ).first()
+
     if duplicate:
         print("registration exists")
         return redirect(f'{config["URL"]}/registration_error?reg_type={reg_type}')
-
-    reg = Registration(
-        full_name=full_name,
-        email=request.form.get("email"),
-        phone=request.form.get("phone"),
-        school=school,
-        reg_type=reg_type,
-    )
 
     registration_items = []
 
@@ -489,30 +513,42 @@ def handle_form():
         if not event_list:
             abort(400, "You must choose at least one event")
 
-        reg.parent = request.form.get("parentName")
-        reg.birthdate = request.form.get("birthdate")
-        reg.age = int(request.form.get("age"))
-        reg.gender = request.form.get("gender")
-        reg.weight = float(request.form.get("weight"))
-        reg.height = height
-        reg.coach = coach
-        reg.belt_rank = belt
-        reg.events = event_list
-        reg.poomsae_form = request.form.get("poomsae form", "")
-        reg.pair_poomsae_form = request.form.get("pair poomsae form", "")
-        reg.team_poomsae_form = request.form.get("team poomsae form", "")
-        reg.family_poomsae_form = request.form.get("family poomsae form", "")
-        reg.medical_contacts = request.form.get("contacts")
-        reg.medical_conditions = [mc for mc in request.form.get("medicalConditionsList", "").split(",") if mc]
-        reg.allergies = [a for a in request.form.get("allergy_list", "").split("\r\n") if a]
-        reg.medications = [m for m in request.form.get("meds_list", "").split("\r\n") if m]
+        # Get or create coach if specified
+        coach_id = None
+        if coach_name:
+            coach = _get_or_create_coach(coach_name, school.id)
+            coach_id = coach.id if coach else None
+
+        reg = Competitor(
+            full_name=full_name,
+            email=request.form.get("email"),
+            phone=request.form.get("phone"),
+            school_id=school.id,
+            coach_id=coach_id,
+            parent=request.form.get("parentName"),
+            birthdate=request.form.get("birthdate"),
+            age=int(request.form.get("age")),
+            gender=request.form.get("gender"),
+            weight=float(request.form.get("weight")),
+            height=height,
+            belt_rank=belt,
+            events=event_list,
+            poomsae_form=request.form.get("poomsae form", ""),
+            pair_poomsae_form=request.form.get("pair poomsae form", ""),
+            team_poomsae_form=request.form.get("team poomsae form", ""),
+            family_poomsae_form=request.form.get("family poomsae form", ""),
+            medical_contacts=request.form.get("contacts"),
+            medical_conditions=[mc for mc in request.form.get("medicalConditionsList", "").split(",") if mc],
+            allergies=[a for a in request.form.get("allergy_list", "").split("\r\n") if a],
+            medications=[m for m in request.form.get("meds_list", "").split("\r\n") if m],
+        )
 
         if config["ENABLE_BADGES"]:
             profile_img = request.files["profilePic"]
             image_ext = os.path.splitext(profile_img.filename)[1]
             if not profile_img.content_type or not image_ext:
                 abort(400, "There was an error uploading your profile pic. Please go back and try again.")
-            img_filename = f"{school}_{reg_type}_{fname}_{lname}{image_ext}"
+            img_filename = f"{school_name}_{reg_type}_{fname}_{lname}{image_ext}"
             reg.img_filename = img_filename
             _s3().upload_fileobj(profile_img, config["profilePicBucket"], img_filename)
 
@@ -534,6 +570,13 @@ def handle_form():
             registration_items.append({"price": price_dict["Additional Event"]["price_id"], "quantity": num_add_event})
         registration_items.append({"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1})
     else:
+        # Coach registration
+        reg = Coach(
+            full_name=full_name,
+            email=request.form.get("email"),
+            phone=request.form.get("phone"),
+            school_id=school.id,
+        )
         registration_items = [{"price": price_dict["Coach Registration"]["price_id"], "quantity": 1}]
 
     if os.getenv("FLASK_DEBUG"):
@@ -601,8 +644,11 @@ def handle_form():
 def lookup_entry():
     email = request.form.get("email")
     name_query = f"{request.form.get('fname','').lower()} {request.form.get('lname','').lower()}".strip()
-    query = Registration.query.filter(Registration.email == email)
-    entries_raw = query.all()
+
+    # Query both competitors and coaches by email
+    competitors_raw = Competitor.query.filter(Competitor.email == email).all()
+    coaches_raw = Coach.query.filter(Coach.email == email).all()
+    entries_raw = competitors_raw + coaches_raw
 
     if len(entries_raw) > 1 and name_query:
         entries_raw = [e for e in entries_raw if name_query in e.full_name.lower()]
@@ -612,40 +658,99 @@ def lookup_entry():
     return render_template("form/lookup_modal.html", entries=entries)
 
 
-def _reg_to_legacy(reg: Registration) -> dict:
-    """Convert a Registration model to the legacy DynamoDB dict structure expected by templates."""
-    d = {
-        "name": {"S": reg.full_name or ""},
-        "full_name": {"S": reg.full_name or ""},
-        "email": {"S": reg.email or ""},
-        "phone": {"S": reg.phone or ""},
-        "school": {"S": reg.school or ""},
-        "reg_type": {"S": reg.reg_type},
-        "birthdate": {"S": reg.birthdate or ""},
-        "age": {"N": str(reg.age or "")},
-        "gender": {"S": reg.gender or ""},
-        "weight": {"N": str(reg.weight or "")},
-        "height": {"N": str(reg.height or "")},
-        "coach": {"S": reg.coach or ""},
-        "beltRank": {"S": reg.belt_rank or ""},
-        "events": {"S": reg.events or ""},
-        "poomsae_form": {"S": reg.poomsae_form or ""},
-        "wc_poomsae_form": {"S": reg.wc_poomsae_form or ""},
-        "pair_poomsae_form": {"S": reg.pair_poomsae_form or ""},
-        "team_poomsae_form": {"S": reg.team_poomsae_form or ""},
-        "family_poomsae_form": {"S": reg.family_poomsae_form or ""},
-        "parent": {"S": reg.parent or ""},
-        "pk": {"S": str(reg.id)},
-        "medical_form": {
-            "M": {
-                "contacts": {"S": reg.medical_contacts or ""},
-                "medicalConditions": {"L": [{"S": mc} for mc in (reg.medical_conditions or [])]},
-                "allergies": {"L": [{"S": a} for a in (reg.allergies or [])]},
-                "medications": {"L": [{"S": m} for m in (reg.medications or [])]},
-            }
-        },
-    }
-    return d
+def _reg_to_legacy(reg) -> dict:
+    """
+    Convert a Competitor, Coach, or Registration model to legacy DynamoDB dict format.
+    This maintains template compatibility with the old format.
+    """
+    # Handle Competitor model
+    if isinstance(reg, Competitor):
+        coach_name = reg.coach_rel.full_name if reg.coach_rel else ""
+        school_name = reg.school.name if reg.school else ""
+        return {
+            "name": {"S": reg.full_name or ""},
+            "full_name": {"S": reg.full_name or ""},
+            "email": {"S": reg.email or ""},
+            "phone": {"S": reg.phone or ""},
+            "school": {"S": school_name},
+            "school_id": reg.school_id,
+            "coach": {"S": coach_name},
+            "coach_id": reg.coach_id,
+            "beltRank": {"S": reg.belt_rank or ""},
+            "birthdate": {"S": reg.birthdate or ""},
+            "age": {"N": str(reg.age or "")},
+            "gender": {"S": reg.gender or ""},
+            "weight": {"N": str(reg.weight or "")},
+            "height": {"N": str(reg.height or "")},
+            "events": {"S": reg.events or ""},
+            "poomsae_form": {"S": reg.poomsae_form or ""},
+            "wc_poomsae_form": {"S": reg.wc_poomsae_form or ""},
+            "pair_poomsae_form": {"S": reg.pair_poomsae_form or ""},
+            "team_poomsae_form": {"S": reg.team_poomsae_form or ""},
+            "family_poomsae_form": {"S": reg.family_poomsae_form or ""},
+            "parent": {"S": reg.parent or ""},
+            "reg_type": {"S": "competitor"},
+            "pk": {"S": str(reg.id)},
+            "medical_form": {
+                "M": {
+                    "contacts": {"S": reg.medical_contacts or ""},
+                    "medicalConditions": {"L": [{"S": mc} for mc in (reg.medical_conditions or [])]},
+                    "allergies": {"L": [{"S": a} for a in (reg.allergies or [])]},
+                    "medications": {"L": [{"S": m} for m in (reg.medications or [])]},
+                }
+            },
+        }
+
+    # Handle Coach model
+    elif isinstance(reg, Coach):
+        school_name = reg.school.name if reg.school else ""
+        return {
+            "name": {"S": reg.full_name or ""},
+            "full_name": {"S": reg.full_name or ""},
+            "email": {"S": reg.email or ""},
+            "phone": {"S": reg.phone or ""},
+            "school": {"S": school_name},
+            "school_id": reg.school_id,
+            "reg_type": {"S": "coach"},
+            "pk": {"S": str(reg.id)},
+        }
+
+    # Handle legacy Registration model (for historical data)
+    elif isinstance(reg, Registration):
+        d = {
+            "name": {"S": reg.full_name or ""},
+            "full_name": {"S": reg.full_name or ""},
+            "email": {"S": reg.email or ""},
+            "phone": {"S": reg.phone or ""},
+            "school": {"S": reg.school or ""},
+            "reg_type": {"S": reg.reg_type},
+            "birthdate": {"S": reg.birthdate or ""},
+            "age": {"N": str(reg.age or "")},
+            "gender": {"S": reg.gender or ""},
+            "weight": {"N": str(reg.weight or "")},
+            "height": {"N": str(reg.height or "")},
+            "coach": {"S": reg.coach or ""},
+            "beltRank": {"S": reg.belt_rank or ""},
+            "events": {"S": reg.events or ""},
+            "poomsae_form": {"S": reg.poomsae_form or ""},
+            "wc_poomsae_form": {"S": reg.wc_poomsae_form or ""},
+            "pair_poomsae_form": {"S": reg.pair_poomsae_form or ""},
+            "team_poomsae_form": {"S": reg.team_poomsae_form or ""},
+            "family_poomsae_form": {"S": reg.family_poomsae_form or ""},
+            "parent": {"S": reg.parent or ""},
+            "pk": {"S": str(reg.id)},
+            "medical_form": {
+                "M": {
+                    "contacts": {"S": reg.medical_contacts or ""},
+                    "medicalConditions": {"L": [{"S": mc} for mc in (reg.medical_conditions or [])]},
+                    "allergies": {"L": [{"S": a} for a in (reg.allergies or [])]},
+                    "medications": {"L": [{"S": m} for m in (reg.medications or [])]},
+                }
+            },
+        }
+        return d
+
+    return {}
 
 
 @ui_bp.route("/api/autofill", methods=["GET"])
@@ -836,7 +941,13 @@ def schools_page():
 @ui_bp.route("/admin", methods=["GET"])
 @login_required
 def admin_page():
-    entries_raw = Registration.query.order_by(Registration.created_at.desc()).all()
+    # Query both competitors and coaches
+    competitors = Competitor.query.order_by(Competitor.created_at.desc()).all()
+    coaches = Coach.query.order_by(Coach.created_at.desc()).all()
+    entries_raw = competitors + coaches
+    # Sort combined list by created_at
+    entries_raw.sort(key=lambda x: x.created_at, reverse=True)
+
     entries = [_reg_to_legacy(e) for e in entries_raw]
     page_params = {"entries": entries}
     redirect_flag = bool(request.args.get("redirect"))
@@ -877,21 +988,21 @@ def add_entry():
     fname = request.form.get("fname").strip()
     lname = request.form.get("lname").strip()
     full_name = f"{fname} {lname}"
-    school = request.form.get("school")
-    coach = request.form.get("coach", "").strip()
+    school_name = request.form.get("school")
+    coach_name = request.form.get("coach", "").strip()
+
+    # Get or create school
+    school = _get_or_create_school(school_name)
+    if not school:
+        abort(400, "School is required")
 
     if not os.getenv("FLASK_DEBUG"):
-        duplicate = Registration.query.filter_by(full_name=full_name, school=school, reg_type=reg_type).first()
+        if reg_type == "competitor":
+            duplicate = Competitor.query.filter_by(full_name=full_name, school_id=school.id).first()
+        else:
+            duplicate = Coach.query.filter_by(full_name=full_name, school_id=school.id).first()
         if duplicate:
             return redirect(f'{config["URL"]}/registration_error?reg_type={reg_type}')
-
-    reg = Registration(
-        full_name=full_name,
-        email=request.form.get("email"),
-        phone=request.form.get("phone"),
-        school=school,
-        reg_type=reg_type,
-    )
 
     if reg_type == "competitor":
         height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
@@ -903,33 +1014,53 @@ def add_entry():
         if not event_list:
             abort(400, "You must choose at least one event")
 
-        reg.parent = request.form.get("parentName")
-        reg.birthdate = request.form.get("birthdate")
-        reg.age = int(request.form.get("age"))
-        reg.gender = request.form.get("gender")
-        reg.weight = float(request.form.get("weight"))
-        reg.height = height
-        reg.coach = coach
-        reg.belt_rank = belt
-        reg.events = event_list
-        reg.poomsae_form = request.form.get("poomsae form", "")
-        reg.wc_poomsae_form = request.form.get("world-class poomsae form", "")
-        reg.pair_poomsae_form = request.form.get("pair poomsae form", "")
-        reg.team_poomsae_form = request.form.get("team poomsae form", "")
-        reg.family_poomsae_form = request.form.get("family poomsae form", "")
-        reg.medical_contacts = request.form.get("contacts")
-        reg.medical_conditions = [mc for mc in request.form.get("medicalConditionsList", "").split(",") if mc]
-        reg.allergies = [a for a in request.form.get("allergy_list", "").split("\r\n") if a]
-        reg.medications = [m for m in request.form.get("meds_list", "").split("\r\n") if m]
+        # Get or create coach if specified
+        coach_id = None
+        if coach_name:
+            coach = _get_or_create_coach(coach_name, school.id)
+            coach_id = coach.id if coach else None
+
+        reg = Competitor(
+            full_name=full_name,
+            email=request.form.get("email"),
+            phone=request.form.get("phone"),
+            school_id=school.id,
+            coach_id=coach_id,
+            parent=request.form.get("parentName"),
+            birthdate=request.form.get("birthdate"),
+            age=int(request.form.get("age")),
+            gender=request.form.get("gender"),
+            weight=float(request.form.get("weight")),
+            height=height,
+            belt_rank=belt,
+            events=event_list,
+            poomsae_form=request.form.get("poomsae form", ""),
+            wc_poomsae_form=request.form.get("world-class poomsae form", ""),
+            pair_poomsae_form=request.form.get("pair poomsae form", ""),
+            team_poomsae_form=request.form.get("team poomsae form", ""),
+            family_poomsae_form=request.form.get("family poomsae form", ""),
+            medical_contacts=request.form.get("contacts"),
+            medical_conditions=[mc for mc in request.form.get("medicalConditionsList", "").split(",") if mc],
+            allergies=[a for a in request.form.get("allergy_list", "").split("\r\n") if a],
+            medications=[m for m in request.form.get("meds_list", "").split("\r\n") if m],
+        )
 
         if config["ENABLE_BADGES"]:
             profile_img = request.files["profilePic"]
             image_ext = os.path.splitext(profile_img.filename)[1]
             if not profile_img.content_type or not image_ext:
                 abort(400, "There was an error uploading your profile pic. Please go back and try again.")
-            img_filename = f"{school}_{reg_type}_{fname}_{lname}{image_ext}"
+            img_filename = f"{school_name}_{reg_type}_{fname}_{lname}{image_ext}"
             reg.img_filename = img_filename
             _s3().upload_fileobj(profile_img, config["profilePicBucket"], img_filename)
+    else:
+        # Coach registration
+        reg = Coach(
+            full_name=full_name,
+            email=request.form.get("email"),
+            phone=request.form.get("phone"),
+            school_id=school.id,
+        )
 
     if os.getenv("FLASK_DEBUG"):
         db.session.add(reg)
@@ -963,11 +1094,26 @@ def add_entry():
 def edit_entry_form():
     config = _current_app_config()
     reg_id = request.args.get("pk")
-    reg = db.session.get(Registration, reg_id)
+
+    # Try competitor first
+    reg = db.session.get(Competitor, int(reg_id))
+    reg_type = "competitor"
+    if reg is None:
+        # Try coach
+        reg = db.session.get(Coach, int(reg_id))
+        reg_type = "coach"
     if reg is None:
         abort(404)
+
     school_list = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
-    page_params = {"schools": school_list, "entry": _reg_to_legacy(reg)}
+    entry = _reg_to_legacy(reg)
+    entry["reg_type"] = {"S": reg_type}
+
+    # Get all coaches in the same school for dropdown
+    coaches_in_school = Coach.query.filter_by(school_id=reg.school_id).all()
+    coach_options = [c.to_dict() for c in coaches_in_school]
+
+    page_params = {"schools": school_list, "entry": entry, "coaches": coach_options}
     if request.headers.get("HX-Request"):
         return render_template("edit.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
     return render_base("edit.html", **page_params)
@@ -977,18 +1123,29 @@ def edit_entry_form():
 @login_required
 def edit_entry():
     config = _current_app_config()
-    reg_id = request.args.get("pk")
-    reg = db.session.get(Registration, reg_id)
-    if reg is None:
-        abort(404)
+    reg_id = int(request.args.get("pk"))
 
-    reg.full_name = request.form.get("full_name")
-    reg.email = request.form.get("email")
-    reg.phone = request.form.get("phone")
-    reg.school = request.form.get("school")
-    reg.reg_type = request.form.get("regType")
+    # Try competitor first
+    reg = db.session.get(Competitor, reg_id)
+    if reg:
+        school_name = request.form.get("school")
+        school = _get_or_create_school(school_name)
+        if not school:
+            abort(400, "School is required")
 
-    if reg.reg_type == "competitor":
+        reg.full_name = request.form.get("full_name")
+        reg.email = request.form.get("email")
+        reg.phone = request.form.get("phone")
+        reg.school_id = school.id
+
+        # Get or create coach if specified
+        coach_name = request.form.get("coach", "").strip()
+        coach_id = None
+        if coach_name:
+            coach = _get_or_create_coach(coach_name, school.id)
+            coach_id = coach.id if coach else None
+        reg.coach_id = coach_id
+
         belt = request.form.get("beltRank")
         if belt == "black":
             dan = request.form.get("blackBeltDan")
@@ -999,7 +1156,6 @@ def edit_entry():
         reg.gender = request.form.get("gender")
         reg.weight = float(request.form.get("weight"))
         reg.height = int(request.form.get("height"))
-        reg.coach = request.form.get("coach", "").strip()
         reg.belt_rank = belt
         reg.events = request.form.get("eventList")
         reg.poomsae_form = request.form.get("poomsae form", "")
@@ -1007,16 +1163,35 @@ def edit_entry():
         reg.team_poomsae_form = request.form.get("team poomsae form", "")
         reg.family_poomsae_form = request.form.get("family poomsae form", "")
 
-    db.session.commit()
-    flash(f"{reg.full_name} updated successfully!", "success")
-    return redirect(f'{config["URL"]}/admin', code=303)
+        db.session.commit()
+        flash(f"{reg.full_name} updated successfully!", "success")
+        return redirect(f'{config["URL"]}/admin', code=303)
+
+    # Try coach
+    reg = db.session.get(Coach, reg_id)
+    if reg:
+        school_name = request.form.get("school")
+        school = _get_or_create_school(school_name)
+        if not school:
+            abort(400, "School is required")
+
+        reg.full_name = request.form.get("full_name")
+        reg.email = request.form.get("email")
+        reg.phone = request.form.get("phone")
+        reg.school_id = school.id
+
+        db.session.commit()
+        flash(f"{reg.full_name} updated successfully!", "success")
+        return redirect(f'{config["URL"]}/admin', code=303)
+
+    abort(404)
 
 
 @ui_bp.route("/export")
 @login_required
 def generate_csv():
     config = _current_app_config()
-    entries_raw = Registration.query.filter_by(reg_type="competitor").order_by(Registration.full_name).all()
+    entries_raw = Competitor.query.order_by(Competitor.full_name).all()
     entries = [_reg_to_legacy(e) for e in entries_raw]
     s3_favicon = get_s3_file(config["mediaBucket"], "favicon.png")
     return render_template(
