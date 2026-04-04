@@ -30,5 +30,15 @@
       "jinja": true,
       "justMyCode": true
     },
+    {
+      "name": "Python Debugger: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "env": {
+        "FLASK_DEBUG": "1"
+      },
+    },
   ]
 }
