@@ -33,7 +33,7 @@
   $(document).ready(function () {
     var table = $('#entries').DataTable({
       reponsive: true,
-      ajax: '/api/entries',
+      ajax: '/api/v1/entries',
       searchPanes: {
         cascadePanes: true,
         initCollapsed: true,
@@ -41,11 +41,11 @@
       columns: [
         {
           targets: 0,
-          data: "full_name.S"
+          data: "full_name"
         },
         {
           target: 1,
-          data: "reg_type.S",
+          data: "reg_type",
           visible: false,
           searchable: true,
           searchPanes: {
@@ -54,7 +54,7 @@
         },
         {
           target: 2,
-          data: "gender.S",
+          data: "gender",
           defaultContent: "",
           searchable: true,
           searchPanes: {
@@ -63,23 +63,19 @@
         },
         {
           target: 3,
-          data: "beltRank.S",
+          data: "belt_rank",
           searchable: true,
           searchPanes: {
             show: true
           },
           render: function (data, type, row) {
-            if (row.beltRank === undefined) {
+            if (!row.belt_rank) {
               return "";
             }
-            else {
-              if ((row.beltRank.S).includes('black')) {
-                return "black";
-              }
-              else {
-                return row.beltRank.S;
-              }
+            if (row.belt_rank.includes('black')) {
+              return "black";
             }
+            return row.belt_rank;
           }
         },
         {
@@ -102,12 +98,12 @@
         },
         {
           target: 6,
-          data: "school.S",
+          data: "school",
           searchable: true
         },
         {
           target: 7,
-          data: "events.S",
+          data: "events",
           defaultContent: "",
           searchable: true,
           render: {
