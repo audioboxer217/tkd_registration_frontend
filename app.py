@@ -168,7 +168,7 @@ def render_base(content_file, **page_params):
 
 
 def _current_app_config():
-    """Return current Flask app config as a dict for use outside app context."""
+    """Return current Flask app config as a dict. Must be called within an app context."""
     return current_app.config
 
 
@@ -1046,7 +1046,7 @@ def page_not_found(e):
 
 def _parse_bool_env(name: str, default: bool = False) -> bool:
     """Return True only when the env var value is a truthy string (true/1/yes)."""
-    val = os.getenv(name, "")
+    val = os.getenv(name, "").strip()
     return val.lower() in ("true", "1", "yes") if val else default
 
 
