@@ -1,65 +1,81 @@
 import json
 import os
-import urllib
 from datetime import date, datetime, timedelta
+from functools import wraps
+from pathlib import Path
 
 import boto3
 import pytz
 import stripe
-from authlib.integrations.flask_client import OAuth
 from email_validator import EmailNotValidError, validate_email
-from flask import Flask, abort, flash, redirect, render_template, render_template_string, request, session, url_for
+from flask import (
+    Blueprint,
+    Flask,
+    abort,
+    current_app,
+    flash,
+    g,
+    redirect,
+    render_template,
+    render_template_string,
+    request,
+    session,
+    url_for,
+)
+from supabase import Client, create_client
 from zoneinfo import ZoneInfo
 
-app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
-app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
-app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
-app.config["mediaBucket"] = os.getenv("PUBLIC_MEDIA_BUCKET")
-if os.getenv("FLASK_DEBUG"):
-    app.config["URL"] = "http://localhost:5001"
-else:
-    app.config["URL"] = os.getenv("REG_URL")
-app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
-app.config["reg_table_name"] = os.getenv("REG_DB_TABLE")
-app.config["auth_table_name"] = os.getenv("AUTH_DB_TABLE", "admin_auth_table")
-app.config["lookup_table_name"] = os.getenv("LOOKUP_DB_TABLE", "reg_lookup_table")
-app.config["TZ_LOCAL"] = ZoneInfo(os.getenv("LOCAL_TIMEZONE", "US/Central"))
-stripe.api_key = os.getenv("STRIPE_API_KEY")
-maps_api_key = os.getenv("MAPS_API_KEY")
-aws_region = os.getenv("AWS_REGION", "us-east-1")
-s3 = boto3.client("s3")
-sqs = boto3.client("sqs")
-dynamodb = boto3.client("dynamodb")
-dynamodb_res = boto3.resource("dynamodb")
-badges_enabled = os.getenv("ENABLE_BADGES", False)
-address_enabled = os.getenv("ENABLE_ADDRESS", False)
+from api import api_bp
+from models import Registration, db, init_db
 
-# Oauth Login
-oauth = OAuth(app)
-oauth.register(
-    name="oidc",
-    authority=os.getenv("COGNITO_AUTHORITY_URL"),
-    client_id=os.getenv("COGNITO_CLIENT_ID"),
-    client_secret=os.getenv("COGNITO_CLIENT_SECRET"),
-    server_metadata_url=f"{os.getenv('COGNITO_AUTHORITY_URL')}/.well-known/openid-configuration",
-    client_kwargs={"scope": "phone openid email"},
-)
+ui_bp = Blueprint("ui", __name__)
 
 
-def login_required(func):
-    def auth_wrapper():
+# ---------------------------------------------------------------------------
+# Supabase client (lazy, created once per request context via g)
+# ---------------------------------------------------------------------------
+
+
+def get_supabase() -> Client:
+    if "supabase" not in g:
+        g.supabase = create_client(
+            os.getenv("SUPABASE_URL", ""),
+            os.getenv("SUPABASE_ANON_KEY", ""),
+        )
+    return g.supabase
+
+
+# ---------------------------------------------------------------------------
+# Auth helpers
+# ---------------------------------------------------------------------------
+
+
+def login_required(f):
+    @wraps(f)
+    def auth_wrapper(*args, **kwargs):
         user = session.get("user")
         if not user:
-            return redirect(url_for("login"))
-        elif "Admins" not in user.get("cognito:groups", []):
-            flash("You are not authorized to view this page. Please contact the adminstrator.", "danger")
-            return redirect(url_for("logout"))
-        else:
-            return func()
+            return redirect(url_for("ui.login"))
+        role = (user.get("app_metadata") or {}).get("role")
+        if role != "admin":
+            flash("You are not authorized to view this page. Please contact the administrator.", "danger")
+            return redirect(url_for("ui.logout"))
+        return f(*args, **kwargs)
 
-    auth_wrapper.__name__ = func.__name__
     return auth_wrapper
+
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
+
+
+def _s3():
+    return boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
+
+
+def _sqs():
+    return boto3.client("sqs", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
 
 def get_price_details():
@@ -71,28 +87,24 @@ def get_price_details():
             "price_id": price_detail.id,
             "price": f"{int(price_detail.unit_amount/100)}",
         }
-
     return price_dict
 
 
 def convert_to_local(utc_dt):
     local_tz = pytz.timezone(os.getenv("LOCAL_TIMEZONE", "US/Central"))
-    local_dt = utc_dt.astimezone(local_tz)
-    return local_dt
+    return utc_dt.astimezone(local_tz)
 
 
 def get_s3_file(bucket, file_name):
-    """
-    Function to download a given file from an S3 bucket
-    """
+    """Download a file from S3 into static/public_media if not already cached."""
     if not os.path.exists("static/public_media"):
         os.makedirs("static/public_media")
 
     output = f"public_media/{os.path.basename(file_name)}"
 
-    if not os.path.exists(output):
+    if not os.path.exists(f"static/{output}"):
         try:
-            s3.download_file(bucket, file_name, f"static/{output}")
+            _s3().download_file(bucket, file_name, f"static/{output}")
         except Exception as e:
             print(f"Error downloading {file_name} from S3: {e}")
             return None
@@ -100,41 +112,47 @@ def get_s3_file(bucket, file_name):
     return output
 
 
-def format_medical_form(contacts, medicalConditions_list, allergy_list, medications_list):
-    return dict(
-        contacts=dict(S=contacts),
-        medicalConditions=dict(L=[{"S": mc} for mc in medicalConditions_list if mc != ""]),
-        allergies=dict(L=[{"S": a} for a in allergy_list if a != ""]),
-        medications=dict(L=[{"S": m} for m in medications_list if m != ""]),
-    )
+def get_age_group(age):
+    age_groups = {
+        "too_young": list(range(0, 4)),
+        "dragon": [4, 5, 6, 7],
+        "tiger": [8, 9],
+        "youth": [10, 11],
+        "cadet": [12, 13, 14],
+        "junior": [15, 16],
+        "senior": list(range(17, 33)),
+        "ultra": list(range(33, 100)),
+    }
+    return next((group for group, ages in age_groups.items() if int(age) in ages), "too_old")
 
 
-@app.route("/login")
-def login():
-    return oauth.oidc.authorize_redirect(f"{app.config['URL']}/authorize")
-
-
-@app.route("/authorize")
-def authorize():
-    token = oauth.oidc.authorize_access_token()
-    user = token["userinfo"]
-    session["user"] = user
-    return redirect(f"{app.config['URL']}/admin")
-
-
-@app.route("/logout")
-def logout():
-    index_page_uri = urllib.parse.quote_plus(url_for("index", _external=True))
-    logout_uri = f"{os.getenv('COGNITO_AUTH_URL')}/logout?client_id={os.getenv('COGNITO_CLIENT_ID')}&logout_uri={index_page_uri}"
-    session.pop("user", None)
-    return redirect(logout_uri)
+def set_weight_class(entries):
+    config_bucket = os.getenv("CONFIG_BUCKET")
+    weight_classes = json.load(_s3().get_object(Bucket=config_bucket, Key="weight_classes.json")["Body"])
+    updated_entries = []
+    for entry in entries:
+        age_group = get_age_group(entry["age"]["N"])
+        entry["age_group"] = age_group
+        gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
+        weight_class_ranges = weight_classes[age_group][gender]
+        entry["weight_class"] = next(
+            (
+                weight_class
+                for weight_class, weights in weight_class_ranges.items()
+                if float(entry["weight"]["N"]) >= float(weights[0]) and float(entry["weight"]["N"]) < float(weights[1])
+            ),
+            "UNKNOWN",
+        )
+        updated_entries.append(entry)
+    return updated_entries
 
 
 def render_base(content_file, **page_params):
     user = session.get("user")
-    if user and "Admins" in user.get("cognito:groups", []):
+    if user and (user.get("app_metadata") or {}).get("role") == "admin":
         page_params["admin"] = True
-    s3_favicon = get_s3_file(app.config["mediaBucket"], "favicon.png")
+    config = _current_app_config()
+    s3_favicon = get_s3_file(config["mediaBucket"], "favicon.png")
     return render_template(
         "base.html",
         competition_name=os.getenv("COMPETITION_NAME"),
@@ -142,27 +160,86 @@ def render_base(content_file, **page_params):
         event_city=os.getenv("EVENT_CITY", None),
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
         form_js=url_for("static", filename="js/form.js"),
-        address_enabled=address_enabled,
-        maps_api_key=maps_api_key if address_enabled else None,
+        address_enabled=current_app.config.get("ENABLE_ADDRESS", False),
+        maps_api_key=os.getenv("MAPS_API_KEY") if current_app.config.get("ENABLE_ADDRESS") else None,
         content_file=content_file,
         **page_params,
     )
 
 
-@app.route("/", methods=["GET"])
+def _current_app_config():
+    """Return current Flask app config as a dict. Must be called within an app context."""
+    return current_app.config
+
+
+# ---------------------------------------------------------------------------
+# Auth routes
+# ---------------------------------------------------------------------------
+
+
+@ui_bp.route("/login", methods=["GET"])
+def login():
+    return render_base("login.html")
+
+
+@ui_bp.route("/login", methods=["POST"])
+def login_post():
+    email = request.form.get("email", "").strip()
+    password = request.form.get("password", "")
+    try:
+        supabase = get_supabase()
+        response = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        user_data = response.user
+        session["user"] = {
+            "id": user_data.id,
+            "email": user_data.email,
+            "app_metadata": user_data.app_metadata or {},
+            "access_token": response.session.access_token,
+            "refresh_token": response.session.refresh_token,
+        }
+        return redirect(url_for("ui.admin_page"))
+    except Exception as e:
+        current_app.logger.exception("Login error for %s", email)
+        flash("Login failed. Please check your email/password.", "danger")
+        return render_base("login.html")
+
+
+@ui_bp.route("/logout")
+def logout():
+    try:
+        supabase = get_supabase()
+        supabase.auth.sign_out()
+    except Exception:
+        pass
+    session.pop("user", None)
+    return redirect(url_for("ui.index"))
+
+
+# ---------------------------------------------------------------------------
+# Public page routes
+# ---------------------------------------------------------------------------
+
+
+@ui_bp.route("/", methods=["GET"])
 def index():
+    config = _current_app_config()
     try:
         coupons = stripe.Coupon.list(limit=1)
-        early_reg_date = datetime.fromtimestamp(coupons.data[0]["redeem_by"]).replace(
-            tzinfo=app.config["TZ_LOCAL"]
-        ) if coupons.data else None
+        early_reg_date = (
+            datetime.fromtimestamp(coupons.data[0]["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"]) if coupons.data else None
+        )
     except stripe.StripeError:
         early_reg_date_str = os.getenv("EARLY_REG_DATE")
         try:
-            early_reg_date = datetime.strptime(early_reg_date_str, "%B %d, %Y").replace(tzinfo=app.config["TZ_LOCAL"]) if early_reg_date_str else None
+            early_reg_date = (
+                datetime.strptime(early_reg_date_str, "%B %d, %Y").replace(tzinfo=config["TZ_LOCAL"])
+                if early_reg_date_str
+                else None
+            )
         except ValueError:
             early_reg_date = None
-    s3_poster = get_s3_file(app.config["mediaBucket"], "registration_poster.jpg")
+
+    s3_poster = get_s3_file(config["mediaBucket"], "registration_poster.jpg")
     page_params = {
         "today": convert_to_local(datetime.today()),
         "email": os.getenv("CONTACT_EMAIL"),
@@ -172,414 +249,131 @@ def index():
     }
     if request.headers.get("HX-Request"):
         return render_template("landing.html", **page_params)
-    else:
-        return render_base("landing.html", **page_params)
+    return render_base("landing.html", **page_params)
 
 
-@app.route("/lookup_entry", methods=["POST"])
-def lookup_entry():
-    email = request.form.get("email")
-    name = f"{request.form.get('fname','').lower()} {request.form.get('lname','').lower()}"
-    entries = dynamodb.scan(
-        TableName=app.config["lookup_table_name"],
-        IndexName="email-index",
-        FilterExpression="email = :email",
-        ExpressionAttributeValues={
-            ":email": {
-                "S": email,
-            },
-        },
-    )["Items"]
-
-    if len(entries) > 1:
-        if name != " ":
-            entries = [e for e in entries if name.strip() in e["name"]["S"].lower()]
-
-    return render_template("form/lookup_modal.html", entries=entries)
+@ui_bp.route("/visit", methods=["GET"])
+def visit_page():
+    if request.headers.get("HX-Request"):
+        return render_template("tulsa.html")
+    return render_base("tulsa.html")
 
 
-@app.route("/api/autofill", methods=["GET"])
-def autofill():
-    entry = json.loads(request.args.get("entry"))
-    entry["fname"] = entry["name"]["S"].split()[0]
-    entry["lname"] = entry["name"]["S"].split()[1]
-    birthdate = datetime.strptime(entry["birthdate"]["S"], "%m/%d/%Y")
-    entry["birthdate"] = birthdate.strftime("%Y-%m-%d")
-    entry["age"] = str(date.today().year - birthdate.year)
-    entry["age_group"] = get_age_group(int(entry["age"]))
-    schools = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
-    entry["allergy_list"] = [a["S"] for a in entry["medical_form"]["M"]["allergies"]["L"]]
-    entry["meds_list"] = [m["S"] for m in entry["medical_form"]["M"]["medications"]["L"]]
-    entry["medicalConditionsList"] = [mc["S"] for mc in entry["medical_form"]["M"]["medicalConditions"]["L"]]
-
-    return render_template(
-        "form/autofill.html",
-        entry=entry,
-        schools=schools,
-    )
+@ui_bp.route("/hotel", methods=["GET"])
+def hotel_page():
+    if request.headers.get("HX-Request"):
+        return render_template("hotel.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"))
+    return render_base("hotel.html")
 
 
-@app.route("/api/validate/name/<string:form_item_name>", methods=["POST"])
-def api_validate_name(form_item_name):
-    form_item = request.form.get(form_item_name)
-    form_item_id = request.args.get(id, form_item_name)
-    if form_item != "" and form_item.replace(" ", "").isalpha():
-        form_item_valid = True
-    else:
-        form_item_valid = False
-
-    return render_template(
-        "validation/name.html",
-        form_item=form_item,
-        form_item_id=form_item_id,
-        form_item_name=form_item_name,
-        form_item_valid=form_item_valid,
-    )
+@ui_bp.route("/schedule", methods=["GET"])
+def schedule_page():
+    if request.headers.get("HX-Request"):
+        return render_template("schedule.html")
+    return render_base("schedule.html")
 
 
-@app.route("/api/validate/number/<string:form_item_name>", methods=["POST"])
-def api_validate_number(form_item_name):
-    form_item = request.form.get(form_item_name)
-    form_item_id = request.args.get("id", form_item_name)
-    form_item_step = request.args.get("step", "1")
-    form_item_min = request.args.get("min", "")
-    form_item_max = request.args.get("max", "")
-
-    if form_item != "" and form_item.isdigit():
-        form_item_valid = True
-    else:
-        form_item_valid = False
-
-    return render_template(
-        "validation/number.html",
-        form_item=form_item,
-        form_item_id=form_item_id,
-        form_item_step=form_item_step,
-        form_item_min=form_item_min,
-        form_item_max=form_item_max,
-        form_item_name=form_item_name,
-        form_item_valid=form_item_valid,
-    )
-
-
-@app.route("/api/validate/email", methods=["POST"])
-def api_validate_email():
-    email = request.form.get("email")
-    reg_type = request.form.get("regType")
-    try:
-        validate_email(email)
-        email_valid = True
-    except EmailNotValidError:
-        email_valid = False
-
-    return render_template(
-        "validation/email.html",
-        email=email,
-        email_valid=email_valid,
-        reg_type=reg_type,
-        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
-    )
-
-
-@app.route("/api/validate/phone", methods=["POST"])
-def api_validate_phone():
-    phone_num = request.form.get("phone").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-    if phone_num != "" and phone_num.isdigit() and len(phone_num) == 10:
-        phone_num = phone_num[0:3] + "-" + phone_num[3:6] + "-" + phone_num[6:]
-        phone_valid = True
-    else:
-        phone_valid = False
-
-    return render_template(
-        "validation/phone.html",
-        phone_num=phone_num,
-        phone_valid=phone_valid,
-    )
-
-
-@app.route("/api/validate/birthdate", methods=["POST"])
-def api_validate_birthdate():
-    try:
-        birthdate = datetime.strptime(request.form.get("birthdate"), "%Y-%m-%d")
-        birthyear = birthdate.year
-        curr_year = datetime.now().year
-        age = curr_year - birthyear
-        age_group = get_age_group(age)
-        date_valid = True
-    except ValueError:
-        age = ""
-        age_group = ""
-        date_valid = False
-
-    if age_group == "too_young" or age_group == "too_old":
-        date_valid = False
-
-    return render_template(
-        "validation/birthdate.html",
-        birthdate=request.form.get("birthdate"),
-        date_valid=date_valid,
-        age=str(age),
-        age_group=age_group,
-    )
-
-
-@app.route("/api/validate/school", methods=["POST"])
-def api_validate_school():
-    school_selection = request.form.get("school")
-    if school_selection != "":
-        school_valid = True
-    else:
-        school_valid = False
-
-    return render_template(
-        "validation/school.html",
-        school_selection=school_selection,
-        school_valid=school_valid,
-        schools=json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"]),
-    )
-
-
-@app.route("/register", methods=["GET"])
-def display_form():
-    today = datetime.now(app.config["TZ_LOCAL"])
-    reg_close_date = datetime.strptime(f"{os.getenv('REG_CLOSE_DATE')} 23:59", "%B %d, %Y %H:%M").replace(
-        tzinfo=app.config["TZ_LOCAL"]
-    )
-    if today > reg_close_date:
-        page_params = {
-            "email": os.getenv("CONTACT_EMAIL"),
-        }
-        if request.headers.get("HX-Request"):
-            return render_template("disabled.html", competition_name=os.getenv("COMPETITION_NAME"), **page_params)
-        else:
-            return render_base("disabled.html", **page_params)
-    else:
-        early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
-        reg_type = request.args.get("reg_type")
-        school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
-
-        # Display the form
-        page_params = {
-            "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"]),
-            "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
-            "price_dict": get_price_details(),
-            "reg_type": reg_type,
-            "schools": school_list,
-            "enable_badges": badges_enabled,
-            "enable_address": address_enabled,
-        }
-        if request.headers.get("HX-Request"):
-            return render_template("form.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
-        else:
-            return render_base("form.html", **page_params)
-
-
-@app.route("/register", methods=["POST"])
-def handle_form():
-    price_dict = get_price_details()
-    reg_type = request.form.get("regType")
-
-    # Name
-    fname = request.form.get("fname").strip()
-    lname = request.form.get("lname").strip()
-    fullName = f"{fname}_{lname}"
-
-    school = request.form.get("school")
-    if school == "unlisted":
-        school = request.form.get("unlistedSchool").strip()
-    coach = request.form.get("coach").strip()
-
-    # Check if registration already exists
-    # if not os.getenv("FLASK_DEBUG"):
-    pk_school_name = school.replace(" ", "_")
-    pk_exists = dynamodb.get_item(
-        TableName=app.config["reg_table_name"],
-        Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
-    )
-
-    if "Item" in pk_exists:
-        print("registration exists")
-        return redirect(f'{app.config["URL"]}/registration_error?reg_type={reg_type}')
-
-    # Base Form Data
-    form_data = dict(
-        full_name={"S": f"{fname} {lname}"},
-        email={"S": request.form.get("email")},
-        phone={"S": request.form.get("phone")},
-        school={"S": school},
-        reg_type={"S": request.form.get("regType")},
-    )
-
-    # Add Competitor Form Data
-    if reg_type == "competitor":
-        if request.form.get("liability") != "on":
-            msg = "Please go back and accept the Liability Waiver Conditions"
-            abort(400, msg)
-
-        height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
-        belt = request.form.get("beltRank")
-        if belt == "black":
-            dan = request.form.get("blackBeltDan")
-            if dan == "4":
-                belt = "Master"
-            else:
-                belt = f"{dan} degree {belt}"
-        eventList = request.form.get("eventList")
-        if eventList == "":
-            msg = "You must choose at least one event"
-            abort(400, msg)
-
-        medical_form = format_medical_form(
-            request.form.get("contacts"),
-            request.form.get("medicalConditionsList").split(","),
-            request.form.get("allergy_list").split("\r\n"),
-            request.form.get("meds_list").split("\r\n"),
-        )
-
-        form_data.update(
-            dict(
-                parent={"S": request.form.get("parentName")},
-                birthdate={"S": request.form.get("birthdate")},
-                age={"N": request.form.get("age")},
-                gender={"S": request.form.get("gender")},
-                weight={"N": request.form.get("weight")},
-                height={"N": str(height)},
-                coach={"S": coach},
-                beltRank={"S": belt},
-                events={"S": eventList},
-                poomsae_form={"S": request.form.get("poomsae form")},
-                pair_poomsae_form={"S": request.form.get("pair poomsae form")},
-                team_poomsae_form={"S": request.form.get("team poomsae form")},
-                family_poomsae_form={"S": request.form.get("family poomsae form")},
-                medical_form={"M": medical_form},
-            )
-        )
-        if badges_enabled:
-            profileImg = request.files["profilePic"]
-            imageExt = os.path.splitext(profileImg.filename)[1]
-            if profileImg.content_type == "" or imageExt == "":
-                msg = "There was an error uploading your profile pic. Please go back and try again."
-                abort(400, msg)
-
-            form_data.update(dict(imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"}))
-
-            s3.upload_fileobj(
-                profileImg,
-                app.config["profilePicBucket"],
-                form_data["imgFilename"]["S"],
-            )
-
-        events_list = eventList.split(",")
-        if request.form.get("beltRank") == "black":
-            registration_items = [
-                {
-                    "price": price_dict["Black Belt Registration"]["price_id"],
-                    "quantity": 1,
-                },
-            ]
-        else:
-            registration_items = [
-                {
-                    "price": price_dict["Color Belt Registration"]["price_id"],
-                    "quantity": 1,
-                },
-            ]
-        num_add_event = len(events_list) - 1
-        if "little_dragon" in eventList.split(","):
-            form_data.update(dict(tshirt={"S": request.form.get("t-shirt")}))
-            if num_add_event == 0:
-                registration_items = [
-                    {
-                        "price": price_dict["Little Dragon Obstacle Course"]["price_id"],
-                        "quantity": 1,
-                    },
-                ]
-            else:
-                num_add_event -= 1
-                registration_items.append(
-                    {
-                        "price": price_dict["Little Dragon Obstacle Course"]["price_id"],
-                        "quantity": 1,
-                    },
-                )
-        if num_add_event > 0:
-            registration_items.append(
-                {
-                    "price": price_dict["Additional Event"]["price_id"],
-                    "quantity": num_add_event,
-                },
-            )
-        # Code to have 'convenience fee' transfered to separate acct ###
-        registration_items.append({"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1})
-    else:
-        registration_items = [
-            {
-                "price": price_dict["Coach Registration"]["price_id"],
-                "quantity": 1,
-            }
-        ]
-
-    if os.getenv("FLASK_DEBUG"):
-        # For Testing Form Data
-        return render_template(
-            "success.html",
-            competition_name=os.getenv("COMPETITION_NAME"),
-            email=os.getenv("CONTACT_EMAIL"),
-            reg_detail=form_data,
-            cost_detail=registration_items,
-        )
-    else:
-        early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
-        try:
-            early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"])
-            current_time = convert_to_local(datetime.now())
-            checkout_timeout = current_time + timedelta(minutes=30)
-            checkout_details = {
-                "line_items": registration_items,
-                "mode": "payment",
-                "discounts": [],
-                # "success_url": f'{app.config["URL"]}/success',
-                # Code to have 'convenience fee' transfered to separate acct ###
-                "success_url": f'{app.config["URL"]}/success?reg_type={reg_type}&session_id={{CHECKOUT_SESSION_ID}}',
-                "cancel_url": f'{app.config["URL"]}/register?reg_type={reg_type}',
-                "expires_at": int(checkout_timeout.timestamp()),
-            }
-            if reg_type == "competitor" and current_time < early_reg_date:
-                checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
-            checkout_session = stripe.checkout.Session.create(
-                line_items=checkout_details["line_items"],
-                mode=checkout_details["mode"],
-                discounts=checkout_details["discounts"],
-                success_url=checkout_details["success_url"],
-                cancel_url=checkout_details["cancel_url"],
-                expires_at=checkout_details["expires_at"],
-            )
-        except Exception as e:
-            return str(e)
-
-        form_data.update(dict(checkout={"S": checkout_session.id}))
-        sqs.send_message(
-            QueueUrl=app.config["SQS_QUEUE_URL"],
-            DelaySeconds=120,
-            MessageAttributes={
-                "Name": {"DataType": "String", "StringValue": fullName},
-                "Transaction": {
-                    "DataType": "String",
-                    "StringValue": checkout_session.id,
-                },
-            },
-            MessageBody=json.dumps(form_data),
-        )
-
-        # return redirect(checkout_session.url, code=303)
+@ui_bp.route("/get_schedule_details", methods=["GET"])
+def schedule_details():
+    config = _current_app_config()
+    if schedule_img_file := get_s3_file(config["configBucket"], "schedule.png"):
+        schedule_img = url_for("static", filename=schedule_img_file)
         return render_template_string(
-            '<meta http-equiv="refresh" content="0; url={{ checkout_url }}" />', checkout_url=checkout_session.url
+            """
+            <div class="row g-1 mb-1 justify-content-md-center">
+                <div class="col-md-12 center-block" align="center">
+                    <img src="{{ schedule_img }}"" class=" img-fluid"><img><br />
+                </div>
+            </div>
+            """,
+            schedule_img=schedule_img,
         )
+    elif schedule_json := get_s3_file(config["configBucket"], "schedule.json"):
+        schedule_dict = json.load(open(os.path.join("static", schedule_json), "r"))
+        return render_template_string(
+            """
+            <div class="table-responsive" align="center">
+                <table class="table table-striped table-bordered">
+                    {% for day in schedule_dict %}
+                    <thead>
+                        <tr>
+                            <th class="{{ day.class }}" scope="col" colspan="{{ day.colspan }}">
+                                <h4>{{day.date}}</h4>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in day['items'] %}
+                        <tr>
+                            {% if item.time is defined %}
+                            <th scope="row" class="table-primary" {% if item.time_rowspan is defined
+                                %}rowspan="{{item.time_rowspan}}" {%endif%}>
+                                {{item.time }}
+                            </th>
+                            {%endif%}
+                            <td {% if item.title_class is defined -%}class="{{item.title_class}}" {%endif%}>
+                                {{ item.title | safe }}
+                            </td>
+                            {% if item.location is defined %}
+                            <td {% if item.location.class is defined -%}class="{{item.location.class}}" {%endif%}{% if
+                                item.location.rowspan is defined %}rowspan="{{item.location.rowspan}}" {%endif%}><a
+                                    href="{{item.location.link}}" target="_blank">{{
+                                    item.location.name }}</a></td>
+                            {%endif%}
+                        </tr>
+                        {%endfor%}
+                    </tbody>
+                    {%endfor%}
+                </table>
+            </div>
+            """,
+            schedule_dict=schedule_dict,
+        )
+    return render_template_string('<div align="center">Schedule not found</div>')
 
 
-@app.route("/success", methods=["GET"])
+@ui_bp.route("/information", methods=["GET"])
+def info_page():
+    config = _current_app_config()
+    s3_addl_images = _s3().list_objects(Bucket=config["mediaBucket"], Prefix="additional_information_images/")["Contents"]
+    page_params = {
+        "information_booklet_url": url_for("static", filename=get_s3_file(config["mediaBucket"], "information_booklet.pdf")),
+        "poomsae_booklet_url": url_for("static", filename=get_s3_file(config["mediaBucket"], "poomsae_booklet.pdf")),
+        "breaking_booklet_url": url_for("static", filename=get_s3_file(config["mediaBucket"], "breaking_booklet.pdf")),
+        "additional_imgs": [
+            url_for("static", filename=get_s3_file(config["mediaBucket"], i["Key"])) for i in s3_addl_images if i["Size"] > 0
+        ],
+    }
+    if request.headers.get("HX-Request"):
+        return render_template("information.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    return render_base("information.html", **page_params)
+
+
+@ui_bp.route("/entries", methods=["GET"])
+def entries_page():
+    if request.headers.get("HX-Request"):
+        return render_template("entries.html")
+    return render_base("entries.html")
+
+
+@ui_bp.route("/registration_error", methods=["GET"])
+def error_page():
+    page_params = {
+        "reg_type": request.args.get("reg_type"),
+        "email": os.getenv("CONTACT_EMAIL"),
+    }
+    if request.headers.get("HX-Request"):
+        return render_template(
+            "registration_error.html",
+            button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+            competition_name=os.getenv("COMPETITION_NAME"),
+            **page_params,
+        )
+    return render_base("registration_error.html", **page_params)
+
+
+@ui_bp.route("/success", methods=["GET"])
 def success_page():
-    # Code to have 'convenience fee' transfered to separate acct ###
     price_dict = get_price_details()
     full_session = stripe.checkout.Session.retrieve(request.args.get("session_id"), expand=["payment_intent"])
     payment_intent = full_session.payment_intent
@@ -608,507 +402,623 @@ def success_page():
             competition_name=os.getenv("COMPETITION_NAME"),
             **page_params,
         )
-    else:
-        return render_base("success.html", **page_params)
+    return render_base("success.html", **page_params)
 
 
-@app.route("/registration_error", methods=["GET"])
-def error_page():
+# ---------------------------------------------------------------------------
+# Registration form routes
+# ---------------------------------------------------------------------------
+
+
+@ui_bp.route("/register", methods=["GET"])
+def display_form():
+    config = _current_app_config()
+    today = datetime.now(config["TZ_LOCAL"])
+    reg_close_date = datetime.strptime(f"{os.getenv('REG_CLOSE_DATE')} 23:59", "%B %d, %Y %H:%M").replace(
+        tzinfo=config["TZ_LOCAL"]
+    )
+    if today > reg_close_date:
+        page_params = {"email": os.getenv("CONTACT_EMAIL")}
+        if request.headers.get("HX-Request"):
+            return render_template("disabled.html", competition_name=os.getenv("COMPETITION_NAME"), **page_params)
+        return render_base("disabled.html", **page_params)
+
+    early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
+    reg_type = request.args.get("reg_type")
+    school_list = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
+
     page_params = {
-        "reg_type": request.args.get("reg_type"),
-        "email": os.getenv("CONTACT_EMAIL"),
+        "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"]),
+        "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
+        "price_dict": get_price_details(),
+        "reg_type": reg_type,
+        "schools": school_list,
+        "enable_badges": config["ENABLE_BADGES"],
+        "enable_address": config["ENABLE_ADDRESS"],
     }
     if request.headers.get("HX-Request"):
+        return render_template("form.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    return render_base("form.html", **page_params)
+
+
+@ui_bp.route("/register", methods=["POST"])
+def handle_form():
+    config = _current_app_config()
+    price_dict = get_price_details()
+    reg_type = request.form.get("regType")
+
+    fname = request.form.get("fname").strip()
+    lname = request.form.get("lname").strip()
+    full_name = f"{fname} {lname}"
+    school = request.form.get("school")
+    if school == "unlisted":
+        school = request.form.get("unlistedSchool").strip()
+    coach = request.form.get("coach", "").strip()
+
+    # Check for duplicate registration
+    duplicate = Registration.query.filter_by(
+        full_name=full_name,
+        school=school,
+        reg_type=reg_type,
+    ).first()
+    if duplicate:
+        print("registration exists")
+        return redirect(f'{config["URL"]}/registration_error?reg_type={reg_type}')
+
+    reg = Registration(
+        full_name=full_name,
+        email=request.form.get("email"),
+        phone=request.form.get("phone"),
+        school=school,
+        reg_type=reg_type,
+    )
+
+    registration_items = []
+
+    if reg_type == "competitor":
+        if request.form.get("liability") != "on":
+            abort(400, "Please go back and accept the Liability Waiver Conditions")
+
+        height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
+        belt = request.form.get("beltRank")
+        if belt == "black":
+            dan = request.form.get("blackBeltDan")
+            belt = "Master" if dan == "4" else f"{dan} degree {belt}"
+
+        event_list = request.form.get("eventList")
+        if not event_list:
+            abort(400, "You must choose at least one event")
+
+        reg.parent = request.form.get("parentName")
+        reg.birthdate = request.form.get("birthdate")
+        reg.age = int(request.form.get("age"))
+        reg.gender = request.form.get("gender")
+        reg.weight = float(request.form.get("weight"))
+        reg.height = height
+        reg.coach = coach
+        reg.belt_rank = belt
+        reg.events = event_list
+        reg.poomsae_form = request.form.get("poomsae form", "")
+        reg.pair_poomsae_form = request.form.get("pair poomsae form", "")
+        reg.team_poomsae_form = request.form.get("team poomsae form", "")
+        reg.family_poomsae_form = request.form.get("family poomsae form", "")
+        reg.medical_contacts = request.form.get("contacts")
+        reg.medical_conditions = [mc for mc in request.form.get("medicalConditionsList", "").split(",") if mc]
+        reg.allergies = [a for a in request.form.get("allergy_list", "").split("\r\n") if a]
+        reg.medications = [m for m in request.form.get("meds_list", "").split("\r\n") if m]
+
+        if config["ENABLE_BADGES"]:
+            profile_img = request.files["profilePic"]
+            image_ext = os.path.splitext(profile_img.filename)[1]
+            if not profile_img.content_type or not image_ext:
+                abort(400, "There was an error uploading your profile pic. Please go back and try again.")
+            img_filename = f"{school}_{reg_type}_{fname}_{lname}{image_ext}"
+            reg.img_filename = img_filename
+            _s3().upload_fileobj(profile_img, config["profilePicBucket"], img_filename)
+
+        events_list = event_list.split(",")
+        if request.form.get("beltRank") == "black":
+            registration_items = [{"price": price_dict["Black Belt Registration"]["price_id"], "quantity": 1}]
+        else:
+            registration_items = [{"price": price_dict["Color Belt Registration"]["price_id"], "quantity": 1}]
+
+        num_add_event = len(events_list) - 1
+        if "little_dragon" in events_list:
+            reg.tshirt = request.form.get("t-shirt")
+            if num_add_event == 0:
+                registration_items = [{"price": price_dict["Little Dragon Obstacle Course"]["price_id"], "quantity": 1}]
+            else:
+                num_add_event -= 1
+                registration_items.append({"price": price_dict["Little Dragon Obstacle Course"]["price_id"], "quantity": 1})
+        if num_add_event > 0:
+            registration_items.append({"price": price_dict["Additional Event"]["price_id"], "quantity": num_add_event})
+        registration_items.append({"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1})
+    else:
+        registration_items = [{"price": price_dict["Coach Registration"]["price_id"], "quantity": 1}]
+
+    if os.getenv("FLASK_DEBUG"):
+        db.session.add(reg)
+        db.session.commit()
         return render_template(
-            "registration_error.html",
-            button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+            "success.html",
             competition_name=os.getenv("COMPETITION_NAME"),
-            **page_params,
+            email=os.getenv("CONTACT_EMAIL"),
+            reg_detail={"id": str(reg.id), "full_name": reg.full_name},
+            cost_detail=registration_items,
         )
-    else:
-        return render_base("registration_error.html", **page_params)
 
-
-@app.route("/visit", methods=["GET"])
-def visit_page():
-    if request.headers.get("HX-Request"):
-        return render_template("tulsa.html")
-    else:
-        return render_base("tulsa.html")
-
-
-@app.route("/hotel", methods=["GET"])
-def hotel_page():
-    if request.headers.get("HX-Request"):
-        return render_template("hotel.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"))
-    else:
-        return render_base("hotel.html")
-
-
-@app.route("/schedule", methods=["GET"])
-def schedule_page():
-    if request.headers.get("HX-Request"):
-        return render_template("schedule.html")
-    else:
-        return render_base("schedule.html")
-
-
-@app.route("/get_schedule_details", methods=["GET"])
-def schedule_details():
-    if schedule_img_file := get_s3_file(app.config["configBucket"], "schedule.png"):
-        schedule_img = url_for("static", filename=schedule_img_file)
-        return render_template_string(
-            """
-            <div class="row g-1 mb-1 justify-content-md-center">
-                <div class="col-md-12 center-block" align="center">
-                    <img src="{{ schedule_img }}"" class=" img-fluid"><img><br />
-                </div>
-            </div>
-            """,
-            schedule_img=schedule_img,
-        )
-    elif schedule_json := get_s3_file(app.config["configBucket"], "schedule.json"):
-        schedule_dict = json.load(open(os.path.join(app.static_folder, schedule_json), "r"))
-        return render_template_string(
-            """
-            <div class="table-responsive" align="center">
-                <table class="table table-striped table-bordered">
-                    {% for day in schedule_dict %}
-                    <thead>
-                        <tr>
-                            <th class="{{ day.class }}" scope="col" colspan="{{ day.colspan }}">
-                                <h4>{{day.date}}</h4>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in day['items'] %}
-                        <tr>
-                            {% if item.time is defined %}
-                            <th scope="row" class="table-primary" {% if item.time_rowspan is defined
-                                %}rowspan="{{item.time_rowspan}}" {%endif%}>
-                                {{item.time }}
-                            </th>
-                            {%endif%}
-                            <td {% if item.title_class is defined -%}class="{{item.title_class}}" {%endif%}>{{ item.title | safe }}
-                            </td>
-                            {% if item.location is defined %}
-                            <td {% if item.location.class is defined -%}class="{{item.location.class}}" {%endif%}{% if
-                                item.location.rowspan is defined %}rowspan="{{item.location.rowspan}}" {%endif%}><a
-                                    href="{{item.location.link}}" target="_blank">{{
-                                    item.location.name }}</a></td>
-                            {%endif%}
-                        </tr>
-                        {%endfor%}
-                    </tbody>
-                    {%endfor%}
-                </table>
-            </div>
-            """,
-            schedule_dict=schedule_dict,
-        )
-    else:
-        return render_template_string('<div align="center">Schedule not found</div>')
-
-
-@app.route("/upload/<string:resource>", methods=["GET"])
-def upload_form(resource):
-    page_params = {"resource": resource}
-    if request.headers.get("HX-Request"):
-        return render_template("upload.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
-    else:
-        return render_base("upload.html", **page_params)
-
-
-@app.route("/api/upload/<string:resource>", methods=["POST"])
-def upload_item(resource):
-    if resource == "schedule" or resource == "booklet":
-        upload_conf_dict = {
-            "schedule": {"bucket": "configBucket", "filename": "schedule.png"},
-            "booklet": {"bucket": "mediaBucket", "filename": "information_booklet.pdf"},
+    early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
+    try:
+        early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"])
+        current_time = convert_to_local(datetime.now())
+        checkout_timeout = current_time + timedelta(minutes=30)
+        checkout_details = {
+            "line_items": registration_items,
+            "mode": "payment",
+            "discounts": [],
+            "success_url": f'{config["URL"]}/success?reg_type={reg_type}&session_id={{CHECKOUT_SESSION_ID}}',
+            "cancel_url": f'{config["URL"]}/register?reg_type={reg_type}',
+            "expires_at": int(checkout_timeout.timestamp()),
         }
-        upload_item = request.files["uploadFile"]
-        bucket = app.config[upload_conf_dict[resource]["bucket"]]
-        filename = upload_conf_dict[resource]["bucket"]
-
-        s3.upload_fileobj(
-            upload_item,
-            bucket,
-            filename,
+        if reg_type == "competitor" and current_time < early_reg_date:
+            checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
+        checkout_session = stripe.checkout.Session.create(
+            line_items=checkout_details["line_items"],
+            mode=checkout_details["mode"],
+            discounts=checkout_details["discounts"],
+            success_url=checkout_details["success_url"],
+            cancel_url=checkout_details["cancel_url"],
+            expires_at=checkout_details["expires_at"],
         )
-    elif resource == "schools":
-        schools = list(set(request.form.get("schoolList").split(",")))
-        if "REMOVE" in schools:
-            schools.remove("REMOVE")
-        schools.sort()
-        schools_json = json.dumps(schools)
+    except Exception as e:
+        return str(e)
 
-        s3.put_object(Bucket=app.config["configBucket"], Key="schools.json", Body=schools_json, ContentType="application/json")
+    reg.checkout_session_id = checkout_session.id
+    db.session.add(reg)
+    db.session.commit()
 
-    flash(f"{resource.capitalize()} updated successfully!", "success")
-    return redirect(f"{url_for('admin_page')}?redirect=True", code=303)
+    _sqs().send_message(
+        QueueUrl=config["SQS_QUEUE_URL"],
+        DelaySeconds=120,
+        MessageAttributes={
+            "Name": {"DataType": "String", "StringValue": f"{fname}_{lname}"},
+            "Transaction": {"DataType": "String", "StringValue": checkout_session.id},
+        },
+        MessageBody=json.dumps({"id": str(reg.id), "full_name": reg.full_name, "email": reg.email}),
+    )
+
+    return render_template_string(
+        '<meta http-equiv="refresh" content="0; url={{ checkout_url }}" />', checkout_url=checkout_session.url
+    )
 
 
-@app.route("/schools", methods=["GET"])
-@login_required
-def schools_page():
-    schools_json = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+# ---------------------------------------------------------------------------
+# HTMX validation / autofill routes (return HTML partials)
+# ---------------------------------------------------------------------------
 
-    if request.headers.get("HX-Request"):
-        return render_template("api/schools.html", schools=schools_json, button_style=os.getenv("BUTTON_STYLE", "btn-primary"))
+
+@ui_bp.route("/lookup_entry", methods=["POST"])
+def lookup_entry():
+    email = request.form.get("email")
+    name_query = f"{request.form.get('fname','').lower()} {request.form.get('lname','').lower()}".strip()
+    query = Registration.query.filter(Registration.email == email)
+    entries_raw = query.all()
+
+    if len(entries_raw) > 1 and name_query:
+        entries_raw = [e for e in entries_raw if name_query in e.full_name.lower()]
+
+    # Convert to legacy DynamoDB-style dict format so templates continue to work unchanged
+    entries = [_reg_to_legacy(e) for e in entries_raw]
+    return render_template("form/lookup_modal.html", entries=entries)
+
+
+def _reg_to_legacy(reg: Registration) -> dict:
+    """Convert a Registration model to the legacy DynamoDB dict structure expected by templates."""
+    d = {
+        "name": {"S": reg.full_name or ""},
+        "full_name": {"S": reg.full_name or ""},
+        "email": {"S": reg.email or ""},
+        "phone": {"S": reg.phone or ""},
+        "school": {"S": reg.school or ""},
+        "reg_type": {"S": reg.reg_type},
+        "birthdate": {"S": reg.birthdate or ""},
+        "age": {"N": str(reg.age or "")},
+        "gender": {"S": reg.gender or ""},
+        "weight": {"N": str(reg.weight or "")},
+        "height": {"N": str(reg.height or "")},
+        "coach": {"S": reg.coach or ""},
+        "beltRank": {"S": reg.belt_rank or ""},
+        "events": {"S": reg.events or ""},
+        "poomsae_form": {"S": reg.poomsae_form or ""},
+        "wc_poomsae_form": {"S": reg.wc_poomsae_form or ""},
+        "pair_poomsae_form": {"S": reg.pair_poomsae_form or ""},
+        "team_poomsae_form": {"S": reg.team_poomsae_form or ""},
+        "family_poomsae_form": {"S": reg.family_poomsae_form or ""},
+        "parent": {"S": reg.parent or ""},
+        "pk": {"S": str(reg.id)},
+        "medical_form": {
+            "M": {
+                "contacts": {"S": reg.medical_contacts or ""},
+                "medicalConditions": {"L": [{"S": mc} for mc in (reg.medical_conditions or [])]},
+                "allergies": {"L": [{"S": a} for a in (reg.allergies or [])]},
+                "medications": {"L": [{"S": m} for m in (reg.medications or [])]},
+            }
+        },
+    }
+    return d
+
+
+@ui_bp.route("/api/autofill", methods=["GET"])
+def autofill():
+    config = _current_app_config()
+    import json as _json
+
+    entry = _json.loads(request.args.get("entry"))
+    entry["fname"] = entry["name"]["S"].split()[0]
+    entry["lname"] = entry["name"]["S"].split()[1]
+    birthdate = datetime.strptime(entry["birthdate"]["S"], "%m/%d/%Y")
+    entry["birthdate"] = birthdate.strftime("%Y-%m-%d")
+    entry["age"] = str(date.today().year - birthdate.year)
+    entry["age_group"] = get_age_group(int(entry["age"]))
+    schools = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
+    entry["allergy_list"] = [a["S"] for a in entry["medical_form"]["M"]["allergies"]["L"]]
+    entry["meds_list"] = [m["S"] for m in entry["medical_form"]["M"]["medications"]["L"]]
+    entry["medicalConditionsList"] = [mc["S"] for mc in entry["medical_form"]["M"]["medicalConditions"]["L"]]
+    return render_template("form/autofill.html", entry=entry, schools=schools)
+
+
+@ui_bp.route("/api/validate/name/<string:form_item_name>", methods=["POST"])
+def api_validate_name(form_item_name):
+    form_item = request.form.get(form_item_name)
+    form_item_id = request.args.get("id", form_item_name)
+    form_item_valid = bool(form_item) and form_item.replace(" ", "").isalpha()
+    return render_template(
+        "validation/name.html",
+        form_item=form_item,
+        form_item_id=form_item_id,
+        form_item_name=form_item_name,
+        form_item_valid=form_item_valid,
+    )
+
+
+@ui_bp.route("/api/validate/number/<string:form_item_name>", methods=["POST"])
+def api_validate_number(form_item_name):
+    form_item = request.form.get(form_item_name)
+    form_item_id = request.args.get("id", form_item_name)
+    form_item_step = request.args.get("step", "1")
+    form_item_min = request.args.get("min", "")
+    form_item_max = request.args.get("max", "")
+    form_item_valid = bool(form_item) and form_item.isdigit()
+    return render_template(
+        "validation/number.html",
+        form_item=form_item,
+        form_item_id=form_item_id,
+        form_item_step=form_item_step,
+        form_item_min=form_item_min,
+        form_item_max=form_item_max,
+        form_item_name=form_item_name,
+        form_item_valid=form_item_valid,
+    )
+
+
+@ui_bp.route("/api/validate/email", methods=["POST"])
+def api_validate_email():
+    email = request.form.get("email")
+    reg_type = request.form.get("regType")
+    try:
+        validate_email(email)
+        email_valid = True
+    except EmailNotValidError:
+        email_valid = False
+    return render_template(
+        "validation/email.html",
+        email=email,
+        email_valid=email_valid,
+        reg_type=reg_type,
+        button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
+    )
+
+
+@ui_bp.route("/api/validate/phone", methods=["POST"])
+def api_validate_phone():
+    phone_num = request.form.get("phone").replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    if phone_num and phone_num.isdigit() and len(phone_num) == 10:
+        phone_num = phone_num[0:3] + "-" + phone_num[3:6] + "-" + phone_num[6:]
+        phone_valid = True
     else:
-        return render_base("api/schools.html", schools=schools_json)
+        phone_valid = False
+    return render_template("validation/phone.html", phone_num=phone_num, phone_valid=phone_valid)
 
 
-@app.route("/api/schools/add", methods=["POST"])
+@ui_bp.route("/api/validate/birthdate", methods=["POST"])
+def api_validate_birthdate():
+    try:
+        birthdate = datetime.strptime(request.form.get("birthdate"), "%Y-%m-%d")
+        age = datetime.now().year - birthdate.year
+        age_group = get_age_group(age)
+        date_valid = age_group not in ("too_young", "too_old")
+    except ValueError:
+        age = ""
+        age_group = ""
+        date_valid = False
+    return render_template(
+        "validation/birthdate.html",
+        birthdate=request.form.get("birthdate"),
+        date_valid=date_valid,
+        age=str(age),
+        age_group=age_group,
+    )
+
+
+@ui_bp.route("/api/validate/school", methods=["POST"])
+def api_validate_school():
+    config = _current_app_config()
+    school_selection = request.form.get("school")
+    school_valid = bool(school_selection)
+    return render_template(
+        "validation/school.html",
+        school_selection=school_selection,
+        school_valid=school_valid,
+        schools=json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"]),
+    )
+
+
+@ui_bp.route("/api/schools/add", methods=["POST"])
 def add_item():
     school = request.form.get("school")
     school_list = request.form.get("schoolList").split(",")
     if school:
         school_list.append(school)
-        # school_list.sort()
-        # idx = school_list.index(school)
-    return render_template("school_fragment.html", school=school, index=len(school_list) - 1, schools=school_list)  # idx)
+    return render_template("school_fragment.html", school=school, index=len(school_list) - 1, schools=school_list)
 
 
-@app.route("/api/schools/remove/<int:index>", methods=["DELETE"])
+@ui_bp.route("/api/schools/remove/<int:index>", methods=["DELETE"])
 def remove_school(index):
     school_list = request.args.get("schoolList").split(",")
     school_list[index] = "REMOVE"
     schools = ",".join(school_list)
     return render_template_string(
-        f"""
-        <input type="text"  hx-swap-oob="true" id="schoolList" name="schoolList" value="{schools}" hidden>
-        """,
+        f'<input type="text" hx-swap-oob="true" id="schoolList" name="schoolList" value="{schools}" hidden>',
     ), 200
 
 
-@app.route("/information", methods=["GET"])
-def info_page():
-    s3_addl_images = s3.list_objects(Bucket=app.config["mediaBucket"], Prefix="additional_information_images/")["Contents"]
-    page_params = {
-        # "information_booklet_url": f'https://{ app.config["mediaBucket"] }.s3.us-east-1.amazonaws.com/information_booklet.pdf',
-        "information_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "information_booklet.pdf")),
-        "poomsae_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "poomsae_booklet.pdf")),
-        "breaking_booklet_url": url_for("static", filename=get_s3_file(app.config["mediaBucket"], "breaking_booklet.pdf")),
-        "additional_imgs": [
-            url_for("static", filename=get_s3_file(app.config["mediaBucket"], i["Key"])) for i in s3_addl_images if i["Size"] > 0
-        ],
-    }
+# ---------------------------------------------------------------------------
+# Admin routes
+# ---------------------------------------------------------------------------
+
+
+@ui_bp.route("/upload/<string:resource>", methods=["GET"])
+@login_required
+def upload_form(resource):
+    page_params = {"resource": resource}
     if request.headers.get("HX-Request"):
-        return render_template("information.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
-    else:
-        return render_base("information.html", **page_params)
+        return render_template("upload.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
+    return render_base("upload.html", **page_params)
 
 
-def get_age_group(age):
-    age_groups = {
-        "too_young": list(range(0, 4)),
-        "dragon": [4, 5, 6, 7],
-        "tiger": [8, 9],
-        "youth": [10, 11],
-        "cadet": [12, 13, 14],
-        "junior": [15, 16],
-        "senior": list(range(17, 33)),
-        "ultra": list(range(33, 100)),
-    }
-
-    age_group = next((group for group, ages in age_groups.items() if int(age) in ages), "too_old")
-
-    return age_group
-
-
-def set_weight_class(entries):
-    s3 = boto3.client("s3")
-    weight_classes = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="weight_classes.json")["Body"])
-    updated_entries = []
-    for entry in entries:
-        age_group = get_age_group(entry["age"]["N"])
-        entry["age_group"] = age_group
-        gender = "female" if entry["gender"]["S"] == "F" else "male" if entry["gender"]["S"] == "M" else entry["gender"]["S"]
-        weight_class_ranges = weight_classes[age_group][gender]
-        entry["weight_class"] = next(
-            (
-                weight_class
-                for weight_class, weights in weight_class_ranges.items()
-                if float(entry["weight"]["N"]) >= float(weights[0]) and float(entry["weight"]["N"]) < float(weights[1])
-            ),
-            "UNKNOWN",
+@ui_bp.route("/api/upload/<string:resource>", methods=["POST"])
+@login_required
+def upload_item(resource):
+    config = _current_app_config()
+    if resource in ("schedule", "booklet"):
+        upload_conf = {
+            "schedule": {"bucket": config["configBucket"], "filename": "schedule.png"},
+            "booklet": {"bucket": config["mediaBucket"], "filename": "information_booklet.pdf"},
+        }
+        upload_file = request.files["uploadFile"]
+        conf = upload_conf[resource]
+        _s3().upload_fileobj(upload_file, conf["bucket"], conf["filename"])
+    elif resource == "schools":
+        schools = list(set(request.form.get("schoolList").split(",")))
+        if "REMOVE" in schools:
+            schools.remove("REMOVE")
+        schools.sort()
+        _s3().put_object(
+            Bucket=config["configBucket"],
+            Key="schools.json",
+            Body=json.dumps(schools),
+            ContentType="application/json",
         )
-        updated_entries.append(entry)
-
-    return updated_entries
-
-
-@app.route("/api/entries", methods=["GET"])
-def entries_api():
-    entries = dynamodb.scan(TableName=app.config["reg_table_name"])["Items"]
-
-    competitor_entries = [e for e in entries if e["reg_type"]["S"] == "competitor"]
-    competitor_entries = set_weight_class(competitor_entries)
-    for i, e in enumerate(competitor_entries):
-        if "events" in e:
-            e["events"]["S"] = e["events"]["S"].split(",")
-            competitor_entries[i] = e
-
-    coach_entries = [e for e in entries if e["reg_type"]["S"] == "coach"]
-
-    return {"data": competitor_entries + coach_entries}
+    flash(f"{resource.capitalize()} updated successfully!", "success")
+    return redirect(f"{url_for('ui.admin_page')}?redirect=True", code=303)
 
 
-@app.route("/entries", methods=["GET"])
-def entries_page():
+@ui_bp.route("/schools", methods=["GET"])
+@login_required
+def schools_page():
+    config = _current_app_config()
+    schools_json = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
     if request.headers.get("HX-Request"):
-        return render_template("entries.html")
-    else:
-        return render_base("entries.html")
+        return render_template("api/schools.html", schools=schools_json, button_style=os.getenv("BUTTON_STYLE", "btn-primary"))
+    return render_base("api/schools.html", schools=schools_json)
 
 
-@app.route("/admin", methods=["GET"])
+@ui_bp.route("/admin", methods=["GET"])
 @login_required
 def admin_page():
-    entries = dynamodb.scan(
-        TableName=app.config["reg_table_name"],
-    )["Items"]
+    entries_raw = Registration.query.order_by(Registration.created_at.desc()).all()
+    entries = [_reg_to_legacy(e) for e in entries_raw]
     page_params = {"entries": entries}
-
-    redirect = bool(request.args.get("redirect"))
-    page_template = "admin.html" if not redirect else "admin_entries.html"
-
+    redirect_flag = bool(request.args.get("redirect"))
+    page_template = "admin.html" if not redirect_flag else "admin_entries.html"
     if request.headers.get("HX-Request"):
         return render_template(page_template, button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
-    else:
-        return render_base(page_template, **page_params)
+    return render_base(page_template, **page_params)
 
 
-@app.route("/add_entry")
+@ui_bp.route("/add_entry")
 @login_required
 def add_entry_form():
+    config = _current_app_config()
     early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
     reg_type = request.args.get("reg_type")
-    school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
+    school_list = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
     page_params = {
         "price_dict": get_price_details(),
-        "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=app.config["TZ_LOCAL"]),
+        "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"]),
         "early_reg_coupon_amount": f'{int(early_reg_coupon["amount_off"]/100)}',
-        "badge_enabled": badges_enabled,
+        "badge_enabled": config["ENABLE_BADGES"],
         "reg_type": reg_type,
         "schools": school_list,
-        "enable_badges": badges_enabled,
-        "enable_address": address_enabled,
+        "enable_badges": config["ENABLE_BADGES"],
+        "enable_address": config["ENABLE_ADDRESS"],
     }
     if request.headers.get("HX-Request"):
         return render_template("add_entry.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
-    else:
-        return render_base("add_entry.html", **page_params)
+    return render_base("add_entry.html", **page_params)
 
 
-@app.route("/add_entry", methods=["POST"])
+@ui_bp.route("/add_entry", methods=["POST"])
 @login_required
 def add_entry():
+    config = _current_app_config()
     reg_type = request.form.get("regType")
 
-    # Name
     fname = request.form.get("fname").strip()
     lname = request.form.get("lname").strip()
-    fullName = f"{fname}_{lname}"
-
+    full_name = f"{fname} {lname}"
     school = request.form.get("school")
-    coach = request.form.get("coach").strip()
+    coach = request.form.get("coach", "").strip()
 
-    # Check if registration already exists
     if not os.getenv("FLASK_DEBUG"):
-        pk_school_name = school.replace(" ", "_")
-        pk_exists = dynamodb.get_item(
-            TableName=app.config["reg_table_name"],
-            Key={"pk": {"S": f"{pk_school_name}-{reg_type}-{fullName}"}},
-        )
+        duplicate = Registration.query.filter_by(full_name=full_name, school=school, reg_type=reg_type).first()
+        if duplicate:
+            return redirect(f'{config["URL"]}/registration_error?reg_type={reg_type}')
 
-        if "Item" in pk_exists:
-            print("registration exists")
-            return redirect(f'{app.config["URL"]}/registration_error?reg_type={reg_type}')
-
-    # Base Form Data
-    form_data = dict(
-        full_name={"S": f"{fname} {lname}"},
-        email={"S": request.form.get("email")},
-        phone={"S": request.form.get("phone")},
-        school={"S": school},
-        reg_type={"S": request.form.get("regType")},
+    reg = Registration(
+        full_name=full_name,
+        email=request.form.get("email"),
+        phone=request.form.get("phone"),
+        school=school,
+        reg_type=reg_type,
     )
 
-    # Add Competitor Form Data
     if reg_type == "competitor":
         height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
         belt = request.form.get("beltRank")
         if belt == "black":
             dan = request.form.get("blackBeltDan")
-            if dan == "4":
-                belt = "Master"
-            else:
-                belt = f"{dan} degree {belt}"
+            belt = "Master" if dan == "4" else f"{dan} degree {belt}"
+        event_list = request.form.get("eventList")
+        if not event_list:
+            abort(400, "You must choose at least one event")
 
-        eventList = request.form.get("eventList")
-        if eventList == "":
-            msg = "You must choose at least one event"
-            abort(400, msg)
+        reg.parent = request.form.get("parentName")
+        reg.birthdate = request.form.get("birthdate")
+        reg.age = int(request.form.get("age"))
+        reg.gender = request.form.get("gender")
+        reg.weight = float(request.form.get("weight"))
+        reg.height = height
+        reg.coach = coach
+        reg.belt_rank = belt
+        reg.events = event_list
+        reg.poomsae_form = request.form.get("poomsae form", "")
+        reg.wc_poomsae_form = request.form.get("world-class poomsae form", "")
+        reg.pair_poomsae_form = request.form.get("pair poomsae form", "")
+        reg.team_poomsae_form = request.form.get("team poomsae form", "")
+        reg.family_poomsae_form = request.form.get("family poomsae form", "")
+        reg.medical_contacts = request.form.get("contacts")
+        reg.medical_conditions = [mc for mc in request.form.get("medicalConditionsList", "").split(",") if mc]
+        reg.allergies = [a for a in request.form.get("allergy_list", "").split("\r\n") if a]
+        reg.medications = [m for m in request.form.get("meds_list", "").split("\r\n") if m]
 
-        medical_form = format_medical_form(
-            request.form.get("contacts"),
-            request.form.get("medicalConditionsList").split(","),
-            request.form.get("allergy_list").split("\r\n"),
-            request.form.get("meds_list").split("\r\n"),
-        )
-
-        form_data.update(
-            dict(
-                parent={"S": request.form.get("parentName")},
-                birthdate={"S": request.form.get("birthdate")},
-                age={"N": request.form.get("age")},
-                gender={"S": request.form.get("gender")},
-                weight={"N": request.form.get("weight")},
-                height={"N": str(height)},
-                coach={"S": coach},
-                beltRank={"S": belt},
-                events={"S": eventList},
-                poomsae_form={"S": request.form.get("poomsae form", "")},
-                wc_poomsae_form={"S": request.form.get("world-class poomsae form", "")},
-                pair_poomsae_form={"S": request.form.get("pair poomsae form", "")},
-                team_poomsae_form={"S": request.form.get("team poomsae form", "")},
-                family_poomsae_form={"S": request.form.get("family poomsae form", "")},
-                medical_form={"M": medical_form},
-            )
-        )
-        if badges_enabled:
-            profileImg = request.files["profilePic"]
-            imageExt = os.path.splitext(profileImg.filename)[1]
-            if profileImg.content_type == "" or imageExt == "":
-                msg = "There was an error uploading your profile pic. Please go back and try again."
-                abort(400, msg)
-
-            form_data.update(dict(imgFilename={"S": f"{school}_{reg_type}_{fullName}{imageExt}"}))
-
-            s3.upload_fileobj(
-                profileImg,
-                app.config["profilePicBucket"],
-                form_data["imgFilename"]["S"],
-            )
+        if config["ENABLE_BADGES"]:
+            profile_img = request.files["profilePic"]
+            image_ext = os.path.splitext(profile_img.filename)[1]
+            if not profile_img.content_type or not image_ext:
+                abort(400, "There was an error uploading your profile pic. Please go back and try again.")
+            img_filename = f"{school}_{reg_type}_{fname}_{lname}{image_ext}"
+            reg.img_filename = img_filename
+            _s3().upload_fileobj(profile_img, config["profilePicBucket"], img_filename)
 
     if os.getenv("FLASK_DEBUG"):
-        # For Testing Form Data
+        db.session.add(reg)
+        db.session.commit()
         return render_template(
             "success.html",
             competition_name=os.getenv("COMPETITION_NAME"),
             email=os.getenv("CONTACT_EMAIL"),
-            reg_detail=form_data,
-        )
-    else:
-        form_data.update(dict(checkout={"S": "manual_entry"}))
-        sqs.send_message(
-            QueueUrl=app.config["SQS_QUEUE_URL"],
-            DelaySeconds=120,
-            MessageAttributes={
-                "Name": {"DataType": "String", "StringValue": fullName},
-                "Transaction": {
-                    "DataType": "String",
-                    "StringValue": "manual_entry",
-                },
-            },
-            MessageBody=json.dumps(form_data),
+            reg_detail={"id": str(reg.id), "full_name": reg.full_name},
         )
 
-        flash(f"{form_data['full_name']['S']} added successfully!", "success")
-        return redirect(f'{app.config["URL"]}/admin', code=303)
+    reg.checkout_session_id = "manual_entry"
+    db.session.add(reg)
+    db.session.commit()
+
+    _sqs().send_message(
+        QueueUrl=config["SQS_QUEUE_URL"],
+        DelaySeconds=120,
+        MessageAttributes={
+            "Name": {"DataType": "String", "StringValue": f"{fname}_{lname}"},
+            "Transaction": {"DataType": "String", "StringValue": "manual_entry"},
+        },
+        MessageBody=json.dumps({"id": str(reg.id), "full_name": reg.full_name, "email": reg.email}),
+    )
+    flash(f"{full_name} added successfully!", "success")
+    return redirect(f'{config["URL"]}/admin', code=303)
 
 
-@app.route("/edit_entry")
+@ui_bp.route("/edit_entry")
 @login_required
 def edit_entry_form():
-    pk = request.args.get("pk")
-    entry = dynamodb.get_item(
-        TableName=app.config["reg_table_name"],
-        Key={"pk": {"S": pk}},
-    )["Item"]
-    school_list = json.load(s3.get_object(Bucket=app.config["configBucket"], Key="schools.json")["Body"])
-    page_params = {
-        "schools": school_list,
-        "entry": entry,
-    }
+    config = _current_app_config()
+    reg_id = request.args.get("pk")
+    reg = db.session.get(Registration, reg_id)
+    if reg is None:
+        abort(404)
+    school_list = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
+    page_params = {"schools": school_list, "entry": _reg_to_legacy(reg)}
     if request.headers.get("HX-Request"):
         return render_template("edit.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
-    else:
-        return render_base("edit.html", **page_params)
+    return render_base("edit.html", **page_params)
 
 
-@app.route("/edit", methods=["POST"])
+@ui_bp.route("/edit", methods=["POST"])
 @login_required
 def edit_entry():
-    form_data = dict(
-        full_name={"S": request.form.get("full_name")},
-        email={"S": request.form.get("email")},
-        phone={"S": request.form.get("phone")},
-        school={"S": request.form.get("school")},
-        reg_type={"S": request.form.get("regType")},
-    )
-    if form_data["reg_type"]["S"] == "competitor":
+    config = _current_app_config()
+    reg_id = request.args.get("pk")
+    reg = db.session.get(Registration, reg_id)
+    if reg is None:
+        abort(404)
+
+    reg.full_name = request.form.get("full_name")
+    reg.email = request.form.get("email")
+    reg.phone = request.form.get("phone")
+    reg.school = request.form.get("school")
+    reg.reg_type = request.form.get("regType")
+
+    if reg.reg_type == "competitor":
         belt = request.form.get("beltRank")
         if belt == "black":
             dan = request.form.get("blackBeltDan")
-            if dan == "4":
-                belt = "Master"
-            else:
-                belt = f"{dan} degree {belt}"
-        eventList = request.form.get("eventList")
-        form_data.update(
-            dict(
-                parent={"S": request.form.get("parentName")},
-                birthdate={"S": request.form.get("birthdate")},
-                age={"N": request.form.get("age")},
-                gender={"S": request.form.get("gender")},
-                weight={"N": request.form.get("weight")},
-                height={"N": request.form.get("height")},
-                coach={"S": request.form.get("coach").strip()},
-                beltRank={"S": belt},
-                events={"S": eventList},
-                poomsae_form={"S": request.form.get("poomsae form")},
-                pair_poomsae_form={"S": request.form.get("pair poomsae form")},
-                team_poomsae_form={"S": request.form.get("team poomsae form")},
-                family_poomsae_form={"S": request.form.get("family poomsae form")},
-            )
-        )
-        update_expression = "SET {}".format(",".join(f"#{k}=:{k}" for k in form_data))
-        expression_attribute_values = {f":{k}": v for k, v in form_data.items()}
-        expression_attribute_names = {f"#{k}": k for k in form_data}
+            belt = "Master" if dan == "4" else f"{dan} degree {belt}"
+        reg.parent = request.form.get("parentName")
+        reg.birthdate = request.form.get("birthdate")
+        reg.age = int(request.form.get("age"))
+        reg.gender = request.form.get("gender")
+        reg.weight = float(request.form.get("weight"))
+        reg.height = int(request.form.get("height"))
+        reg.coach = request.form.get("coach", "").strip()
+        reg.belt_rank = belt
+        reg.events = request.form.get("eventList")
+        reg.poomsae_form = request.form.get("poomsae form", "")
+        reg.pair_poomsae_form = request.form.get("pair poomsae form", "")
+        reg.team_poomsae_form = request.form.get("team poomsae form", "")
+        reg.family_poomsae_form = request.form.get("family poomsae form", "")
 
-        dynamodb.update_item(
-            TableName=app.config["reg_table_name"],
-            Key={
-                "pk": {"S": request.args.get("pk")},
-            },
-            UpdateExpression=update_expression,
-            ExpressionAttributeValues=expression_attribute_values,
-            ExpressionAttributeNames=expression_attribute_names,
-            ReturnValues="UPDATED_NEW",
-        )
-
-    flash(f'{form_data["full_name"]["S"]} updated successfully!', "success")
-    return redirect(f'{app.config["URL"]}/admin', code=303)
+    db.session.commit()
+    flash(f"{reg.full_name} updated successfully!", "success")
+    return redirect(f'{config["URL"]}/admin', code=303)
 
 
-@app.route("/export")
+@ui_bp.route("/export")
 @login_required
 def generate_csv():
-    data = dynamodb.scan(
-        TableName=app.config["reg_table_name"],
-        FilterExpression="reg_type = :type",
-        ExpressionAttributeValues={
-            ":type": {
-                "S": "competitor",
-            },
-        },
-    )["Items"]
-    entries = sorted(data, key=lambda item: item["full_name"]["S"].split()[-1])
-    s3_favicon = get_s3_file(app.config["mediaBucket"], "favicon.png")
+    config = _current_app_config()
+    entries_raw = Registration.query.filter_by(reg_type="competitor").order_by(Registration.full_name).all()
+    entries = [_reg_to_legacy(e) for e in entries_raw]
+    s3_favicon = get_s3_file(config["mediaBucket"], "favicon.png")
     return render_template(
         "export.html",
         competition_year=os.getenv("COMPETITION_YEAR"),
@@ -1119,9 +1029,75 @@ def generate_csv():
     )
 
 
-@app.errorhandler(404)
+# ---------------------------------------------------------------------------
+# Error handlers
+# ---------------------------------------------------------------------------
+
+
+@ui_bp.app_errorhandler(404)
 def page_not_found(e):
     return render_base("404.html"), 404
+
+
+# ---------------------------------------------------------------------------
+# App factory
+# ---------------------------------------------------------------------------
+
+
+def _parse_bool_env(name: str, default: bool = False) -> bool:
+    """Return True only when the env var value is a truthy string (true/1/yes)."""
+    val = os.getenv(name, "").strip()
+    return val.lower() in ("true", "1", "yes") if val else default
+
+
+def create_app(test_config=None):
+    flask_app = Flask(__name__)
+    flask_app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
+
+    # Config
+    flask_app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")
+    flask_app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
+    flask_app.config["mediaBucket"] = os.getenv("PUBLIC_MEDIA_BUCKET")
+    flask_app.config["URL"] = "http://localhost:5001" if os.getenv("FLASK_DEBUG") else os.getenv("REG_URL")
+    flask_app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
+    flask_app.config["TZ_LOCAL"] = ZoneInfo(os.getenv("LOCAL_TIMEZONE", "US/Central"))
+    flask_app.config["ENABLE_BADGES"] = _parse_bool_env("ENABLE_BADGES")
+    flask_app.config["ENABLE_ADDRESS"] = _parse_bool_env("ENABLE_ADDRESS")
+
+    # SQLAlchemy — serverless-safe pool settings for Supabase connection pooler
+    if test_config and "SQLALCHEMY_DATABASE_URI" in test_config:
+        db_url = test_config["SQLALCHEMY_DATABASE_URI"]
+    elif os.getenv("FLASK_DEBUG"):
+        _default_db = Path(__file__).resolve().parent / "instance" / "app.db"
+        _default_db.parent.mkdir(exist_ok=True)
+        db_url = f"sqlite:///{_default_db}"
+    else:
+        db_url = os.getenv("DATABASE_URL")
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+    if db_url and not db_url.startswith("sqlite"):
+        flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "pool_size": 1,
+            "max_overflow": 2,
+        }
+    flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    if test_config:
+        flask_app.config.update({k: v for k, v in test_config.items() if k != "SQLALCHEMY_DATABASE_URI"})
+
+    stripe.api_key = os.getenv("STRIPE_API_KEY")
+
+    init_db(flask_app)
+
+    flask_app.register_blueprint(ui_bp)
+    flask_app.register_blueprint(api_bp)
+
+    return flask_app
+
+
+# Module-level app instance for Zappa and pytest compatibility
+app = create_app()
 
 
 if __name__ == "__main__":
