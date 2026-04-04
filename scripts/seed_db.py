@@ -1,9 +1,9 @@
 """Seed the database with sample registrations for testing."""
 
 try:
-    from scripts._bootstrap import add_repo_root_to_path
+    from scripts._bootstrap import add_repo_root_to_path, confirm_db_url
 except ModuleNotFoundError:  # Allows `python scripts/seed_db.py`
-    from _bootstrap import add_repo_root_to_path
+    from _bootstrap import add_repo_root_to_path, confirm_db_url
 
 add_repo_root_to_path()
 
@@ -11,13 +11,7 @@ import os
 import uuid
 from pathlib import Path
 
-# Ensure a file-based SQLite DB is used when DATABASE_URL isn't explicitly set,
-# so seeded data persists after the script exits.
-if not os.environ.get("DATABASE_URL"):
-    default_db = Path(__file__).resolve().parent.parent / "instance" / "app.db"
-    default_db.parent.mkdir(exist_ok=True)
-    os.environ["DATABASE_URL"] = f"sqlite:///{default_db}"
-    print(f"DATABASE_URL not set — using {os.environ['DATABASE_URL']}")
+confirm_db_url()
 
 from app import app
 from models import Registration, db

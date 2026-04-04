@@ -1,12 +1,14 @@
 try:
-    from scripts._bootstrap import add_repo_root_to_path
+    from scripts._bootstrap import add_repo_root_to_path, confirm_db_url
 except ModuleNotFoundError:  # Allows `python scripts/reset_db.py`
-    from _bootstrap import add_repo_root_to_path
+    from _bootstrap import add_repo_root_to_path, confirm_db_url
 
 add_repo_root_to_path()
 
 import os
 import sys
+
+confirm_db_url()
 
 app_env = (os.environ.get("APP_ENV") or os.environ.get("app_env") or "").lower()
 if app_env == "prod":
