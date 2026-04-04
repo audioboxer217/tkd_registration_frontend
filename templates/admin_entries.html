@@ -42,7 +42,7 @@
     $(document).ready(function () {
         var table = $('#entries').DataTable({
             reponsive: true,
-            ajax: '/api/entries',
+            ajax: '/api/v1/entries',
             searchPanes: {
                 cascadePanes: true,
                 initCollapsed: true,
@@ -50,21 +50,21 @@
             columns: [
                 {
                     targets: 0,
-                    data: "full_name.S"
+                    data: "full_name"
                 },
                 {
                     target: 1,
-                    data: "email.S",
+                    data: "email",
                     searchable: true,
                 },
                 {
                     target: 2,
-                    data: "phone.S",
+                    data: "phone",
                     searchable: true,
                 },
                 {
                     target: 3,
-                    data: "reg_type.S",
+                    data: "reg_type",
                     searchable: true,
                     searchPanes: {
                         show: true
@@ -72,7 +72,7 @@
                 },
                 {
                     target: 4,
-                    data: "school.S",
+                    data: "school",
                     searchable: true,
                     searchPanes: {
                         show: true
@@ -80,7 +80,7 @@
                 },
                 {
                     target: 5,
-                    data: "pk.S",
+                    data: "id",
                     searchable: false,
                     render: {
                         _: function (data, type, row) {
