@@ -17,8 +17,7 @@
       "request": "launch",
       "module": "flask",
       "env": {
-        "FLASK_APP": "app.py",
-        "FLASK_DEBUG": "1"
+        "FLASK_APP": "app.py"
       },
       "args": [
         "run",
@@ -30,5 +29,12 @@
       "jinja": true,
       "justMyCode": true
     },
+    {
+      "name": "Python Debugger: Current File",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal"
+    }
   ]
 }

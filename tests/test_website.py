@@ -8,13 +8,27 @@ from unittest.mock import MagicMock, patch
 base_path = os.path.dirname(os.path.realpath(__file__))
 app_path = os.path.dirname(base_path)
 sys.path.append(app_path)
-from app import app
+from app import create_app
+from models import db as _db
+
+_test_app = create_app(test_config={"SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", "TESTING": True, "WTF_CSRF_ENABLED": False})
+
+with _test_app.app_context():
+    _db.create_all()
+
+app = _test_app
 
 
 def make_admin_session(client):
     """Helper to set an admin session on the test client."""
     with client.session_transaction() as sess:
-        sess["user"] = {"cognito:groups": ["Admins"], "email": "admin@test.com"}
+        sess["user"] = {
+            "id": "test-user-id",
+            "email": "admin@test.com",
+            "app_metadata": {"role": "admin"},
+            "access_token": "fake-token",
+            "refresh_token": "fake-refresh",
+        }
 
 
 def make_stripe_coupon_mock():
@@ -88,15 +102,27 @@ class TestHomepage:
 class TestAuthRoutes:
     client = app.test_client()
 
-    def test_login_redirects(self):
-        # The login route redirects to Cognito OAuth. Without COGNITO_AUTHORITY_URL
-        # configured (as in the test environment), the OAuth call may fail with a 500.
-        # In production with proper Cognito configuration, this will always be a 302.
-        response = self.client.get("/login")
-        assert response.status_code in (302, 500)
+    def test_login_get_returns_form(self):
+        with patch("app.get_s3_file", return_value=None):
+            response = self.client.get("/login")
+        assert response.status_code == 200
+        assert b"Login" in response.data or b"login" in response.data.lower()
+
+    def test_login_post_bad_credentials_shows_error(self):
+        with patch("app.get_supabase") as mock_sb:
+            mock_client = MagicMock()
+            mock_client.auth.sign_in_with_password.side_effect = Exception("Invalid credentials")
+            mock_sb.return_value = mock_client
+            with patch("app.get_s3_file", return_value=None):
+                response = self.client.post("/login", data={"email": "bad@example.com", "password": "wrong"})
+        assert response.status_code == 200
+        assert b"Login failed" in response.data or b"danger" in response.data
 
     def test_logout_redirects(self):
-        response = self.client.get("/logout")
+        with patch("app.get_supabase") as mock_sb:
+            mock_sb.return_value = MagicMock()
+            with patch("app.get_s3_file", return_value=None):
+                response = self.client.get("/logout")
         assert response.status_code == 302
 
 
@@ -188,48 +214,66 @@ class TestEntriesAPI:
     client = app.test_client()
 
     def test_response_code(self):
-        mock_scan = {"Items": []}
-        with patch("app.dynamodb") as mock_db, patch("app.set_weight_class", return_value=[]):
-            mock_db.scan.return_value = mock_scan
-            response = self.client.get("/api/entries")
+        with patch("api.set_weight_class", return_value=[]):
+            response = self.client.get("/api/v1/entries")
         assert response.status_code == 200
 
     def test_returns_json(self):
-        mock_scan = {"Items": []}
-        with patch("app.dynamodb") as mock_db, patch("app.set_weight_class", return_value=[]):
-            mock_db.scan.return_value = mock_scan
-            response = self.client.get("/api/entries")
+        with patch("api.set_weight_class", return_value=[]):
+            response = self.client.get("/api/v1/entries")
         data = json.loads(response.data)
         assert "data" in data
 
     def test_returns_competitor_and_coach_entries(self):
-        mock_items = [
-            {
-                "reg_type": {"S": "competitor"},
-                "full_name": {"S": "Jane Doe"},
-                "age": {"N": "15"},
-                "gender": {"S": "F"},
-                "weight": {"N": "120"},
-            },
-            {"reg_type": {"S": "coach"}, "full_name": {"S": "John Coach"}},
-        ]
-        with patch("app.dynamodb") as mock_db, patch("app.set_weight_class", return_value=[mock_items[0]]):
-            mock_db.scan.return_value = {"Items": mock_items}
-            response = self.client.get("/api/entries")
+        import uuid
+
+        from models import Registration
+        from models import db as _db
+
+        c_id = str(uuid.uuid4())
+        co_id = str(uuid.uuid4())
+        with app.app_context():
+            competitor = Registration(
+                id=c_id,
+                full_name="Jane Doe",
+                email="jane@example.com",
+                reg_type="competitor",
+                age=15,
+                gender="F",
+                weight=120,
+            )
+            coach = Registration(
+                id=co_id,
+                full_name="John Coach",
+                email="coach@example.com",
+                reg_type="coach",
+            )
+            _db.session.add(competitor)
+            _db.session.add(coach)
+            _db.session.commit()
+
+        with patch("api.set_weight_class", return_value=[{"id": str(c_id), "full_name": "Jane Doe", "reg_type": "competitor"}]):
+            response = self.client.get("/api/v1/entries")
         data = json.loads(response.data)
-        assert len(data["data"]) == 2
+        entries = data["data"]
+        assert any(entry.get("id") == c_id and entry.get("reg_type") == "competitor" for entry in entries)
+        assert any(entry.get("id") == co_id and entry.get("reg_type") == "coach" for entry in entries)
 
 
 class TestUploadForm:
-    client = app.test_client()
-
     def test_schedule_upload_form(self):
-        response = self.client.get("/upload/schedule")
+        client = app.test_client()
+        make_admin_session(client)
+        with patch("app.get_s3_file", return_value=None):
+            response = client.get("/upload/schedule")
         assert response.status_code == 200
         assert b"Upload Schedule" in response.data or b"schedule" in response.data.lower()
 
     def test_booklet_upload_form(self):
-        response = self.client.get("/upload/booklet")
+        client = app.test_client()
+        make_admin_session(client)
+        with patch("app.get_s3_file", return_value=None):
+            response = client.get("/upload/booklet")
         assert response.status_code == 200
         assert b"Upload Booklet" in response.data or b"booklet" in response.data.lower()
 
@@ -355,16 +399,20 @@ class TestSchoolValidation:
 
     def test_valid_school_selection(self):
         schools = ["School A", "School B"]
-        with patch("app.s3") as mock_s3:
+        with patch("app._s3") as mock_s3_factory:
+            mock_s3 = MagicMock()
             mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
+            mock_s3_factory.return_value = mock_s3
             response = self.client.post("/api/validate/school", data={"school": "School A"})
         assert response.status_code == 200
         assert b"is-valid" in response.data
 
     def test_invalid_school_empty(self):
         schools = ["School A", "School B"]
-        with patch("app.s3") as mock_s3:
+        with patch("app._s3") as mock_s3_factory:
+            mock_s3 = MagicMock()
             mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
+            mock_s3_factory.return_value = mock_s3
             response = self.client.post("/api/validate/school", data={"school": ""})
         assert response.status_code == 200
         assert b"is-invalid" in response.data
@@ -374,16 +422,27 @@ class TestLookupEntry:
     client = app.test_client()
 
     def test_lookup_no_results(self):
-        with patch("app.dynamodb") as mock_db:
-            mock_db.scan.return_value = {"Items": []}
-            response = self.client.post("/lookup_entry", data={"email": "nobody@example.com", "fname": "", "lname": ""})
+        response = self.client.post("/lookup_entry", data={"email": "nobody@example.com", "fname": "", "lname": ""})
         assert response.status_code == 200
 
     def test_lookup_with_results(self):
-        mock_items = [{"name": {"S": "john doe"}, "email": {"S": "john@example.com"}, "birthdate": {"S": "01/01/2000"}}]
-        with patch("app.dynamodb") as mock_db:
-            mock_db.scan.return_value = {"Items": mock_items}
-            response = self.client.post("/lookup_entry", data={"email": "john@example.com", "fname": "john", "lname": "doe"})
+        import uuid
+
+        from models import Registration
+        from models import db as _db
+
+        reg_id = str(uuid.uuid4())
+        with app.app_context():
+            reg = Registration(
+                id=reg_id,
+                full_name="john doe",
+                email="john@example.com",
+                reg_type="competitor",
+                birthdate="01/01/2000",
+            )
+            _db.session.add(reg)
+            _db.session.commit()
+        response = self.client.post("/lookup_entry", data={"email": "john@example.com", "fname": "john", "lname": "doe"})
         assert response.status_code == 200
         assert b"john" in response.data.lower()
 
@@ -397,10 +456,12 @@ class TestRegisterPage:
             patch("stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
             patch("stripe.Product.list", return_value=make_stripe_product_mock()),
             patch("stripe.Price.retrieve", return_value=make_stripe_price_mock()),
-            patch("app.s3") as mock_s3,
+            patch("app._s3") as mock_s3_factory,
             patch("app.get_s3_file", return_value=None),
         ):
+            mock_s3 = MagicMock()
             mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
+            mock_s3_factory.return_value = mock_s3
             response = self.client.get("/register")
         assert response.status_code == 200
 
@@ -410,10 +471,12 @@ class TestRegisterPage:
             patch("stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
             patch("stripe.Product.list", return_value=make_stripe_product_mock()),
             patch("stripe.Price.retrieve", return_value=make_stripe_price_mock()),
-            patch("app.s3") as mock_s3,
+            patch("app._s3") as mock_s3_factory,
             patch("app.get_s3_file", return_value=None),
         ):
+            mock_s3 = MagicMock()
             mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
+            mock_s3_factory.return_value = mock_s3
             response = self.client.get("/register")
         assert b"eventRegistration" in response.data or b"form" in response.data.lower()
 
@@ -441,9 +504,7 @@ class TestAdminProtectedRoutes:
     client = app.test_client()
 
     def test_admin_page_redirects_unauthenticated(self):
-        with patch("app.dynamodb") as mock_db:
-            mock_db.scan.return_value = {"Items": []}
-            response = self.client.get("/admin")
+        response = self.client.get("/admin")
         assert response.status_code == 302
         assert "/login" in response.headers["Location"]
 
@@ -469,16 +530,14 @@ class TestAdminPage:
     def test_admin_page_accessible_with_session(self):
         client = app.test_client()
         make_admin_session(client)
-        with patch("app.dynamodb") as mock_db, patch("app.get_s3_file", return_value=None):
-            mock_db.scan.return_value = {"Items": []}
+        with patch("app.get_s3_file", return_value=None):
             response = client.get("/admin")
         assert response.status_code == 200
 
     def test_admin_page_contains_export_link(self):
         client = app.test_client()
         make_admin_session(client)
-        with patch("app.dynamodb") as mock_db, patch("app.get_s3_file", return_value=None):
-            mock_db.scan.return_value = {"Items": []}
+        with patch("app.get_s3_file", return_value=None):
             response = client.get("/admin")
         assert b"Export" in response.data or b"export" in response.data.lower()
 
@@ -490,8 +549,10 @@ class TestSchoolsPage:
         client = app.test_client()
         make_admin_session(client)
         schools = ["School A", "School B"]
-        with patch("app.s3") as mock_s3, patch("app.get_s3_file", return_value=None):
+        with patch("app._s3") as mock_s3_factory, patch("app.get_s3_file", return_value=None):
+            mock_s3 = MagicMock()
             mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
+            mock_s3_factory.return_value = mock_s3
             response = client.get("/schools")
         assert response.status_code == 200
         assert b"School A" in response.data
@@ -508,10 +569,12 @@ class TestAddEntryForm:
             patch("stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
             patch("stripe.Product.list", return_value=make_stripe_product_mock()),
             patch("stripe.Price.retrieve", return_value=make_stripe_price_mock()),
-            patch("app.s3") as mock_s3,
+            patch("app._s3") as mock_s3_factory,
             patch("app.get_s3_file", return_value=None),
         ):
+            mock_s3 = MagicMock()
             mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
+            mock_s3_factory.return_value = mock_s3
             response = client.get("/add_entry")
         assert response.status_code == 200
 
@@ -523,37 +586,68 @@ class TestEditEntryForm:
         client = app.test_client()
         make_admin_session(client)
         schools = ["School A", "School B"]
-        mock_entry = {
-            "pk": {"S": "TestSchool-competitor-John_Doe"},
-            "full_name": {"S": "John Doe"},
-            "email": {"S": "john@example.com"},
-            "phone": {"S": "123-456-7890"},
-            "school": {"S": "Test School"},
-            "reg_type": {"S": "competitor"},
-            "birthdate": {"S": "2005-06-15"},
-            "age": {"N": "19"},
-            "gender": {"S": "M"},
-            "weight": {"N": "150"},
-            "height": {"N": "68"},
-            "coach": {"S": "Coach Smith"},
-            "beltRank": {"S": "1 degree black"},
-            "parent": {"S": ""},
-            "events": {"S": "sparring"},
-            "poomsae_form": {"S": ""},
-            "pair_poomsae_form": {"S": ""},
-            "team_poomsae_form": {"S": ""},
-            "family_poomsae_form": {"S": ""},
-        }
-        with patch("app.dynamodb") as mock_db, patch("app.s3") as mock_s3, patch("app.get_s3_file", return_value=None):
-            mock_db.get_item.return_value = {"Item": mock_entry}
-            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
-            response = client.get("/edit_entry?pk=TestSchool-competitor-John_Doe")
-        assert response.status_code == 200
+        import uuid
 
+        from models import Registration
+        from models import db as _db
+
+        reg_id = str(uuid.uuid4())
+        with app.app_context():
+            reg = Registration(
+                id=reg_id,
+                full_name="John Doe",
+                email="john@example.com",
+                phone="123-456-7890",
+                school="Test School",
+                reg_type="competitor",
+                birthdate="2005-06-15",
+                age=19,
+                gender="M",
+                weight=150,
+                height=68,
+                coach="Coach Smith",
+                belt_rank="1 degree black",
+                events="sparring",
+            )
+            _db.session.add(reg)
+            _db.session.commit()
+
+        with patch("app._s3") as mock_s3_factory, patch("app.get_s3_file", return_value=None):
+            mock_s3 = MagicMock()
+            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
+            mock_s3_factory.return_value = mock_s3
+            response = client.get(f"/edit_entry?pk={reg_id}")
+        assert response.status_code == 200
 
     def test_edit_entry_updates_events(self):
         client = app.test_client()
         make_admin_session(client)
+        import uuid
+
+        from models import Registration
+        from models import db as _db
+
+        reg_id = str(uuid.uuid4())
+        with app.app_context():
+            reg = Registration(
+                id=reg_id,
+                full_name="John Doe",
+                email="john@example.com",
+                phone="123-456-7890",
+                school="Test School",
+                reg_type="competitor",
+                birthdate="2005-06-15",
+                age=19,
+                gender="M",
+                weight=150,
+                height=68,
+                coach="Coach Smith",
+                belt_rank="1 degree black",
+                events="sparring",
+            )
+            _db.session.add(reg)
+            _db.session.commit()
+
         form_data = {
             "full_name": "John Doe",
             "email": "john@example.com",
@@ -575,14 +669,12 @@ class TestEditEntryForm:
             "team poomsae form": "",
             "family poomsae form": "",
         }
-        with patch("app.dynamodb") as mock_db, patch("app.get_s3_file", return_value=None):
-            mock_db.update_item.return_value = {}
-            response = client.post("/edit?pk=TestSchool-competitor-John_Doe", data=form_data)
+        with patch("app.get_s3_file", return_value=None):
+            response = client.post(f"/edit?pk={reg_id}", data=form_data)
         assert response.status_code == 303
-        call_kwargs = mock_db.update_item.call_args.kwargs
-        expression_values = call_kwargs["ExpressionAttributeValues"]
-        assert ":events" in expression_values
-        assert expression_values[":events"] == {"S": "sparring,breaking"}
+        with app.app_context():
+            updated = _db.session.get(Registration, reg_id)
+            assert updated.events == "sparring,breaking"
 
 
 class TestExportPage:
@@ -591,8 +683,7 @@ class TestExportPage:
     def test_export_accessible_with_session(self):
         client = app.test_client()
         make_admin_session(client)
-        with patch("app.dynamodb") as mock_db, patch("app.get_s3_file", return_value=None):
-            mock_db.scan.return_value = {"Items": []}
+        with patch("app.get_s3_file", return_value=None):
             response = client.get("/export")
         assert response.status_code == 200
 
@@ -600,8 +691,7 @@ class TestExportPage:
         client = app.test_client()
         make_admin_session(client)
         competition_name = os.environ.get("COMPETITION_NAME")
-        with patch("app.dynamodb") as mock_db, patch("app.get_s3_file", return_value=None):
-            mock_db.scan.return_value = {"Items": []}
+        with patch("app.get_s3_file", return_value=None):
             response = client.get("/export")
         assert competition_name.encode() in response.data
 
