@@ -7,6 +7,7 @@ import boto3
 import jwt
 import stripe
 from flask import Blueprint, g, jsonify, request
+
 from models import Registration, db
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")

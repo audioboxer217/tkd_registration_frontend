@@ -6,7 +6,6 @@ from functools import wraps
 import boto3
 import pytz
 import stripe
-from api import api_bp
 from email_validator import EmailNotValidError, validate_email
 from flask import (
     Blueprint,
@@ -21,9 +20,11 @@ from flask import (
     session,
     url_for,
 )
-from models import Registration, db, init_db
 from supabase import Client, create_client
 from zoneinfo import ZoneInfo
+
+from api import api_bp
+from models import Registration, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
 

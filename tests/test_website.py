@@ -8,9 +8,8 @@ from unittest.mock import MagicMock, patch
 base_path = os.path.dirname(os.path.realpath(__file__))
 app_path = os.path.dirname(base_path)
 sys.path.append(app_path)
-from models import db as _db
-
 from app import create_app
+from models import db as _db
 
 _test_app = create_app()
 _test_app.config["TESTING"] = True
@@ -228,8 +227,10 @@ class TestEntriesAPI:
         assert "data" in data
 
     def test_returns_competitor_and_coach_entries(self):
-        from models import Registration, db as _db
         import uuid
+
+        from models import Registration
+        from models import db as _db
 
         c_id = str(uuid.uuid4())
         co_id = str(uuid.uuid4())
@@ -425,8 +426,10 @@ class TestLookupEntry:
         assert response.status_code == 200
 
     def test_lookup_with_results(self):
-        from models import Registration, db as _db
         import uuid
+
+        from models import Registration
+        from models import db as _db
 
         reg_id = str(uuid.uuid4())
         with app.app_context():
@@ -584,7 +587,9 @@ class TestEditEntryForm:
         make_admin_session(client)
         schools = ["School A", "School B"]
         import uuid
-        from models import Registration, db as _db
+
+        from models import Registration
+        from models import db as _db
 
         reg_id = str(uuid.uuid4())
         with app.app_context():
@@ -618,7 +623,9 @@ class TestEditEntryForm:
         client = app.test_client()
         make_admin_session(client)
         import uuid
-        from models import Registration, db as _db
+
+        from models import Registration
+        from models import db as _db
 
         reg_id = str(uuid.uuid4())
         with app.app_context():
