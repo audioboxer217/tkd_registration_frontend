@@ -26,7 +26,7 @@ from supabase import Client, create_client
 from zoneinfo import ZoneInfo
 
 from api import api_bp
-from models import Registration, Competitor, Coach, School, db, init_db
+from models import Coach, Competitor, Registration, School, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
 
@@ -425,7 +425,7 @@ def display_form():
 
     early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
     reg_type = request.args.get("reg_type")
-    school_list = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
+    school_list = _get_schools_list()
 
     page_params = {
         "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"]),
@@ -439,6 +439,12 @@ def display_form():
     if request.headers.get("HX-Request"):
         return render_template("form.html", button_style=os.getenv("BUTTON_STYLE", "btn-primary"), **page_params)
     return render_base("form.html", **page_params)
+
+
+def _get_schools_list() -> list:
+    """Get all school names from the database, sorted."""
+    schools = School.query.order_by(School.name).all()
+    return [s.name for s in schools]
 
 
 def _get_or_create_school(school_name: str) -> School:
@@ -653,104 +659,8 @@ def lookup_entry():
     if len(entries_raw) > 1 and name_query:
         entries_raw = [e for e in entries_raw if name_query in e.full_name.lower()]
 
-    # Convert to legacy DynamoDB-style dict format so templates continue to work unchanged
-    entries = [_reg_to_legacy(e) for e in entries_raw]
-    return render_template("form/lookup_modal.html", entries=entries)
+    return render_template("form/lookup_modal.html", entries=entries_raw)
 
-
-def _reg_to_legacy(reg) -> dict:
-    """
-    Convert a Competitor, Coach, or Registration model to legacy DynamoDB dict format.
-    This maintains template compatibility with the old format.
-    """
-    # Handle Competitor model
-    if isinstance(reg, Competitor):
-        coach_name = reg.coach_rel.full_name if reg.coach_rel else ""
-        school_name = reg.school.name if reg.school else ""
-        return {
-            "name": {"S": reg.full_name or ""},
-            "full_name": {"S": reg.full_name or ""},
-            "email": {"S": reg.email or ""},
-            "phone": {"S": reg.phone or ""},
-            "school": {"S": school_name},
-            "school_id": reg.school_id,
-            "coach": {"S": coach_name},
-            "coach_id": reg.coach_id,
-            "beltRank": {"S": reg.belt_rank or ""},
-            "birthdate": {"S": reg.birthdate or ""},
-            "age": {"N": str(reg.age or "")},
-            "gender": {"S": reg.gender or ""},
-            "weight": {"N": str(reg.weight or "")},
-            "height": {"N": str(reg.height or "")},
-            "events": {"S": reg.events or ""},
-            "poomsae_form": {"S": reg.poomsae_form or ""},
-            "wc_poomsae_form": {"S": reg.wc_poomsae_form or ""},
-            "pair_poomsae_form": {"S": reg.pair_poomsae_form or ""},
-            "team_poomsae_form": {"S": reg.team_poomsae_form or ""},
-            "family_poomsae_form": {"S": reg.family_poomsae_form or ""},
-            "parent": {"S": reg.parent or ""},
-            "reg_type": {"S": "competitor"},
-            "pk": {"S": str(reg.id)},
-            "medical_form": {
-                "M": {
-                    "contacts": {"S": reg.medical_contacts or ""},
-                    "medicalConditions": {"L": [{"S": mc} for mc in (reg.medical_conditions or [])]},
-                    "allergies": {"L": [{"S": a} for a in (reg.allergies or [])]},
-                    "medications": {"L": [{"S": m} for m in (reg.medications or [])]},
-                }
-            },
-        }
-
-    # Handle Coach model
-    elif isinstance(reg, Coach):
-        school_name = reg.school.name if reg.school else ""
-        return {
-            "name": {"S": reg.full_name or ""},
-            "full_name": {"S": reg.full_name or ""},
-            "email": {"S": reg.email or ""},
-            "phone": {"S": reg.phone or ""},
-            "school": {"S": school_name},
-            "school_id": reg.school_id,
-            "reg_type": {"S": "coach"},
-            "pk": {"S": str(reg.id)},
-        }
-
-    # Handle legacy Registration model (for historical data)
-    elif isinstance(reg, Registration):
-        d = {
-            "name": {"S": reg.full_name or ""},
-            "full_name": {"S": reg.full_name or ""},
-            "email": {"S": reg.email or ""},
-            "phone": {"S": reg.phone or ""},
-            "school": {"S": reg.school or ""},
-            "reg_type": {"S": reg.reg_type},
-            "birthdate": {"S": reg.birthdate or ""},
-            "age": {"N": str(reg.age or "")},
-            "gender": {"S": reg.gender or ""},
-            "weight": {"N": str(reg.weight or "")},
-            "height": {"N": str(reg.height or "")},
-            "coach": {"S": reg.coach or ""},
-            "beltRank": {"S": reg.belt_rank or ""},
-            "events": {"S": reg.events or ""},
-            "poomsae_form": {"S": reg.poomsae_form or ""},
-            "wc_poomsae_form": {"S": reg.wc_poomsae_form or ""},
-            "pair_poomsae_form": {"S": reg.pair_poomsae_form or ""},
-            "team_poomsae_form": {"S": reg.team_poomsae_form or ""},
-            "family_poomsae_form": {"S": reg.family_poomsae_form or ""},
-            "parent": {"S": reg.parent or ""},
-            "pk": {"S": str(reg.id)},
-            "medical_form": {
-                "M": {
-                    "contacts": {"S": reg.medical_contacts or ""},
-                    "medicalConditions": {"L": [{"S": mc} for mc in (reg.medical_conditions or [])]},
-                    "allergies": {"L": [{"S": a} for a in (reg.allergies or [])]},
-                    "medications": {"L": [{"S": m} for m in (reg.medications or [])]},
-                }
-            },
-        }
-        return d
-
-    return {}
 
 
 @ui_bp.route("/api/autofill", methods=["GET"])
@@ -759,16 +669,37 @@ def autofill():
     import json as _json
 
     entry = _json.loads(request.args.get("entry"))
-    entry["fname"] = entry["name"]["S"].split()[0]
-    entry["lname"] = entry["name"]["S"].split()[1]
-    birthdate = datetime.strptime(entry["birthdate"]["S"], "%m/%d/%Y")
-    entry["birthdate"] = birthdate.strftime("%Y-%m-%d")
-    entry["age"] = str(date.today().year - birthdate.year)
-    entry["age_group"] = get_age_group(int(entry["age"]))
-    schools = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
-    entry["allergy_list"] = [a["S"] for a in entry["medical_form"]["M"]["allergies"]["L"]]
-    entry["meds_list"] = [m["S"] for m in entry["medical_form"]["M"]["medications"]["L"]]
-    entry["medicalConditionsList"] = [mc["S"] for mc in entry["medical_form"]["M"]["medicalConditions"]["L"]]
+    # Extract fname and lname from full_name
+    full_name = entry.get("full_name") or entry.get("name") or ""
+    name_parts = full_name.split()
+    entry["fname"] = name_parts[0] if len(name_parts) > 0 else ""
+    entry["lname"] = name_parts[1] if len(name_parts) > 1 else ""
+
+    # Handle birthdate conversion if present and not already in ISO format
+    if entry.get("birthdate"):
+        try:
+            # Try to parse if it's in MM/DD/YYYY format
+            birthdate = datetime.strptime(entry["birthdate"], "%m/%d/%Y")
+            entry["birthdate"] = birthdate.strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            # Already in ISO format or empty
+            pass
+
+        # Calculate age and age group
+        try:
+            birthdate = datetime.strptime(entry["birthdate"], "%Y-%m-%d")
+            entry["age"] = str(date.today().year - birthdate.year)
+            entry["age_group"] = get_age_group(int(entry["age"]))
+        except (ValueError, TypeError):
+            pass
+
+    schools = _get_schools_list()
+
+    # Process medical arrays (native format)
+    entry["allergies"] = entry.get("allergies") or []
+    entry["medications"] = entry.get("medications") or []
+    entry["medical_conditions"] = entry.get("medical_conditions") or []
+
     return render_template("form/autofill.html", entry=entry, schools=schools)
 
 
@@ -864,7 +795,7 @@ def api_validate_school():
         "validation/school.html",
         school_selection=school_selection,
         school_valid=school_valid,
-        schools=json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"]),
+        schools=_get_schools_list(),
     )
 
 
@@ -914,14 +845,26 @@ def upload_item(resource):
         conf = upload_conf[resource]
         _s3().upload_fileobj(upload_file, conf["bucket"], conf["filename"])
     elif resource == "schools":
-        schools = list(set(request.form.get("schoolList").split(",")))
-        if "REMOVE" in schools:
-            schools.remove("REMOVE")
-        schools.sort()
+        schools_list = list(set(request.form.get("schoolList").split(",")))
+        if "REMOVE" in schools_list:
+            schools_list.remove("REMOVE")
+
+        # Sync schools to database
+        for school_name in schools_list:
+            school_name = school_name.strip()
+            if school_name:
+                existing = School.query.filter_by(name=school_name).first()
+                if not existing:
+                    existing = School(name=school_name)
+                    db.session.add(existing)
+        db.session.commit()
+
+        # Keep S3 upload for backwards compatibility
+        schools_list.sort()
         _s3().put_object(
             Bucket=config["configBucket"],
             Key="schools.json",
-            Body=json.dumps(schools),
+            Body=json.dumps(schools_list),
             ContentType="application/json",
         )
     flash(f"{resource.capitalize()} updated successfully!", "success")
@@ -932,10 +875,10 @@ def upload_item(resource):
 @login_required
 def schools_page():
     config = _current_app_config()
-    schools_json = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
+    schools_list = _get_schools_list()
     if request.headers.get("HX-Request"):
-        return render_template("api/schools.html", schools=schools_json, button_style=os.getenv("BUTTON_STYLE", "btn-primary"))
-    return render_base("api/schools.html", schools=schools_json)
+        return render_template("api/schools.html", schools=schools_list, button_style=os.getenv("BUTTON_STYLE", "btn-primary"))
+    return render_base("api/schools.html", schools=schools_list)
 
 
 @ui_bp.route("/admin", methods=["GET"])
@@ -948,8 +891,7 @@ def admin_page():
     # Sort combined list by created_at
     entries_raw.sort(key=lambda x: x.created_at, reverse=True)
 
-    entries = [_reg_to_legacy(e) for e in entries_raw]
-    page_params = {"entries": entries}
+    page_params = {"entries": entries_raw}
     redirect_flag = bool(request.args.get("redirect"))
     page_template = "admin.html" if not redirect_flag else "admin_entries.html"
     if request.headers.get("HX-Request"):
@@ -963,7 +905,7 @@ def add_entry_form():
     config = _current_app_config()
     early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
     reg_type = request.args.get("reg_type")
-    school_list = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
+    school_list = _get_schools_list()
     page_params = {
         "price_dict": get_price_details(),
         "early_reg_date": datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"]),
@@ -1105,9 +1047,8 @@ def edit_entry_form():
     if reg is None:
         abort(404)
 
-    school_list = json.load(_s3().get_object(Bucket=config["configBucket"], Key="schools.json")["Body"])
-    entry = _reg_to_legacy(reg)
-    entry["reg_type"] = {"S": reg_type}
+    school_list = _get_schools_list()
+    entry = reg.to_dict()
 
     # Get all coaches in the same school for dropdown
     coaches_in_school = Coach.query.filter_by(school_id=reg.school_id).all()
@@ -1192,7 +1133,6 @@ def edit_entry():
 def generate_csv():
     config = _current_app_config()
     entries_raw = Competitor.query.order_by(Competitor.full_name).all()
-    entries = [_reg_to_legacy(e) for e in entries_raw]
     s3_favicon = get_s3_file(config["mediaBucket"], "favicon.png")
     return render_template(
         "export.html",
@@ -1200,7 +1140,7 @@ def generate_csv():
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=s3_favicon) if s3_favicon else None,
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
-        entries=entries,
+        entries=entries_raw,
     )
 
 

@@ -7,9 +7,9 @@ their original coach name (stored in registrations table) to a coach in the
 coaches table using fuzzy string matching.
 """
 
-import sys
 import difflib
 import os
+import sys
 from pathlib import Path
 
 import psycopg2

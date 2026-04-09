@@ -8,7 +8,7 @@ import jwt
 import stripe
 from flask import Blueprint, g, jsonify, request
 
-from models import Registration, Competitor, Coach, School, db
+from models import Coach, Competitor, Registration, School, db
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
@@ -283,14 +283,30 @@ def upload_item(resource):
         return jsonify({"data": {"message": f"{resource.capitalize()} updated successfully"}}), 200
 
     elif resource == "schools":
-        schools = list(set((request.form.get("schoolList") or "").split(",")))
-        if "REMOVE" in schools:
-            schools.remove("REMOVE")
-        schools.sort()
+        schools_list = list(set((request.form.get("schoolList") or "").split(",")))
+        if "REMOVE" in schools_list:
+            schools_list.remove("REMOVE")
+
+        # Sync schools to database
+        # First, get all school names that should exist
+        schools = []
+        for school_name in schools_list:
+            school_name = school_name.strip()
+            if school_name:
+                existing = School.query.filter_by(name=school_name).first()
+                if not existing:
+                    existing = School(name=school_name)
+                    db.session.add(existing)
+                schools.append(existing)
+
+        db.session.commit()
+
+        # Keep S3 upload for backwards compatibility
+        schools_list.sort()
         _s3().put_object(
             Bucket=config_bucket,
             Key="schools.json",
-            Body=json.dumps(schools),
+            Body=json.dumps(schools_list),
             ContentType="application/json",
         )
         return jsonify({"data": {"message": "Schools updated successfully"}}), 200
