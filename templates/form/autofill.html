@@ -24,7 +24,7 @@
     <div class="col-md-6" hx-target="this" hx-swap="innerHTML" hx-replace-url="false" hx-push-url="false">
         <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
         <div hx-target="this" hx-swap="outerHTML" hx-replace-url="false" hx-push-url="false">
-            <input type="text" hx-swap-oob="true" class="form-control is-valid" inputParentName" name="parentName"
+            <input type="text" hx-swap-oob="true" class="form-control is-valid" id="inputParentName" name="parentName"
                 value="{{ entry.parent if entry.parent else '' }}" aria-label="Parent's name"
                 hx-post="/api/validate/name/parentName?id=inputParentName">
         </div>
