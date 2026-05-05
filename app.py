@@ -471,8 +471,13 @@ def _get_or_create_coach(coach_name: str, school_id: int) -> "Coach | None":
     return coach
 
 
-def _normalize_gender(value: str) -> str:
-    """Normalize gender form input to a single-character 'M' or 'F'."""
+def _normalize_gender(value: "str | None") -> "str | None":
+    """Normalize gender form input to a single-character 'M' or 'F'.
+
+    Accepts 'male'/'M' → 'M' and 'female'/'F' → 'F' (case-insensitive).
+    Returns None/empty string unchanged; truncates any other unexpected value
+    to its first character so the column constraint is still satisfied.
+    """
     if not value:
         return value
     v = value.strip().upper()
