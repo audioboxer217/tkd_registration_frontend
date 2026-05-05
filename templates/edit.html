@@ -101,7 +101,7 @@
     {% if entry.reg_type == 'competitor' %}
     <div class="col-md-6" id="coachSection">
       <label for="inputCoach" class="form-check-label h5">Taekwondo Instructor / Coach</label>
-      <input type="text" class="form-control" name="coach" value="{{ entry.coach }}" id="inputCoach" required>
+      <input type="text" class="form-control" name="coach" value="{{ entry.coach | default('', true) }}" id="inputCoach" required>
     </div>
     {% endif %}
   </div>
