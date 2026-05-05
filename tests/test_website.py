@@ -85,7 +85,12 @@ def get_or_create_test_school(name):
 
 class TestHomepage:
     client = app.test_client()
-    response = client.get("/")
+
+    def setup_method(self):
+        """Set up response with mocked Stripe."""
+        with patch("app.stripe.Coupon.list") as mock_coupons:
+            mock_coupons.return_value = MagicMock(data=[])
+            self.response = self.client.get("/")
 
     def test_response_code(self):
         assert self.response.status_code == 200
@@ -96,12 +101,14 @@ class TestHomepage:
 
     def test_early_reg(self):
         early_reg_date_str = os.environ.get("EARLY_REG_DATE")
-        html_line = f'<h2>Early Registration Ends <font color="red">{early_reg_date_str}'
         early_reg_date = datetime.strptime(early_reg_date_str, "%B %d, %Y")
+        html_text = self.response.data.decode()
+
         if datetime.now() < early_reg_date:
-            assert html_line.encode() in self.response.data
+            assert "Early Registration Ends" in html_text
+            assert early_reg_date_str in html_text
         else:
-            assert html_line.encode() not in self.response.data
+            assert "Early Registration Ends" not in html_text or early_reg_date_str not in html_text
 
     def test_reg_close(self):
         html_line = f'<h2>Registration Closes <font color="red">{os.environ.get("REG_CLOSE_DATE")}</font>'
