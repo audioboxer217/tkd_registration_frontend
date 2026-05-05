@@ -69,6 +69,20 @@ def make_stripe_price_mock():
     return price
 
 
+def get_or_create_test_school(name):
+    """Get or create a School record in the test database by name."""
+    from models import School
+    from models import db as _db
+
+    with app.app_context():
+        school = School.query.filter_by(name=name).first()
+        if not school:
+            school = School(name=name)
+            _db.session.add(school)
+            _db.session.commit()
+        return school.id
+
+
 class TestHomepage:
     client = app.test_client()
     response = client.get("/")
@@ -225,18 +239,15 @@ class TestEntriesAPI:
         assert "data" in data
 
     def test_returns_competitor_and_coach_entries(self):
-        from models import Coach, Competitor, School
+        from models import Coach, Competitor
         from models import db as _db
 
+        school_id = get_or_create_test_school("Entries Test School")
         with app.app_context():
-            school = School(name="Entries Test School")
-            _db.session.add(school)
-            _db.session.flush()
-
             competitor = Competitor(
                 full_name="Jane Doe",
                 email="jane@example.com",
-                school_id=school.id,
+                school_id=school_id,
                 age=15,
                 gender="F",
                 weight=120,
@@ -244,7 +255,7 @@ class TestEntriesAPI:
             coach = Coach(
                 full_name="John Coach",
                 email="coach@example.com",
-                school_id=school.id,
+                school_id=school_id,
             )
             _db.session.add(competitor)
             _db.session.add(coach)
@@ -426,20 +437,15 @@ class TestLookupEntry:
         assert response.status_code == 200
 
     def test_lookup_with_results(self):
-        from models import Competitor, School
+        from models import Competitor
         from models import db as _db
 
+        school_id = get_or_create_test_school("Lookup Test School")
         with app.app_context():
-            school = School.query.filter_by(name="Lookup Test School").first()
-            if not school:
-                school = School(name="Lookup Test School")
-                _db.session.add(school)
-                _db.session.flush()
-
             competitor = Competitor(
                 full_name="john doe",
                 email="john@example.com",
-                school_id=school.id,
+                school_id=school_id,
                 birthdate="01/01/2000",
             )
             _db.session.add(competitor)
@@ -551,13 +557,7 @@ class TestSchoolsPage:
     def test_schools_page_accessible_with_session(self):
         client = app.test_client()
         make_admin_session(client)
-        from models import School
-        from models import db as _db
-
-        with app.app_context():
-            if not School.query.filter_by(name="School A").first():
-                _db.session.add(School(name="School A"))
-                _db.session.commit()
+        get_or_create_test_school("School A")
 
         with patch("app.get_s3_file", return_value=None):
             response = client.get("/schools")
@@ -592,21 +592,16 @@ class TestEditEntryForm:
     def test_edit_entry_form_accessible_with_session(self):
         client = app.test_client()
         make_admin_session(client)
-        from models import Competitor, School
+        from models import Competitor
         from models import db as _db
 
+        school_id = get_or_create_test_school("Edit Test School")
         with app.app_context():
-            school = School.query.filter_by(name="Edit Test School").first()
-            if not school:
-                school = School(name="Edit Test School")
-                _db.session.add(school)
-                _db.session.flush()
-
             competitor = Competitor(
                 full_name="John Doe",
                 email="john@example.com",
                 phone="123-456-7890",
-                school_id=school.id,
+                school_id=school_id,
                 birthdate="2005-06-15",
                 age=19,
                 gender="M",
@@ -626,21 +621,16 @@ class TestEditEntryForm:
     def test_edit_entry_updates_events(self):
         client = app.test_client()
         make_admin_session(client)
-        from models import Competitor, School
+        from models import Competitor
         from models import db as _db
 
+        school_id = get_or_create_test_school("Update Test School")
         with app.app_context():
-            school = School.query.filter_by(name="Update Test School").first()
-            if not school:
-                school = School(name="Update Test School")
-                _db.session.add(school)
-                _db.session.flush()
-
             competitor = Competitor(
                 full_name="John Doe",
                 email="john@example.com",
                 phone="123-456-7890",
-                school_id=school.id,
+                school_id=school_id,
                 birthdate="2005-06-15",
                 age=19,
                 gender="M",

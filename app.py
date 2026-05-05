@@ -223,13 +223,13 @@ def logout():
 @ui_bp.route("/", methods=["GET"])
 def index():
     config = _current_app_config()
+    early_reg_date = None
     try:
         coupons = stripe.Coupon.list(limit=1)
-        early_reg_date = (
-            datetime.fromtimestamp(coupons.data[0]["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"]) if coupons.data else None
-        )
+        if coupons.data:
+            early_reg_date = datetime.fromtimestamp(coupons.data[0]["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"])
     except stripe.StripeError:
-        early_reg_date = None
+        pass
 
     if early_reg_date is None:
         early_reg_date_str = os.getenv("EARLY_REG_DATE")
