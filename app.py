@@ -450,7 +450,7 @@ def _get_schools_list() -> list:
     return [s.name for s in schools]
 
 
-def _get_or_create_school(school_name: str) -> School:
+def _get_or_create_school(school_name: str) -> "School | None":
     """Get school by name or create if it doesn't exist."""
     if not school_name:
         return None
@@ -462,13 +462,25 @@ def _get_or_create_school(school_name: str) -> School:
     return school
 
 
-def _get_or_create_coach(coach_name: str, school_id: int) -> Coach:
+def _get_or_create_coach(coach_name: str, school_id: int) -> "Coach | None":
     """Get coach by name and school_id, or return None if not found."""
     if not coach_name or not school_id:
         return None
     # For now, look up exact match - can be enhanced with fuzzy matching
     coach = Coach.query.filter_by(full_name=coach_name, school_id=school_id).first()
     return coach
+
+
+def _normalize_gender(value: str) -> str:
+    """Normalize gender form input to a single-character 'M' or 'F'."""
+    if not value:
+        return value
+    v = value.strip().upper()
+    if v in ("MALE", "M"):
+        return "M"
+    if v in ("FEMALE", "F"):
+        return "F"
+    return v[:1]
 
 
 @ui_bp.route("/register", methods=["POST"])
@@ -537,7 +549,7 @@ def handle_form():
             parent=request.form.get("parentName"),
             birthdate=request.form.get("birthdate"),
             age=int(request.form.get("age")),
-            gender=request.form.get("gender"),
+            gender=_normalize_gender(request.form.get("gender")),
             weight=float(request.form.get("weight")),
             height=height,
             belt_rank=belt,
@@ -974,7 +986,7 @@ def add_entry():
             parent=request.form.get("parentName"),
             birthdate=request.form.get("birthdate"),
             age=int(request.form.get("age")),
-            gender=request.form.get("gender"),
+            gender=_normalize_gender(request.form.get("gender")),
             weight=float(request.form.get("weight")),
             height=height,
             belt_rank=belt,
@@ -1097,7 +1109,7 @@ def edit_entry():
         reg.parent = request.form.get("parentName")
         reg.birthdate = request.form.get("birthdate")
         reg.age = int(request.form.get("age"))
-        reg.gender = request.form.get("gender")
+        reg.gender = _normalize_gender(request.form.get("gender"))
         reg.weight = float(request.form.get("weight"))
         reg.height = int(request.form.get("height"))
         reg.belt_rank = belt

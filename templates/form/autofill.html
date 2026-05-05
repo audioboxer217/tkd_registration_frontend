@@ -16,10 +16,10 @@
 <p hx-swap-oob="true" id="ageClass">Age Group is <b>{{ entry.age_group }}</b></p>
 <input type="text" hx-swap-oob="true" class="form-control is-valid" id='inputAge' name="age" value="{{ entry.age }}"
     aria-label="Age" readonly>
-<input type="radio" hx-swap-oob="true" class="form-check-input" id='genderMale' name="gender" value="male" required
-    {{ "checked" if entry.gender=='male' else "" }}>
-<input type="radio" hx-swap-oob="true" class="form-check-input" id='genderFemale' name="gender" value="female" required
-    {{ "checked" if entry.gender=='female' else "" }}>
+<input type="radio" hx-swap-oob="true" class="form-check-input" id='genderMale' name="gender" value="M" required
+    {{ "checked" if entry.gender=='M' else "" }}>
+<input type="radio" hx-swap-oob="true" class="form-check-input" id='genderFemale' name="gender" value="F" required
+    {{ "checked" if entry.gender=='F' else "" }}>
 {% if entry.age | int <= 17 %} <div class="row mt-2" hx-swap-oob="true" id="parentNameSection">
     <div class="col-md-6" hx-target="this" hx-swap="innerHTML" hx-replace-url="false" hx-push-url="false">
         <label for="inputParentName" class="form-check-label h5">Parent's Name</label>
