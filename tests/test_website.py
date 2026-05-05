@@ -225,34 +225,34 @@ class TestEntriesAPI:
         assert "data" in data
 
     def test_returns_competitor_and_coach_entries(self):
-        import uuid
-
-        from models import Registration
+        from models import Coach, Competitor, School
         from models import db as _db
 
-        c_id = str(uuid.uuid4())
-        co_id = str(uuid.uuid4())
         with app.app_context():
-            competitor = Registration(
-                id=c_id,
+            school = School(name="Entries Test School")
+            _db.session.add(school)
+            _db.session.flush()
+
+            competitor = Competitor(
                 full_name="Jane Doe",
                 email="jane@example.com",
-                reg_type="competitor",
+                school_id=school.id,
                 age=15,
                 gender="F",
                 weight=120,
             )
-            coach = Registration(
-                id=co_id,
+            coach = Coach(
                 full_name="John Coach",
                 email="coach@example.com",
-                reg_type="coach",
+                school_id=school.id,
             )
             _db.session.add(competitor)
             _db.session.add(coach)
             _db.session.commit()
+            c_id = competitor.id
+            co_id = coach.id
 
-        with patch("api.set_weight_class", return_value=[{"id": str(c_id), "full_name": "Jane Doe", "reg_type": "competitor"}]):
+        with patch("api.set_weight_class", return_value=[{"id": c_id, "full_name": "Jane Doe", "reg_type": "competitor"}]):
             response = self.client.get("/api/v1/entries")
         data = json.loads(response.data)
         entries = data["data"]
@@ -426,22 +426,25 @@ class TestLookupEntry:
         assert response.status_code == 200
 
     def test_lookup_with_results(self):
-        import uuid
-
-        from models import Registration
+        from models import Competitor, School
         from models import db as _db
 
-        reg_id = str(uuid.uuid4())
         with app.app_context():
-            reg = Registration(
-                id=reg_id,
+            school = School.query.filter_by(name="Lookup Test School").first()
+            if not school:
+                school = School(name="Lookup Test School")
+                _db.session.add(school)
+                _db.session.flush()
+
+            competitor = Competitor(
                 full_name="john doe",
                 email="john@example.com",
-                reg_type="competitor",
+                school_id=school.id,
                 birthdate="01/01/2000",
             )
-            _db.session.add(reg)
+            _db.session.add(competitor)
             _db.session.commit()
+
         response = self.client.post("/lookup_entry", data={"email": "john@example.com", "fname": "john", "lname": "doe"})
         assert response.status_code == 200
         assert b"john" in response.data.lower()
@@ -548,11 +551,15 @@ class TestSchoolsPage:
     def test_schools_page_accessible_with_session(self):
         client = app.test_client()
         make_admin_session(client)
-        schools = ["School A", "School B"]
-        with patch("app._s3") as mock_s3_factory, patch("app.get_s3_file", return_value=None):
-            mock_s3 = MagicMock()
-            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
-            mock_s3_factory.return_value = mock_s3
+        from models import School
+        from models import db as _db
+
+        with app.app_context():
+            if not School.query.filter_by(name="School A").first():
+                _db.session.add(School(name="School A"))
+                _db.session.commit()
+
+        with patch("app.get_s3_file", return_value=None):
             response = client.get("/schools")
         assert response.status_code == 200
         assert b"School A" in response.data
@@ -585,74 +592,72 @@ class TestEditEntryForm:
     def test_edit_entry_form_accessible_with_session(self):
         client = app.test_client()
         make_admin_session(client)
-        schools = ["School A", "School B"]
-        import uuid
-
-        from models import Registration
+        from models import Competitor, School
         from models import db as _db
 
-        reg_id = str(uuid.uuid4())
         with app.app_context():
-            reg = Registration(
-                id=reg_id,
+            school = School.query.filter_by(name="Edit Test School").first()
+            if not school:
+                school = School(name="Edit Test School")
+                _db.session.add(school)
+                _db.session.flush()
+
+            competitor = Competitor(
                 full_name="John Doe",
                 email="john@example.com",
                 phone="123-456-7890",
-                school="Test School",
-                reg_type="competitor",
+                school_id=school.id,
                 birthdate="2005-06-15",
                 age=19,
                 gender="M",
                 weight=150,
                 height=68,
-                coach="Coach Smith",
                 belt_rank="1 degree black",
                 events="sparring",
             )
-            _db.session.add(reg)
+            _db.session.add(competitor)
             _db.session.commit()
+            reg_id = competitor.id
 
-        with patch("app._s3") as mock_s3_factory, patch("app.get_s3_file", return_value=None):
-            mock_s3 = MagicMock()
-            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
-            mock_s3_factory.return_value = mock_s3
+        with patch("app.get_s3_file", return_value=None):
             response = client.get(f"/edit_entry?pk={reg_id}")
         assert response.status_code == 200
 
     def test_edit_entry_updates_events(self):
         client = app.test_client()
         make_admin_session(client)
-        import uuid
-
-        from models import Registration
+        from models import Competitor, School
         from models import db as _db
 
-        reg_id = str(uuid.uuid4())
         with app.app_context():
-            reg = Registration(
-                id=reg_id,
+            school = School.query.filter_by(name="Update Test School").first()
+            if not school:
+                school = School(name="Update Test School")
+                _db.session.add(school)
+                _db.session.flush()
+
+            competitor = Competitor(
                 full_name="John Doe",
                 email="john@example.com",
                 phone="123-456-7890",
-                school="Test School",
-                reg_type="competitor",
+                school_id=school.id,
                 birthdate="2005-06-15",
                 age=19,
                 gender="M",
                 weight=150,
                 height=68,
-                coach="Coach Smith",
                 belt_rank="1 degree black",
                 events="sparring",
             )
-            _db.session.add(reg)
+            _db.session.add(competitor)
             _db.session.commit()
+            reg_id = competitor.id
 
         form_data = {
             "full_name": "John Doe",
             "email": "john@example.com",
             "phone": "123-456-7890",
-            "school": "Test School",
+            "school": "Update Test School",
             "regType": "competitor",
             "parentName": "",
             "birthdate": "2005-06-15",
@@ -660,7 +665,7 @@ class TestEditEntryForm:
             "gender": "M",
             "weight": "150",
             "height": "68",
-            "coach": "Coach Smith",
+            "coach": "",
             "beltRank": "black",
             "blackBeltDan": "1",
             "eventList": "sparring,breaking",
@@ -673,7 +678,7 @@ class TestEditEntryForm:
             response = client.post(f"/edit?pk={reg_id}", data=form_data)
         assert response.status_code == 303
         with app.app_context():
-            updated = _db.session.get(Registration, reg_id)
+            updated = _db.session.get(Competitor, reg_id)
             assert updated.events == "sparring,breaking"
 
 

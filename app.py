@@ -229,6 +229,9 @@ def index():
             datetime.fromtimestamp(coupons.data[0]["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"]) if coupons.data else None
         )
     except stripe.StripeError:
+        early_reg_date = None
+
+    if early_reg_date is None:
         early_reg_date_str = os.getenv("EARLY_REG_DATE")
         try:
             early_reg_date = (
@@ -659,7 +662,7 @@ def lookup_entry():
     if len(entries_raw) > 1 and name_query:
         entries_raw = [e for e in entries_raw if name_query in e.full_name.lower()]
 
-    return render_template("form/lookup_modal.html", entries=entries_raw)
+    return render_template("form/lookup_modal.html", entries=[e.to_dict() for e in entries_raw])
 
 
 
@@ -1140,7 +1143,7 @@ def generate_csv():
         competition_name=os.getenv("COMPETITION_NAME"),
         favicon_url=url_for("static", filename=s3_favicon) if s3_favicon else None,
         button_style=os.getenv("BUTTON_STYLE", "btn-primary"),
-        entries=entries_raw,
+        entries=[c.to_dict() for c in entries_raw],
     )
 
 

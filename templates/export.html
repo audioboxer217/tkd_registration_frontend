@@ -39,7 +39,7 @@
             <tr>
                 <td>{{ e.full_name }}</td>
                 <td>{{ e.gender }}</td>
-                {% if 'black' in e.belt_rank %}
+                {% if e.belt_rank and 'black' in e.belt_rank %}
                 <td>black</td>
                 {% else %}
                 <td>{{ e.belt_rank }}</td>
