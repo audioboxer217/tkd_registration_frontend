@@ -9,8 +9,6 @@ coaches table using fuzzy string matching.
 
 import difflib
 import os
-import sys
-from pathlib import Path
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
