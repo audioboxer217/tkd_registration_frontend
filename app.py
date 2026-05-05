@@ -462,13 +462,11 @@ def _get_or_create_school(school_name: str) -> "School | None":
     return school
 
 
-def _get_or_create_coach(coach_name: str, school_id: int) -> "Coach | None":
-    """Get coach by name and school_id, or return None if not found."""
+def _get_coach_by_name_and_school(coach_name: str, school_id: int) -> "Coach | None":
+    """Look up a coach by exact name and school_id. Returns None if not found."""
     if not coach_name or not school_id:
         return None
-    # For now, look up exact match - can be enhanced with fuzzy matching
-    coach = Coach.query.filter_by(full_name=coach_name, school_id=school_id).first()
-    return coach
+    return Coach.query.filter_by(full_name=coach_name, school_id=school_id).first()
 
 
 def _normalize_gender(value: "str | None") -> "str | None":
@@ -542,7 +540,7 @@ def handle_form():
         # Get or create coach if specified
         coach_id = None
         if coach_name:
-            coach = _get_or_create_coach(coach_name, school.id)
+            coach = _get_coach_by_name_and_school(coach_name, school.id)
             coach_id = coach.id if coach else None
 
         reg = Competitor(
@@ -979,7 +977,7 @@ def add_entry():
         # Get or create coach if specified
         coach_id = None
         if coach_name:
-            coach = _get_or_create_coach(coach_name, school.id)
+            coach = _get_coach_by_name_and_school(coach_name, school.id)
             coach_id = coach.id if coach else None
 
         reg = Competitor(
@@ -1103,7 +1101,7 @@ def edit_entry():
         coach_name = request.form.get("coach", "").strip()
         coach_id = None
         if coach_name:
-            coach = _get_or_create_coach(coach_name, school.id)
+            coach = _get_coach_by_name_and_school(coach_name, school.id)
             coach_id = coach.id if coach else None
         reg.coach_id = coach_id
 
