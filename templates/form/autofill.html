@@ -39,7 +39,7 @@
     <option value="unlisted">Not Listed - Please Specify Below</option>
 </select>
 <input type="text" hx-swap-oob="true" class="form-control is-valid" name="coach" id="inputCoach"
-    value="{{ entry.coach }}" {{ "required" if reg_type=='competitor' else "" }} hx-post="/api/validate/name/coach">
+    value="{{ entry.coach if entry.coach else '' }}" {{ "required" if reg_type=='competitor' else "" }} hx-post="/api/validate/name/coach">
 {% if entry.allergies | count > 0 %}
 <input type="radio" hx-swap-oob="true" class="form-check-input" id="allergyYes" name="allergies" value="Y"
     onclick="toggleAllergyList()" checked>
