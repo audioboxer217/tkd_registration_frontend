@@ -25,6 +25,36 @@ wheels = [
 ]
 
 [[package]]
+name = "apiflask"
+version = "3.1.0"
+source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi/simple/" }
+dependencies = [
+    { name = "apispec" },
+    { name = "flask" },
+    { name = "flask-httpauth" },
+    { name = "flask-marshmallow" },
+    { name = "marshmallow" },
+    { name = "pydantic", extra = ["email"] },
+    { name = "webargs" },
+]
+sdist = { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/0b/ef/78b445e7dfd2867651df27d478f5f1e5dce3e65dca6146d4db9719ed89d6/apiflask-3.1.0.tar.gz", hash = "sha256:44ac6de494054e6988afea9d1b9272c36e83ecc8a64c7fbab0b877c0d3820d0f", size = 113717, upload-time = "2026-03-22T02:40:59.821Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/c2/e2/0c5d93c68c81398b65579e2cc1e03c307c4c9f9cf0f3a34a2ec551f729a9/apiflask-3.1.0-py3-none-any.whl", hash = "sha256:d7eb6bb8565ef253f0b3898d67bb04993eda1cdefdaffde3ed78b41220645f6d", size = 57788, upload-time = "2026-03-22T02:40:58.386Z" },
+]
+
+[[package]]
+name = "apispec"
+version = "6.10.0"
+source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi/simple/" }
+dependencies = [
+    { name = "packaging" },
+]
+sdist = { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/4a/f1/1f5a9332df3ecd90cc5ab69bc58a4174b8ba2ac1720c4c26b01d20751bf5/apispec-6.10.0.tar.gz", hash = "sha256:0a888555cd4aa5fb7176041be15684154fd8961055e1672e703abf737e8761bf", size = 80631, upload-time = "2026-03-06T21:48:40.916Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/20/88/e149b20246c4689e7d27163e4e3bb8946ef31617cfb3b9c427813483fe5b/apispec-6.10.0-py3-none-any.whl", hash = "sha256:8ff23e0de9a0ceb62ff70047241126315bd17b8d0565a567934c0156f4ddbb43", size = 31313, upload-time = "2026-03-06T21:48:39.404Z" },
+]
+
+[[package]]
 name = "argcomplete"
 version = "3.5.3"
 source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi/simple/" }
@@ -307,6 +337,31 @@ wheels = [
 ]
 
 [[package]]
+name = "flask-httpauth"
+version = "4.8.1"
+source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi/simple/" }
+dependencies = [
+    { name = "flask" },
+]
+sdist = { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/ec/f4/6957215e827021eeb7d8de9f59b1864d73933b04851e59272708cb6e5d2b/flask_httpauth-4.8.1.tar.gz", hash = "sha256:88499b22f1353893743c3cd68f2ca561c4ad9ef75cd6bcc7f621161cd0e80744", size = 38993, upload-time = "2026-03-28T19:45:24.254Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/72/da/624c87bf6c13107ceab8ee23815d9468e47d89c7480c1dc9af39b08eb290/flask_httpauth-4.8.1-py3-none-any.whl", hash = "sha256:0080393d70e12327781f7509115175ec5e47209816489a620d4fd39e20cea2e8", size = 9651, upload-time = "2026-03-28T19:45:23.155Z" },
+]
+
+[[package]]
+name = "flask-marshmallow"
+version = "1.5.0"
+source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi/simple/" }
+dependencies = [
+    { name = "flask" },
+    { name = "marshmallow" },
+]
+sdist = { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/65/ca/22f00dffdd6709332247960e0c1223995bc22ff7537834bffc44ab9ab90b/flask_marshmallow-1.5.0.tar.gz", hash = "sha256:7c06b56e41647eccdb3cd57c25b109f19191b4c62509362bd64920cdf601a066", size = 41188, upload-time = "2026-04-16T02:58:30.853Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/d7/ef/953c6395966388ab37cfb77493c441372201406a260d722e2fefdff134fb/flask_marshmallow-1.5.0-py3-none-any.whl", hash = "sha256:99951c77e5654111ed733811c6dc9310bfb4c3688c78a9e76f80b5ae0b2279a6", size = 12161, upload-time = "2026-04-16T02:58:29.709Z" },
+]
+
+[[package]]
 name = "flask-sqlalchemy"
 version = "3.1.1"
 source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi/simple/" }
@@ -580,6 +635,15 @@ wheels = [
     { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/0d/80/0985960e4b89922cb5a0bac0ed39c5b96cbc1a536a99f30e8c220a996ed9/MarkupSafe-3.0.2-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:131a3c7689c85f5ad20f9f6fb1b866f402c445b220c19fe4308c0b147ccd2ad9", size = 24098, upload-time = "2024-10-18T15:21:40.813Z" },
     { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/82/78/fedb03c7d5380df2427038ec8d973587e90561b2d90cd472ce9254cf348b/MarkupSafe-3.0.2-cp313-cp313t-win32.whl", hash = "sha256:ba8062ed2cf21c07a9e295d5b8a2a5ce678b913b45fdf68c32d95d6c1291e0b6", size = 15208, upload-time = "2024-10-18T15:21:41.814Z" },
     { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/4f/65/6079a46068dfceaeabb5dcad6d674f5f5c61a6fa5673746f42a9f4c233b3/MarkupSafe-3.0.2-cp313-cp313t-win_amd64.whl", hash = "sha256:e444a31f8db13eb18ada366ab3cf45fd4b31e4db1236a4448f68778c1d1a5a2f", size = 15739, upload-time = "2024-10-18T15:21:42.784Z" },
+]
+
+[[package]]
+name = "marshmallow"
+version = "4.3.0"
+source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi/simple/" }
+sdist = { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/25/7e/1dbd4096eb7c148cd2841841916f78820bb85a4d80a0c25c02d30815a7fb/marshmallow-4.3.0.tar.gz", hash = "sha256:fb43c53b3fe240b8f6af37223d6ef1636f927ad9bea8ab323afad95dff090880", size = 224485, upload-time = "2026-04-03T21:46:32.72Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/f4/e0/ff24e25218bb59eb6290a530cea40651b14068b6e3659b20f9c175179632/marshmallow-4.3.0-py3-none-any.whl", hash = "sha256:46c4fe6984707e3cbd485dfebbf0a59874f58d695aad05c1668d15e8c6e13b46", size = 49148, upload-time = "2026-04-03T21:46:31.241Z" },
 ]
 
 [[package]]
@@ -1044,6 +1108,11 @@ dependencies = [
 sdist = { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/69/44/36f1a6e523abc58ae5f928898e4aca2e0ea509b5aa6f6f392a5d882be928/pydantic-2.12.5.tar.gz", hash = "sha256:4d351024c75c0f085a9febbb665ce8c0c6ec5d30e903bdb6394b7ede26aebb49", size = 821591, upload-time = "2025-11-26T15:11:46.471Z" }
 wheels = [
     { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/5a/87/b70ad306ebb6f9b585f114d0ac2137d792b48be34d732d60e597c2f8465a/pydantic-2.12.5-py3-none-any.whl", hash = "sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d", size = 463580, upload-time = "2025-11-26T15:11:44.605Z" },
+]
+
+[package.optional-dependencies]
+email = [
+    { name = "email-validator" },
 ]
 
 [[package]]
@@ -1647,6 +1716,7 @@ name = "tkd-registration-frontend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "apiflask" },
     { name = "boto3" },
     { name = "email-validator" },
     { name = "flask" },
@@ -1669,6 +1739,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "apiflask", specifier = ">=3.1.0" },
     { name = "boto3", specifier = "~=1.36.6" },
     { name = "email-validator", specifier = ">=2.2.0" },
     { name = "flask", specifier = "~=3.1.0" },
@@ -1759,6 +1830,19 @@ source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi
 sdist = { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/aa/63/e53da845320b757bf29ef6a9062f5c669fe997973f966045cb019c3f4b66/urllib3-2.3.0.tar.gz", hash = "sha256:f8c5449b3cf0861679ce7e0503c7b44b5ec981bec0d1d3795a07f1ba96f0204d", size = 307268, upload-time = "2024-12-22T07:47:30.032Z" }
 wheels = [
     { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/c8/19/4ec628951a74043532ca2cf5d97b7b14863931476d117c471e8e2b1eb39f/urllib3-2.3.0-py3-none-any.whl", hash = "sha256:1cee9ad369867bfdbbb48b7dd50374c0967a0bb7710050facf0dd6911440e3df", size = 128369, upload-time = "2024-12-22T07:47:28.074Z" },
+]
+
+[[package]]
+name = "webargs"
+version = "8.7.1"
+source = { registry = "https://pkgs.safetycli.com/repository/personal-5caaf/pypi/simple/" }
+dependencies = [
+    { name = "marshmallow" },
+    { name = "packaging" },
+]
+sdist = { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/37/64/17afc4e6f47eef154a553c6e56adcc9f1ac3003305c7df978d11aa62937e/webargs-8.7.1.tar.gz", hash = "sha256:799bf9039c76c23fd8dc1951107a75a9e561203c15d6ae8f89c1e46e234636c1", size = 97351, upload-time = "2025-10-29T16:07:50.066Z" }
+wheels = [
+    { url = "https://pkgs.safetycli.com/package/personal-5caaf/pypi/packages/41/ef/b0d17f3943429358184449771b592e0e1d33bbeaa6ed326434a95eac187b/webargs-8.7.1-py3-none-any.whl", hash = "sha256:a184aed9d2509e6e14ab99ee3e9dc3a614c7070affe94cd4dfdb0d002e0a6e5f", size = 32500, upload-time = "2025-10-29T16:07:47.895Z" },
 ]
 
 [[package]]
