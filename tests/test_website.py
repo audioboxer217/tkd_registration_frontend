@@ -25,9 +25,7 @@ def make_admin_session(client):
         sess["user"] = {
             "id": "test-user-id",
             "email": "admin@test.com",
-            "app_metadata": {"role": "admin"},
-            "access_token": "fake-token",
-            "refresh_token": "fake-refresh",
+            "role": "admin",
         }
 
 

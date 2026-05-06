@@ -10,8 +10,8 @@ coaches table using fuzzy string matching.
 import difflib
 import os
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 
 
 def get_db_connection():
@@ -19,13 +19,13 @@ def get_db_connection():
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         raise ValueError("DATABASE_URL environment variable not set")
-    return psycopg2.connect(db_url)
+    return psycopg.connect(db_url, row_factory=dict_row)
 
 
 def fuzzy_match_coaches():
     """Match competitor coaches to coach table entries using fuzzy matching."""
     conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor = conn.cursor()
 
     try:
         # Get all competitors with NULL coach_id and their original coach names from registrations
@@ -92,13 +92,13 @@ def fuzzy_match_coaches():
 
         # Print summary
         print(f"\n{'='*60}")
-        print(f"FUZZY MATCHING RESULTS")
+        print("FUZZY MATCHING RESULTS")
         print(f"{'='*60}")
         print(f"Matched: {matched_count}")
         print(f"Unmatched: {unmatched_count}")
 
         if unmatched_details:
-            print(f"\nUNMATCHED COACHES (confidence < 85%):")
+            print("\nUNMATCHED COACHES (confidence < 85%):")
             for detail in unmatched_details:
                 print(detail)
 

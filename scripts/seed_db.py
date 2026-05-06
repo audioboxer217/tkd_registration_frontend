@@ -10,7 +10,7 @@ add_repo_root_to_path()
 import uuid
 
 from app import app
-from models import Registration, db
+from models import Coach, Competitor, School, db
 
 COMPETITORS = [
     # (full_name, email, age, birthdate, gender, weight_lbs, height_in, belt_rank, events, school, coach, poomsae_form)
@@ -76,30 +76,60 @@ def make_checkout_session_id():
     return "cs_test_" + uuid.uuid4().hex[:24]
 
 
+def _get_or_create_school(session, name):
+    """Get or create a School by name, returning the School object."""
+    school = session.query(School).filter_by(name=name).first()
+    if not school:
+        school = School(name=name)
+        session.add(school)
+        session.flush()  # Get the ID without committing
+    return school
+
+
 def seed():
     with app.app_context():
         confirm_db_url(app.config["SQLALCHEMY_DATABASE_URI"])
         db.create_all()
 
-        existing = db.session.query(Registration).count()
+        existing = db.session.query(Competitor).count() + db.session.query(Coach).count()
         if existing > 0:
             print(f"Database already has {existing} registration(s). Skipping seed.")
             print("Run scripts/reset_db.py first if you want a fresh seed.")
             return
 
-        for full_name, email, age, birthdate, gender, weight, height, belt_rank, events, school, coach, poomsae_form in COMPETITORS:
-            reg = Registration(
+        # Create coaches first (so competitors can reference them)
+        coach_map = {}  # school_name -> {coach_display_name: Coach object}
+        for full_name, email, school_name in COACHES:
+            school = _get_or_create_school(db.session, school_name)
+            coach = Coach(
+                full_name=full_name,
+                email=email,
+                phone="555-020-0001",
+                school_id=school.id,
+                checkout_session_id=make_checkout_session_id(),
+            )
+            db.session.add(coach)
+            db.session.flush()
+            coach_map.setdefault(school_name, {})[full_name] = coach
+
+        for (
+            full_name, email, age, birthdate, gender, weight, height,
+            belt_rank, events, school_name, coach_name, poomsae_form,
+        ) in COMPETITORS:
+            school = _get_or_create_school(db.session, school_name)
+            # Try to find a matching coach in the same school
+            coach_obj = coach_map.get(school_name, {}).get(coach_name)
+            competitor = Competitor(
                 full_name=full_name,
                 email=email,
                 phone="555-010-0001",
-                school=school,
-                reg_type="competitor",
+                school_id=school.id,
+                coach_id=coach_obj.id if coach_obj else None,
                 age=age,
                 birthdate=birthdate,
                 gender=gender,
                 weight=weight,
                 height=height,
-                coach=coach,
                 belt_rank=belt_rank,
                 events=events,
                 poomsae_form=poomsae_form if "poomsae" in events else None,
@@ -112,22 +142,12 @@ def seed():
                 medications=[],
                 checkout_session_id=make_checkout_session_id(),
             )
-            db.session.add(reg)
-
-        for full_name, email, school in COACHES:
-            reg = Registration(
-                full_name=full_name,
-                email=email,
-                phone="555-020-0001",
-                school=school,
-                reg_type="coach",
-                checkout_session_id=make_checkout_session_id(),
-            )
-            db.session.add(reg)
+            db.session.add(competitor)
 
         db.session.commit()
-        total = db.session.query(Registration).count()
-        print(f"Seeded {total} registrations ({len(COMPETITORS)} competitors, {len(COACHES)} coaches).")
+        competitor_count = db.session.query(Competitor).count()
+        coach_count = db.session.query(Coach).count()
+        print(f"Seeded {competitor_count + coach_count} registrations ({competitor_count} competitors, {coach_count} coaches).")
 
 
 if __name__ == "__main__":

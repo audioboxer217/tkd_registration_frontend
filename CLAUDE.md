@@ -42,7 +42,7 @@ docs/               Reference documentation (see below)
 - Use `_get_or_create_school(name)` helper before creating competitors/coaches (FK safety)
 - Query `Competitor` or `Coach` tables; **do not insert** to `registrations` (archive only)
 - Style: PEP 8 via ruff (130 char max), domain-specific names (`competitor` not `reg`), env vars only (no hardcoded secrets)
-- CSRF enabled by default; HTMX routes return HTML not JSON
+- HTMX routes return HTML not JSON
 
 ---
 
