@@ -8,9 +8,9 @@ import boto3
 import pytz
 import stripe
 from email_validator import EmailNotValidError, validate_email
+from apiflask import APIFlask
 from flask import (
     Blueprint,
-    Flask,
     abort,
     current_app,
     flash,
@@ -1184,8 +1184,19 @@ def _parse_bool_env(name: str, default: bool = False) -> bool:
 
 
 def create_app(test_config=None):
-    flask_app = Flask(__name__)
+    flask_app = APIFlask(__name__, title="TKD Registration API", version="1.0")
     flask_app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
+
+    flask_app.security_schemes = {
+        "BearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Supabase JWT with app_metadata.role == 'admin'",
+        }
+    }
+    flask_app.config["SPEC_FORMAT"] = "json"
+    flask_app.config["SPEC_PROCESSOR_PASS_REFERENCE"] = True
 
     # Config
     flask_app.config["profilePicBucket"] = os.getenv("PROFILE_PIC_BUCKET")

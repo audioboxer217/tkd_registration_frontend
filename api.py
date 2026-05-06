@@ -6,13 +6,109 @@ from functools import wraps
 import boto3
 import jwt
 import stripe
-from flask import Blueprint, g, jsonify, request
+from apiflask import APIBlueprint, Schema
+from apiflask.fields import Float, Integer, List, Nested, String
+from apiflask.validators import OneOf
+from flask import g, jsonify, request
 
 from models import Coach, Competitor, Registration, School, db
 
-api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
+api_bp = APIBlueprint("api", __name__, url_prefix="/api/v1", tag="Registrations")
 
 stripe.api_key = os.getenv("STRIPE_API_KEY")
+
+
+# ---------------------------------------------------------------------------
+# Schemas
+# ---------------------------------------------------------------------------
+
+
+class RegistrationOut(Schema):
+    id = Integer()
+    full_name = String()
+    email = String()
+    phone = String()
+    school = String()
+    reg_type = String()
+    parent = String()
+    birthdate = String()
+    age = Integer()
+    gender = String()
+    weight = Float()
+    height = Integer()
+    coach = String()
+    belt_rank = String()
+    events = List(String())
+    poomsae_form = String()
+    wc_poomsae_form = String()
+    pair_poomsae_form = String()
+    team_poomsae_form = String()
+    family_poomsae_form = String()
+    img_filename = String()
+    tshirt = String()
+    checkout_session_id = String()
+    created_at = String()
+    updated_at = String()
+
+
+class RegistrationListOut(Schema):
+    data = List(Nested(RegistrationOut))
+
+
+class RegistrationDetailOut(Schema):
+    data = Nested(RegistrationOut)
+
+
+class RegistrationStatusOut(Schema):
+    data = Nested(lambda: RegistrationStatusData())
+
+
+class RegistrationStatusData(Schema):
+    id = String()
+    full_name = String()
+    reg_type = String()
+    checkout_session_id = String()
+
+
+class RegistrationUpdateIn(Schema):
+    full_name = String()
+    email = String()
+    phone = String()
+    school = String()
+    parent = String()
+    birthdate = String()
+    age = Integer()
+    gender = String(validate=OneOf(["M", "F"]))
+    weight = Float()
+    height = Integer()
+    coach = String()
+    belt_rank = String()
+    events = String()
+    poomsae_form = String()
+    wc_poomsae_form = String()
+    pair_poomsae_form = String()
+    team_poomsae_form = String()
+    family_poomsae_form = String()
+
+
+class DeletedOut(Schema):
+    data = Nested(lambda: DeletedData())
+
+
+class DeletedData(Schema):
+    deleted = String()
+
+
+class MessageOut(Schema):
+    data = Nested(lambda: MessageData())
+
+
+class MessageData(Schema):
+    message = String()
+
+
+class ErrorOut(Schema):
+    error = String()
 
 
 def _s3():
@@ -128,6 +224,7 @@ def set_weight_class(entries, config_bucket):
 
 
 @api_bp.route("/entries", methods=["GET"])
+@api_bp.output(RegistrationListOut, description="All competitor and coach registrations")
 def entries_api():
     """Return all competitor and coach registrations as JSON."""
     config_bucket = os.getenv("CONFIG_BUCKET")
@@ -144,6 +241,7 @@ def entries_api():
 
 
 @api_bp.route("/registrations/<string:registration_id>/status", methods=["GET"])
+@api_bp.output(RegistrationStatusOut, description="Registration and payment status")
 def registration_status(registration_id):
     """Check registration and payment status by ID."""
     reg = db.session.get(Registration, registration_id)
@@ -167,7 +265,9 @@ def registration_status(registration_id):
 
 
 @api_bp.route("/admin/registrations", methods=["GET"])
+@api_bp.doc(security=[{"BearerAuth": []}])
 @api_auth_required
+@api_bp.output(RegistrationListOut, description="All registrations")
 def admin_list_registrations():
     """List all registrations with optional reg_type filter."""
     reg_type = request.args.get("reg_type")
@@ -189,82 +289,53 @@ def admin_list_registrations():
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["GET"])
+@api_bp.doc(security=[{"BearerAuth": []}])
 @api_auth_required
+@api_bp.output(RegistrationDetailOut, description="Registration detail")
 def admin_get_registration(registration_id):
-    # Try competitor first
-    competitor = db.session.get(Competitor, int(registration_id))
-    if competitor:
-        return jsonify({"data": competitor.to_dict()})
-
-    # Try coach
-    coach = db.session.get(Coach, int(registration_id))
-    if coach:
-        return jsonify({"data": coach.to_dict()})
-
-    return jsonify({"error": "Not found"}), 404
+    """Get a single registration by ID."""
+    reg = db.session.get(Registration, registration_id)
+    if reg is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({"data": reg.to_dict()})
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["PUT"])
+@api_bp.doc(security=[{"BearerAuth": []}])
 @api_auth_required
-def admin_update_registration(registration_id):
-    reg_id = int(registration_id)
+@api_bp.input(RegistrationUpdateIn, arg_name="body")
+@api_bp.output(RegistrationDetailOut, description="Updated registration")
+def admin_update_registration(registration_id, body):
+    """Update editable fields on a registration."""
+    reg = db.session.get(Registration, registration_id)
+    if reg is None:
+        return jsonify({"error": "Not found"}), 404
 
-    # Try competitor first
-    competitor = db.session.get(Competitor, reg_id)
-    if competitor:
-        data = request.get_json(silent=True) or {}
-        updatable_fields = [
-            "full_name", "email", "phone", "school_id", "coach_id", "parent",
-            "birthdate", "age", "gender", "weight", "height", "belt_rank", "events",
-            "poomsae_form", "wc_poomsae_form", "pair_poomsae_form",
-            "team_poomsae_form", "family_poomsae_form",
-        ]
-        for field in updatable_fields:
-            if field in data:
-                setattr(competitor, field, data[field])
-        competitor.updated_at = datetime.utcnow()
-        db.session.commit()
-        return jsonify({"data": competitor.to_dict()})
-
-    # Try coach
-    coach = db.session.get(Coach, reg_id)
-    if coach:
-        data = request.get_json(silent=True) or {}
-        updatable_fields = ["full_name", "email", "phone", "school_id"]
-        for field in updatable_fields:
-            if field in data:
-                setattr(coach, field, data[field])
-        coach.updated_at = datetime.utcnow()
-        db.session.commit()
-        return jsonify({"data": coach.to_dict()})
-
-    return jsonify({"error": "Not found"}), 404
+    for field, value in body.items():
+        setattr(reg, field, value)
+    reg.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"data": reg.to_dict()})
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["DELETE"])
+@api_bp.doc(security=[{"BearerAuth": []}])
 @api_auth_required
+@api_bp.output(DeletedOut, description="Deleted registration ID")
 def admin_delete_registration(registration_id):
-    reg_id = int(registration_id)
-
-    # Try competitor first
-    competitor = db.session.get(Competitor, reg_id)
-    if competitor:
-        db.session.delete(competitor)
-        db.session.commit()
-        return jsonify({"data": {"deleted": str(registration_id)}}), 200
-
-    # Try coach
-    coach = db.session.get(Coach, reg_id)
-    if coach:
-        db.session.delete(coach)
-        db.session.commit()
-        return jsonify({"data": {"deleted": str(registration_id)}}), 200
-
-    return jsonify({"error": "Not found"}), 404
+    """Delete a registration by ID."""
+    reg = db.session.get(Registration, registration_id)
+    if reg is None:
+        return jsonify({"error": "Not found"}), 404
+    db.session.delete(reg)
+    db.session.commit()
+    return jsonify({"data": {"deleted": str(registration_id)}}), 200
 
 
 @api_bp.route("/admin/upload/<string:resource>", methods=["POST"])
+@api_bp.doc(security=[{"BearerAuth": []}])
 @api_auth_required
+@api_bp.output(MessageOut, description="Upload result message")
 def upload_item(resource):
     """Upload schedule, booklet, or update school list in S3."""
     config_bucket = os.getenv("CONFIG_BUCKET")
