@@ -37,17 +37,17 @@
           <tbody>
             {% for e in entries %}
             <tr>
-                <td>{{ e.full_name.S }}</td>
-                <td>{{ e.gender.S }}</td>
-                {% if 'black' in e.beltRank.S %}
+                <td>{{ e.full_name }}</td>
+                <td>{{ e.gender }}</td>
+                {% if e.belt_rank and 'black' in e.belt_rank %}
                 <td>black</td>
                 {% else %}
-                <td>{{ e.beltRank.S }}</td>
+                <td>{{ e.belt_rank }}</td>
                 {% endif %}
-                <td>{{ e.age.N }}</td>
-                <td>{{ e.weight.N }} lbs</td>
-                <td>{{ e.school.S }}</td>
-                <td>{{ e.events.S | replace(",", ", ") }}</td>
+                <td>{{ e.age }}</td>
+                <td>{{ e.weight }} lbs</td>
+                <td>{{ e.school }}</td>
+                <td>{{ e.events | join(", ") }}</td>
             </tr>
             {% endfor %}
           </tbody>

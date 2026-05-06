@@ -8,7 +8,7 @@ import jwt
 import stripe
 from flask import Blueprint, g, jsonify, request
 
-from models import Registration, db
+from models import Coach, Competitor, Registration, School, db
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
@@ -132,13 +132,13 @@ def entries_api():
     """Return all competitor and coach registrations as JSON."""
     config_bucket = os.getenv("CONFIG_BUCKET")
 
-    competitors = Registration.query.filter_by(reg_type="competitor").all()
-    coaches = Registration.query.filter_by(reg_type="coach").all()
+    competitors = Competitor.query.all()
+    coaches = Coach.query.all()
 
-    competitor_dicts = [r.to_dict() for r in competitors]
+    competitor_dicts = [c.to_dict() for c in competitors]
     competitor_dicts = set_weight_class(competitor_dicts, config_bucket)
 
-    coach_dicts = [r.to_dict() for r in coaches]
+    coach_dicts = [c.to_dict() for c in coaches]
 
     return jsonify({"data": competitor_dicts + coach_dicts})
 
@@ -171,67 +171,96 @@ def registration_status(registration_id):
 def admin_list_registrations():
     """List all registrations with optional reg_type filter."""
     reg_type = request.args.get("reg_type")
-    query = Registration.query
-    if reg_type:
-        query = query.filter_by(reg_type=reg_type)
-    registrations = query.order_by(Registration.created_at.desc()).all()
-    return jsonify({"data": [r.to_dict() for r in registrations]})
+
+    results = []
+
+    if not reg_type or reg_type == "competitor":
+        competitors = Competitor.query.order_by(Competitor.created_at.desc()).all()
+        results.extend([c.to_dict() for c in competitors])
+
+    if not reg_type or reg_type == "coach":
+        coaches = Coach.query.order_by(Coach.created_at.desc()).all()
+        results.extend([c.to_dict() for c in coaches])
+
+    # Sort all results by created_at descending
+    results.sort(key=lambda x: x["created_at"], reverse=True)
+
+    return jsonify({"data": results})
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["GET"])
 @api_auth_required
 def admin_get_registration(registration_id):
-    reg = db.session.get(Registration, registration_id)
-    if reg is None:
-        return jsonify({"error": "Not found"}), 404
-    return jsonify({"data": reg.to_dict()})
+    # Try competitor first
+    competitor = db.session.get(Competitor, int(registration_id))
+    if competitor:
+        return jsonify({"data": competitor.to_dict()})
+
+    # Try coach
+    coach = db.session.get(Coach, int(registration_id))
+    if coach:
+        return jsonify({"data": coach.to_dict()})
+
+    return jsonify({"error": "Not found"}), 404
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["PUT"])
 @api_auth_required
 def admin_update_registration(registration_id):
-    reg = db.session.get(Registration, registration_id)
-    if reg is None:
-        return jsonify({"error": "Not found"}), 404
+    reg_id = int(registration_id)
 
-    data = request.get_json(silent=True) or {}
-    updatable_fields = [
-        "full_name",
-        "email",
-        "phone",
-        "school",
-        "parent",
-        "birthdate",
-        "age",
-        "gender",
-        "weight",
-        "height",
-        "coach",
-        "belt_rank",
-        "events",
-        "poomsae_form",
-        "wc_poomsae_form",
-        "pair_poomsae_form",
-        "team_poomsae_form",
-        "family_poomsae_form",
-    ]
-    for field in updatable_fields:
-        if field in data:
-            setattr(reg, field, data[field])
-    reg.updated_at = datetime.utcnow()
-    db.session.commit()
-    return jsonify({"data": reg.to_dict()})
+    # Try competitor first
+    competitor = db.session.get(Competitor, reg_id)
+    if competitor:
+        data = request.get_json(silent=True) or {}
+        updatable_fields = [
+            "full_name", "email", "phone", "school_id", "coach_id", "parent",
+            "birthdate", "age", "gender", "weight", "height", "belt_rank", "events",
+            "poomsae_form", "wc_poomsae_form", "pair_poomsae_form",
+            "team_poomsae_form", "family_poomsae_form",
+        ]
+        for field in updatable_fields:
+            if field in data:
+                setattr(competitor, field, data[field])
+        competitor.updated_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"data": competitor.to_dict()})
+
+    # Try coach
+    coach = db.session.get(Coach, reg_id)
+    if coach:
+        data = request.get_json(silent=True) or {}
+        updatable_fields = ["full_name", "email", "phone", "school_id"]
+        for field in updatable_fields:
+            if field in data:
+                setattr(coach, field, data[field])
+        coach.updated_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"data": coach.to_dict()})
+
+    return jsonify({"error": "Not found"}), 404
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["DELETE"])
 @api_auth_required
 def admin_delete_registration(registration_id):
-    reg = db.session.get(Registration, registration_id)
-    if reg is None:
-        return jsonify({"error": "Not found"}), 404
-    db.session.delete(reg)
-    db.session.commit()
-    return jsonify({"data": {"deleted": str(registration_id)}}), 200
+    reg_id = int(registration_id)
+
+    # Try competitor first
+    competitor = db.session.get(Competitor, reg_id)
+    if competitor:
+        db.session.delete(competitor)
+        db.session.commit()
+        return jsonify({"data": {"deleted": str(registration_id)}}), 200
+
+    # Try coach
+    coach = db.session.get(Coach, reg_id)
+    if coach:
+        db.session.delete(coach)
+        db.session.commit()
+        return jsonify({"data": {"deleted": str(registration_id)}}), 200
+
+    return jsonify({"error": "Not found"}), 404
 
 
 @api_bp.route("/admin/upload/<string:resource>", methods=["POST"])
@@ -254,14 +283,30 @@ def upload_item(resource):
         return jsonify({"data": {"message": f"{resource.capitalize()} updated successfully"}}), 200
 
     elif resource == "schools":
-        schools = list(set((request.form.get("schoolList") or "").split(",")))
-        if "REMOVE" in schools:
-            schools.remove("REMOVE")
-        schools.sort()
+        schools_list = list(set((request.form.get("schoolList") or "").split(",")))
+        if "REMOVE" in schools_list:
+            schools_list.remove("REMOVE")
+
+        # Sync schools to database
+        # First, get all school names that should exist
+        schools = []
+        for school_name in schools_list:
+            school_name = school_name.strip()
+            if school_name:
+                existing = School.query.filter_by(name=school_name).first()
+                if not existing:
+                    existing = School(name=school_name)
+                    db.session.add(existing)
+                schools.append(existing)
+
+        db.session.commit()
+
+        # Keep S3 upload for backwards compatibility
+        schools_list.sort()
         _s3().put_object(
             Bucket=config_bucket,
             Key="schools.json",
-            Body=json.dumps(schools),
+            Body=json.dumps(schools_list),
             ContentType="application/json",
         )
         return jsonify({"data": {"message": "Schools updated successfully"}}), 200

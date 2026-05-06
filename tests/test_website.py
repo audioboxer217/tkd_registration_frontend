@@ -69,9 +69,28 @@ def make_stripe_price_mock():
     return price
 
 
+def get_or_create_test_school(name):
+    """Get or create a School record in the test database by name."""
+    from models import School
+    from models import db as _db
+
+    with app.app_context():
+        school = School.query.filter_by(name=name).first()
+        if not school:
+            school = School(name=name)
+            _db.session.add(school)
+            _db.session.commit()
+        return school.id
+
+
 class TestHomepage:
     client = app.test_client()
-    response = client.get("/")
+
+    def setup_method(self):
+        """Set up response with mocked Stripe."""
+        with patch("app.stripe.Coupon.list") as mock_coupons:
+            mock_coupons.return_value = MagicMock(data=[])
+            self.response = self.client.get("/")
 
     def test_response_code(self):
         assert self.response.status_code == 200
@@ -82,12 +101,14 @@ class TestHomepage:
 
     def test_early_reg(self):
         early_reg_date_str = os.environ.get("EARLY_REG_DATE")
-        html_line = f'<h2>Early Registration Ends <font color="red">{early_reg_date_str}'
         early_reg_date = datetime.strptime(early_reg_date_str, "%B %d, %Y")
+        html_text = self.response.data.decode()
+
         if datetime.now() < early_reg_date:
-            assert html_line.encode() in self.response.data
+            assert "Early Registration Ends" in html_text
+            assert early_reg_date_str in html_text
         else:
-            assert html_line.encode() not in self.response.data
+            assert "Early Registration Ends" not in html_text or early_reg_date_str not in html_text
 
     def test_reg_close(self):
         html_line = f'<h2>Registration Closes <font color="red">{os.environ.get("REG_CLOSE_DATE")}</font>'
@@ -225,34 +246,31 @@ class TestEntriesAPI:
         assert "data" in data
 
     def test_returns_competitor_and_coach_entries(self):
-        import uuid
-
-        from models import Registration
+        from models import Coach, Competitor
         from models import db as _db
 
-        c_id = str(uuid.uuid4())
-        co_id = str(uuid.uuid4())
+        school_id = get_or_create_test_school("Entries Test School")
         with app.app_context():
-            competitor = Registration(
-                id=c_id,
+            competitor = Competitor(
                 full_name="Jane Doe",
                 email="jane@example.com",
-                reg_type="competitor",
+                school_id=school_id,
                 age=15,
                 gender="F",
                 weight=120,
             )
-            coach = Registration(
-                id=co_id,
+            coach = Coach(
                 full_name="John Coach",
                 email="coach@example.com",
-                reg_type="coach",
+                school_id=school_id,
             )
             _db.session.add(competitor)
             _db.session.add(coach)
             _db.session.commit()
+            c_id = competitor.id
+            co_id = coach.id
 
-        with patch("api.set_weight_class", return_value=[{"id": str(c_id), "full_name": "Jane Doe", "reg_type": "competitor"}]):
+        with patch("api.set_weight_class", return_value=[{"id": c_id, "full_name": "Jane Doe", "reg_type": "competitor"}]):
             response = self.client.get("/api/v1/entries")
         data = json.loads(response.data)
         entries = data["data"]
@@ -426,22 +444,20 @@ class TestLookupEntry:
         assert response.status_code == 200
 
     def test_lookup_with_results(self):
-        import uuid
-
-        from models import Registration
+        from models import Competitor
         from models import db as _db
 
-        reg_id = str(uuid.uuid4())
+        school_id = get_or_create_test_school("Lookup Test School")
         with app.app_context():
-            reg = Registration(
-                id=reg_id,
+            competitor = Competitor(
                 full_name="john doe",
                 email="john@example.com",
-                reg_type="competitor",
+                school_id=school_id,
                 birthdate="01/01/2000",
             )
-            _db.session.add(reg)
+            _db.session.add(competitor)
             _db.session.commit()
+
         response = self.client.post("/lookup_entry", data={"email": "john@example.com", "fname": "john", "lname": "doe"})
         assert response.status_code == 200
         assert b"john" in response.data.lower()
@@ -548,11 +564,9 @@ class TestSchoolsPage:
     def test_schools_page_accessible_with_session(self):
         client = app.test_client()
         make_admin_session(client)
-        schools = ["School A", "School B"]
-        with patch("app._s3") as mock_s3_factory, patch("app.get_s3_file", return_value=None):
-            mock_s3 = MagicMock()
-            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
-            mock_s3_factory.return_value = mock_s3
+        get_or_create_test_school("School A")
+
+        with patch("app.get_s3_file", return_value=None):
             response = client.get("/schools")
         assert response.status_code == 200
         assert b"School A" in response.data
@@ -585,74 +599,62 @@ class TestEditEntryForm:
     def test_edit_entry_form_accessible_with_session(self):
         client = app.test_client()
         make_admin_session(client)
-        schools = ["School A", "School B"]
-        import uuid
-
-        from models import Registration
+        from models import Competitor
         from models import db as _db
 
-        reg_id = str(uuid.uuid4())
+        school_id = get_or_create_test_school("Edit Test School")
         with app.app_context():
-            reg = Registration(
-                id=reg_id,
+            competitor = Competitor(
                 full_name="John Doe",
                 email="john@example.com",
                 phone="123-456-7890",
-                school="Test School",
-                reg_type="competitor",
+                school_id=school_id,
                 birthdate="2005-06-15",
                 age=19,
                 gender="M",
                 weight=150,
                 height=68,
-                coach="Coach Smith",
                 belt_rank="1 degree black",
                 events="sparring",
             )
-            _db.session.add(reg)
+            _db.session.add(competitor)
             _db.session.commit()
+            reg_id = competitor.id
 
-        with patch("app._s3") as mock_s3_factory, patch("app.get_s3_file", return_value=None):
-            mock_s3 = MagicMock()
-            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(schools).encode())}
-            mock_s3_factory.return_value = mock_s3
+        with patch("app.get_s3_file", return_value=None):
             response = client.get(f"/edit_entry?pk={reg_id}")
         assert response.status_code == 200
 
     def test_edit_entry_updates_events(self):
         client = app.test_client()
         make_admin_session(client)
-        import uuid
-
-        from models import Registration
+        from models import Competitor
         from models import db as _db
 
-        reg_id = str(uuid.uuid4())
+        school_id = get_or_create_test_school("Update Test School")
         with app.app_context():
-            reg = Registration(
-                id=reg_id,
+            competitor = Competitor(
                 full_name="John Doe",
                 email="john@example.com",
                 phone="123-456-7890",
-                school="Test School",
-                reg_type="competitor",
+                school_id=school_id,
                 birthdate="2005-06-15",
                 age=19,
                 gender="M",
                 weight=150,
                 height=68,
-                coach="Coach Smith",
                 belt_rank="1 degree black",
                 events="sparring",
             )
-            _db.session.add(reg)
+            _db.session.add(competitor)
             _db.session.commit()
+            reg_id = competitor.id
 
         form_data = {
             "full_name": "John Doe",
             "email": "john@example.com",
             "phone": "123-456-7890",
-            "school": "Test School",
+            "school": "Update Test School",
             "regType": "competitor",
             "parentName": "",
             "birthdate": "2005-06-15",
@@ -660,7 +662,7 @@ class TestEditEntryForm:
             "gender": "M",
             "weight": "150",
             "height": "68",
-            "coach": "Coach Smith",
+            "coach": "",
             "beltRank": "black",
             "blackBeltDan": "1",
             "eventList": "sparring,breaking",
@@ -673,7 +675,7 @@ class TestEditEntryForm:
             response = client.post(f"/edit?pk={reg_id}", data=form_data)
         assert response.status_code == 303
         with app.app_context():
-            updated = _db.session.get(Registration, reg_id)
+            updated = _db.session.get(Competitor, reg_id)
             assert updated.events == "sparring,breaking"
 
 
