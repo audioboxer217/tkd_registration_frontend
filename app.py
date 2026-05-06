@@ -26,7 +26,7 @@ from supabase import Client, create_client
 from zoneinfo import ZoneInfo
 
 from api import api_bp
-from models import Coach, Competitor, Registration, School, db, init_db
+from models import Coach, Competitor, School, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
 
@@ -56,8 +56,7 @@ def login_required(f):
         user = session.get("user")
         if not user:
             return redirect(url_for("ui.login"))
-        role = (user.get("app_metadata") or {}).get("role")
-        if role != "admin":
+        if user.get("role") != "admin":
             flash("You are not authorized to view this page. Please contact the administrator.", "danger")
             return redirect(url_for("ui.logout"))
         return f(*args, **kwargs)
@@ -128,7 +127,7 @@ def get_age_group(age):
 
 def render_base(content_file, **page_params):
     user = session.get("user")
-    if user and (user.get("app_metadata") or {}).get("role") == "admin":
+    if user and user.get("role") == "admin":
         page_params["admin"] = True
     config = _current_app_config()
     s3_favicon = get_s3_file(config["mediaBucket"], "favicon.png")
@@ -172,12 +171,10 @@ def login_post():
         session["user"] = {
             "id": user_data.id,
             "email": user_data.email,
-            "app_metadata": user_data.app_metadata or {},
-            "access_token": response.session.access_token,
-            "refresh_token": response.session.refresh_token,
+            "role": (user_data.app_metadata or {}).get("role"),
         }
         return redirect(url_for("ui.admin_page"))
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("Login error for %s", email)
         flash("Login failed. Please check your email/password.", "danger")
         return render_base("login.html")
@@ -1031,21 +1028,26 @@ def add_entry():
 @ui_bp.route("/edit_entry")
 @login_required
 def edit_entry_form():
-    config = _current_app_config()
     reg_id = request.args.get("pk")
 
     # Try competitor first
     reg = db.session.get(Competitor, int(reg_id))
-    reg_type = "competitor"
     if reg is None:
         # Try coach
         reg = db.session.get(Coach, int(reg_id))
-        reg_type = "coach"
     if reg is None:
         abort(404)
 
     school_list = _get_schools_list()
     entry = reg.to_dict()
+
+    # Normalize birthdate from MM/DD/YYYY to YYYY-MM-DD for HTML date input
+    if entry.get("birthdate"):
+        try:
+            bd = datetime.strptime(entry["birthdate"], "%m/%d/%Y")
+            entry["birthdate"] = bd.strftime("%Y-%m-%d")
+        except ValueError:
+            pass  # Leave as-is if format is unexpected
 
     # Get all coaches in the same school for dropdown
     coaches_in_school = Coach.query.filter_by(school_id=reg.school_id).all()

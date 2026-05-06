@@ -11,7 +11,7 @@ from apiflask.fields import Float, Integer, List, Nested, String
 from apiflask.validators import OneOf
 from flask import g, jsonify, request
 
-from models import Coach, Competitor, Registration, School, db
+from models import Coach, Competitor, School, db
 
 api_bp = APIBlueprint("api", __name__, url_prefix="/api/v1", tag="Registrations")
 
@@ -83,7 +83,7 @@ class RegistrationUpdateIn(Schema):
     height = Integer()
     coach = String()
     belt_rank = String()
-    events = String()
+    events = List(String())
     poomsae_form = String()
     wc_poomsae_form = String()
     pair_poomsae_form = String()
@@ -198,19 +198,38 @@ def get_age_group(age):
 
 
 def set_weight_class(entries, config_bucket):
-    """Annotate a list of registration dicts with age_group and weight_class."""
-    weight_classes = json.load(_s3().get_object(Bucket=config_bucket, Key="weight_classes.json")["Body"])
+    """Annotate a list of registration dicts with age_group and weight_class.
+
+    Entries missing age or weight will have age_group/weight_class set to "UNKNOWN".
+    If config_bucket is not configured, returns entries unchanged (no weight class annotation).
+    """
+    if not config_bucket:
+        return entries
+
+    try:
+        weight_classes = json.load(_s3().get_object(Bucket=config_bucket, Key="weight_classes.json")["Body"])
+    except Exception:
+        return entries
+
     updated = []
     for entry in entries:
-        age_group = get_age_group(entry["age"])
+        age = entry.get("age")
+        weight = entry.get("weight")
+        gender = entry.get("gender")
+        if age is None or weight is None or gender is None:
+            entry["age_group"] = "UNKNOWN"
+            entry["weight_class"] = "UNKNOWN"
+            updated.append(entry)
+            continue
+        age_group = get_age_group(age)
         entry["age_group"] = age_group
-        gender = "female" if entry["gender"] == "F" else "male" if entry["gender"] == "M" else entry["gender"]
-        weight_class_ranges = weight_classes.get(age_group, {}).get(gender, {})
+        gender_key = "female" if gender == "F" else "male" if gender == "M" else gender
+        weight_class_ranges = weight_classes.get(age_group, {}).get(gender_key, {})
         entry["weight_class"] = next(
             (
                 wc
                 for wc, weights in weight_class_ranges.items()
-                if float(entry["weight"]) >= float(weights[0]) and float(entry["weight"]) < float(weights[1])
+                if float(weight) >= float(weights[0]) and float(weight) < float(weights[1])
             ),
             "UNKNOWN",
         )
@@ -244,15 +263,25 @@ def entries_api():
 @api_bp.output(RegistrationStatusOut, description="Registration and payment status")
 def registration_status(registration_id):
     """Check registration and payment status by ID."""
-    reg = db.session.get(Registration, registration_id)
+    try:
+        reg_id = int(registration_id)
+    except (ValueError, TypeError):
+        return jsonify({"error": "Not found"}), 404
+
+    reg = db.session.get(Competitor, reg_id)
+    reg_type = "competitor"
+    if reg is None:
+        reg = db.session.get(Coach, reg_id)
+        reg_type = "coach"
     if reg is None:
         return jsonify({"error": "Not found"}), 404
+
     return jsonify(
         {
             "data": {
                 "id": str(reg.id),
                 "full_name": reg.full_name,
-                "reg_type": reg.reg_type,
+                "reg_type": reg_type,
                 "checkout_session_id": reg.checkout_session_id,
             }
         }
@@ -262,6 +291,25 @@ def registration_status(registration_id):
 # ---------------------------------------------------------------------------
 # Admin endpoints (auth required)
 # ---------------------------------------------------------------------------
+
+
+def _get_registration_by_id(registration_id):
+    """Look up a registration by integer ID from Competitor or Coach tables.
+
+    Returns (record, reg_type) tuple, or (None, None) if not found.
+    """
+    try:
+        reg_id = int(registration_id)
+    except (ValueError, TypeError):
+        return None, None
+
+    reg = db.session.get(Competitor, reg_id)
+    if reg is not None:
+        return reg, "competitor"
+    reg = db.session.get(Coach, reg_id)
+    if reg is not None:
+        return reg, "coach"
+    return None, None
 
 
 @api_bp.route("/admin/registrations", methods=["GET"])
@@ -294,7 +342,7 @@ def admin_list_registrations():
 @api_bp.output(RegistrationDetailOut, description="Registration detail")
 def admin_get_registration(registration_id):
     """Get a single registration by ID."""
-    reg = db.session.get(Registration, registration_id)
+    reg, _ = _get_registration_by_id(registration_id)
     if reg is None:
         return jsonify({"error": "Not found"}), 404
     return jsonify({"data": reg.to_dict()})
@@ -307,11 +355,14 @@ def admin_get_registration(registration_id):
 @api_bp.output(RegistrationDetailOut, description="Updated registration")
 def admin_update_registration(registration_id, body):
     """Update editable fields on a registration."""
-    reg = db.session.get(Registration, registration_id)
+    reg, _ = _get_registration_by_id(registration_id)
     if reg is None:
         return jsonify({"error": "Not found"}), 404
 
     for field, value in body.items():
+        # Normalize events: accept list or string, persist as comma-separated string
+        if field == "events" and isinstance(value, list):
+            value = ",".join(value)
         setattr(reg, field, value)
     reg.updated_at = datetime.utcnow()
     db.session.commit()
@@ -324,7 +375,7 @@ def admin_update_registration(registration_id, body):
 @api_bp.output(DeletedOut, description="Deleted registration ID")
 def admin_delete_registration(registration_id):
     """Delete a registration by ID."""
-    reg = db.session.get(Registration, registration_id)
+    reg, _ = _get_registration_by_id(registration_id)
     if reg is None:
         return jsonify({"error": "Not found"}), 404
     db.session.delete(reg)
