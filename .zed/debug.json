@@ -5,7 +5,6 @@
     "request": "launch",
     "module": "flask",
     "cwd": "$ZED_WORKTREE_ROOT",
-    // "python": "${ZED_WORKTREE_ROOT}/.venv/bin/python",
     "env": {
       "FLASK_APP": "app",
       "FLASK_DEBUG": "1",
