@@ -15,7 +15,7 @@ graph TB
             subgraph "Frontend Components"
                 UIBlueprint["UI Blueprint<br/>(app.py — HTMX routes)"]
                 APIBlueprint["API Blueprint<br/>(api.py — JSON REST /api/v1)"]
-                Models["Models<br/>(models.py — SQLAlchemy)"]
+                Models["Models<br/>(models.py — SQLAlchemy)<br/>School · Coach · Competitor<br/>Registration (legacy)"]
             end
         end
 
@@ -26,7 +26,12 @@ graph TB
         end
 
         subgraph "Data Storage"
-            Supabase[("Supabase<br/>(Postgres)")]
+            subgraph Supabase["Supabase (Postgres)"]
+                SchoolsTable[("schools")]
+                CoachesTable[("coaches")]
+                CompetitorsTable[("competitors")]
+                RegistrationsTable[("registrations<br/>(archive)")]
+            end
             S3[("S3 Buckets")]
         end
 
@@ -36,13 +41,6 @@ graph TB
         end
     end
 
-    subgraph "External Services"
-        Stripe["Stripe API"]
-        GoogleDrive["Google Drive API"]
-        Challonge["Challonge API"]
-        SupabaseAuth["Supabase Auth"]
-    end
-
     User --> FrontendApp
     Admin --> FrontendApp
 
@@ -50,7 +48,10 @@ graph TB
     FrontendApp --> APIBlueprint
     UIBlueprint --> Models
     APIBlueprint --> Models
-    Models --> Supabase
+    Models --> SchoolsTable
+    Models --> CoachesTable
+    Models --> CompetitorsTable
+    Models --> RegistrationsTable
 
     APIBlueprint --> ProcessEntries
     ProcessEntries --> GenerateBadges
@@ -65,22 +66,36 @@ graph TB
     ProcessEntries --> EmailService
 
     Admin --> SupabaseAuth
-    SupabaseAuth --> FrontendApp
+    FrontendApp --> SupabaseAuth
 
     ProcessEntries --> Stripe
     SyncAWSGDrive --> GoogleDrive
     GenerateBadges --> Challonge
 
+    EmailService ~~~ Stripe
+    EmailService ~~~ GoogleDrive
+    EmailService ~~~ Challonge
+    S3 ~~~ SupabaseAuth
+
+    subgraph "External Services"
+        Stripe["Stripe API"]
+        GoogleDrive["Google Drive API"]
+        Challonge["Challonge API"]
+        SupabaseAuth["Supabase Auth"]
+    end
+
     classDef frontend fill:#1168bd,stroke:#0b4884,color:#ffffff
     classDef frontendComponent fill:#4682b4,stroke:#315b7e,color:#ffffff
     classDef backend fill:#2694ab,stroke:#1a6d7d,color:#ffffff
     classDef database fill:#2b78e4,stroke:#1a4d91,color:#ffffff
+    classDef legacy fill:#888888,stroke:#555555,color:#ffffff
     classDef external fill:#999999,stroke:#666666,color:#ffffff
 
     class FrontendApp frontend
     class UIBlueprint,APIBlueprint,Models frontendComponent
     class ProcessEntries,GenerateBadges,SyncAWSGDrive backend
-    class Supabase,S3 database
+    class SchoolsTable,CoachesTable,CompetitorsTable,S3 database
+    class RegistrationsTable legacy
     class Stripe,GoogleDrive,Challonge,SupabaseAuth external
 ```
 
@@ -97,7 +112,7 @@ graph TB
 ```
 app.py        # UI Blueprint — all page and HTMX partial routes (Flask)
 api.py        # API Blueprint — JSON REST endpoints at /api/v1
-models.py     # SQLAlchemy models (Registration)
+models.py     # SQLAlchemy models (School, Coach, Competitor, Registration [legacy])
 templates/    # Jinja2 HTML templates
 static/       # Static assets (CSS, images, etc.)
 tests/        # pytest test suite
@@ -199,7 +214,7 @@ Each environment has a YAML file in the [envs](./envs/) folder. Environment vari
 
 ### Updating the remote_env S3 JSON
 
-The S3 env JSON must include all required variables from the table above. At minimum, update it to replace the old DynamoDB/Cognito variables with:
+The S3 env JSON must include all required variables from the table above. At minimum, ensure the following are set:
 
 ```json
 {
@@ -211,8 +226,6 @@ The S3 env JSON must include all required variables from the table above. At min
   "FLASK_SECRET_KEY": "..."
 }
 ```
-
-Remove any old `DB_TABLE`, `AUTH_DB_TABLE`, `LOOKUP_DB_TABLE`, `COGNITO_*` keys.
 
 ### Database Migrations
 
