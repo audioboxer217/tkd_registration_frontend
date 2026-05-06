@@ -10,7 +10,7 @@
     {% else %}
     {% for entry in entries %}
     <button class="dropdown-item" type="button" hx-get="/api/autofill?entry={{ entry | tojson | urlencode }}"
-      data-bs-dismiss="modal">{{entry.name.S}}</button>
+      data-bs-dismiss="modal">{{entry.full_name}}</button>
     {% endfor %}
     {% endif %}
   </div>
