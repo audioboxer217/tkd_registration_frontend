@@ -1,0 +1,28 @@
+[
+  {
+    "label": "Python: Flask",
+    "adapter": "Debugpy",
+    "request": "launch",
+    "module": "flask",
+    "cwd": "$ZED_WORKTREE_ROOT",
+    // "python": "${ZED_WORKTREE_ROOT}/.venv/bin/python",
+    "env": {
+      "FLASK_APP": "app",
+      "FLASK_DEBUG": "1",
+      "FLASK_RUN_PORT": "5001",
+    },
+    "args": ["run", "--reload", "--debugger"],
+    "autoReload": {
+      "enable": true,
+    },
+    "jinja": true,
+    "justMyCode": true,
+  },
+  {
+    "label": "Python Debugger: Current File",
+    "adapter": "Debugpy",
+    "request": "launch",
+    "python": "${ZED_WORKTREE_ROOT}/.venv/bin/python",
+    "program": "${ZED_FILE}",
+  },
+]
