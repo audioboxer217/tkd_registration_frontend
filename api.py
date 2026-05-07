@@ -297,10 +297,7 @@ def _get_or_create_school(school_name: str):
 
 
 def _find_reg_by_checkout_session(session_id):
-    reg = Competitor.query.filter_by(checkout_session_id=session_id).first()
-    if reg is None:
-        reg = Coach.query.filter_by(checkout_session_id=session_id).first()
-    return reg
+    return Competitor.query.filter_by(checkout_session_id=session_id).first()
 
 
 def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
@@ -371,7 +368,6 @@ def create_registration(body):
             email=body["email"],
             phone=body.get("phone"),
             school_id=school.id,
-            status="pending",
         )
 
     db.session.add(reg)
