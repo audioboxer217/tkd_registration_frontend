@@ -331,6 +331,28 @@ class TestRegistrationsAPI:
             assert coach.checkout_session_id == "cs_test_coach"
             assert coach.school.name == "Webhook School"
 
+    def test_create_registration_returns_502_when_stripe_fails(self):
+        payload = {
+            "reg_type": "competitor",
+            "full_name": "Webhook Stripe Error",
+            "email": "webhook_stripe_error@example.com",
+            "phone": "555-0102",
+            "school": "Webhook Error School",
+        }
+
+        with patch("api.stripe.checkout.Session.create", side_effect=stripe.error.StripeError("Stripe unavailable")):
+            response = self.client.post("/api/v1/registrations", json=payload)
+
+        assert response.status_code == 502
+        data = json.loads(response.data)
+        assert "Unable to create checkout session" in data["error"]
+
+        from models import Competitor
+
+        with app.app_context():
+            competitor = Competitor.query.filter_by(email="webhook_stripe_error@example.com").first()
+            assert competitor is None
+
     def test_registration_status_returns_status(self):
         from models import Competitor
         from models import db as _db
@@ -399,7 +421,7 @@ class TestRegistrationsAPI:
         school_id = get_or_create_test_school("Webhook Failed School")
         with app.app_context():
             coach = Coach(
-                full_name="Webhook Failed Coach",
+                full_name="Webhook Expired Coach",
                 email="webhook_failed@example.com",
                 school_id=school_id,
                 status="pending",
