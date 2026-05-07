@@ -5,6 +5,8 @@ import sys
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
+import stripe
+
 base_path = os.path.dirname(os.path.realpath(__file__))
 app_path = os.path.dirname(base_path)
 sys.path.append(app_path)
@@ -274,6 +276,167 @@ class TestEntriesAPI:
         entries = data["data"]
         assert any(entry.get("id") == c_id and entry.get("reg_type") == "competitor" for entry in entries)
         assert any(entry.get("id") == co_id and entry.get("reg_type") == "coach" for entry in entries)
+
+
+class TestRegistrationsAPI:
+    client = app.test_client()
+
+    def test_create_registration_creates_pending_competitor(self):
+        payload = {
+            "reg_type": "competitor",
+            "full_name": "Webhook Pending Competitor",
+            "email": "pending_competitor@example.com",
+            "phone": "555-0100",
+            "school": "Webhook School",
+        }
+
+        with patch("api.stripe.checkout.Session.create") as mock_create:
+            mock_create.return_value = MagicMock(id="cs_test_competitor", url="https://checkout.stripe.test/competitor")
+            response = self.client.post("/api/v1/registrations", json=payload)
+
+        assert response.status_code == 201
+        response_data = json.loads(response.data)
+        assert response_data["data"]["checkout_url"] == "https://checkout.stripe.test/competitor"
+
+        from models import Competitor
+
+        with app.app_context():
+            competitor = Competitor.query.filter_by(email="pending_competitor@example.com").first()
+            assert competitor is not None
+            assert competitor.status == "pending"
+            assert competitor.checkout_session_id == "cs_test_competitor"
+
+    def test_create_registration_creates_pending_coach(self):
+        payload = {
+            "reg_type": "coach",
+            "full_name": "Webhook Pending Coach",
+            "email": "pending_coach@example.com",
+            "phone": "555-0101",
+            "school": "Webhook School",
+        }
+
+        with patch("api.stripe.checkout.Session.create") as mock_create:
+            mock_create.return_value = MagicMock(id="cs_test_coach", url="https://checkout.stripe.test/coach")
+            response = self.client.post("/api/v1/registrations", json=payload)
+
+        assert response.status_code == 201
+
+        from models import Coach
+
+        with app.app_context():
+            coach = Coach.query.filter_by(email="pending_coach@example.com").first()
+            assert coach is not None
+            assert coach.status == "pending"
+            assert coach.checkout_session_id == "cs_test_coach"
+
+    def test_registration_status_returns_status(self):
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Status API School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="Status Competitor",
+                email="status_competitor@example.com",
+                school_id=school_id,
+                status="complete",
+                checkout_session_id="cs_test_status",
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+            reg_id = competitor.id
+
+        response = self.client.get(f"/api/v1/registrations/{reg_id}/status")
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["data"]["status"] == "complete"
+
+    def test_webhook_completed_updates_status_and_payment_intent(self):
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Webhook Complete School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="Webhook Complete Competitor",
+                email="webhook_complete@example.com",
+                school_id=school_id,
+                status="pending",
+                checkout_session_id="cs_test_complete",
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+            reg_id = competitor.id
+
+        event = {
+            "type": "checkout.session.completed",
+            "data": {"object": {"id": "cs_test_complete", "payment_intent": "pi_test_complete"}},
+        }
+
+        with (
+            patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_test"}),
+            patch("api.stripe.Webhook.construct_event", return_value=event),
+            patch("api._send_confirmation_email") as send_email,
+            patch("api._check_school") as check_school,
+        ):
+            response = self.client.post("/api/v1/webhooks/stripe", data=b"{}", headers={"Stripe-Signature": "sig_test"})
+
+        assert response.status_code == 200
+        send_email.assert_called_once()
+        check_school.assert_called_once()
+
+        with app.app_context():
+            competitor = _db.session.get(Competitor, reg_id)
+            assert competitor.status == "complete"
+            assert competitor.payment_intent == "pi_test_complete"
+
+    def test_webhook_expired_updates_coach_to_failed(self):
+        from models import Coach
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Webhook Failed School")
+        with app.app_context():
+            coach = Coach(
+                full_name="Webhook Failed Coach",
+                email="webhook_failed@example.com",
+                school_id=school_id,
+                status="pending",
+                checkout_session_id="cs_test_expired",
+            )
+            _db.session.add(coach)
+            _db.session.commit()
+            reg_id = coach.id
+
+        event = {
+            "type": "checkout.session.expired",
+            "data": {"object": {"id": "cs_test_expired"}},
+        }
+
+        with (
+            patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_test"}),
+            patch("api.stripe.Webhook.construct_event", return_value=event),
+        ):
+            response = self.client.post("/api/v1/webhooks/stripe", data=b"{}", headers={"Stripe-Signature": "sig_test"})
+
+        assert response.status_code == 200
+
+        with app.app_context():
+            coach = _db.session.get(Coach, reg_id)
+            assert coach.status == "failed"
+
+    def test_webhook_invalid_signature_returns_400(self):
+        with (
+            patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_test"}),
+            patch(
+                "api.stripe.Webhook.construct_event",
+                side_effect=stripe.error.SignatureVerificationError("Invalid signature", "sig_test"),
+            ),
+        ):
+            response = self.client.post("/api/v1/webhooks/stripe", data=b"{}", headers={"Stripe-Signature": "sig_test"})
+
+        assert response.status_code == 400
+        data = json.loads(response.data)
+        assert data["error"] == "Invalid payload or signature"
 
 
 class TestUploadForm:
