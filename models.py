@@ -37,7 +37,6 @@ class Coach(db.Model):
     phone = db.Column(String(20))
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False)
     img_filename = db.Column(String(200))
-    status = db.Column(String(20), nullable=False, default="pending")
     checkout_session_id = db.Column(String(100), index=True)
     payment_intent = db.Column(String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -57,7 +56,6 @@ class Coach(db.Model):
             "school": self.school.name if self.school else None,
             "reg_type": "coach",
             "img_filename": self.img_filename,
-            "status": self.status,
             # Competitor form-specific fields (empty for coaches)
             "parent": None,
             "birthdate": None,

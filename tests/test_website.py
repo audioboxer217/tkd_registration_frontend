@@ -327,7 +327,6 @@ class TestRegistrationsAPI:
         with app.app_context():
             coach = Coach.query.filter_by(email="pending_coach@example.com").first()
             assert coach is not None
-            assert coach.status == "pending"
             assert coach.checkout_session_id == "cs_test_coach"
             assert coach.school.name == "Webhook School"
 
@@ -413,40 +412,6 @@ class TestRegistrationsAPI:
             competitor = _db.session.get(Competitor, reg_id)
             assert competitor.status == "complete"
             assert competitor.payment_intent == "pi_test_complete"
-
-    def test_webhook_expired_updates_coach_to_failed(self):
-        from models import Coach
-        from models import db as _db
-
-        school_id = get_or_create_test_school("Webhook Failed School")
-        with app.app_context():
-            coach = Coach(
-                full_name="Webhook Expired Coach",
-                email="webhook_failed@example.com",
-                school_id=school_id,
-                status="pending",
-                checkout_session_id="cs_test_expired",
-            )
-            _db.session.add(coach)
-            _db.session.commit()
-            reg_id = coach.id
-
-        event = {
-            "type": "checkout.session.expired",
-            "data": {"object": {"id": "cs_test_expired"}},
-        }
-
-        with (
-            patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_test"}),
-            patch("api.stripe.Webhook.construct_event", return_value=event),
-        ):
-            response = self.client.post("/api/v1/webhooks/stripe", data=b"{}", headers={"Stripe-Signature": "sig_test"})
-
-        assert response.status_code == 200
-
-        with app.app_context():
-            coach = _db.session.get(Coach, reg_id)
-            assert coach.status == "failed"
 
     def test_webhook_invalid_signature_returns_400(self):
         with (
