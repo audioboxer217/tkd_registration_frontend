@@ -58,7 +58,7 @@ class Coach(db.Model):
             "reg_type": "coach",
             "img_filename": self.img_filename,
             "status": self.status,
-            # Competitor-specific fields (empty for coaches)
+            # Competitor form-specific fields (empty for coaches)
             "parent": None,
             "birthdate": None,
             "age": None,

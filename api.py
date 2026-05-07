@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime
 from functools import wraps
+from typing import Union
 
 import boto3
 import jwt
@@ -12,6 +13,8 @@ from apiflask.validators import OneOf
 from flask import current_app, g, jsonify, request
 
 from models import Coach, Competitor, School, db
+
+RegistrationRecord = Union[Competitor, Coach]
 
 api_bp = APIBlueprint("api", __name__, url_prefix="/api/v1", tag="Registrations")
 
@@ -300,30 +303,41 @@ def _find_reg_by_checkout_session(session_id):
     return reg
 
 
-def _send_confirmation_email(reg):
-    """Placeholder for registration confirmation email dispatch."""
+def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
+    """Placeholder for registration confirmation email dispatch.
+
+    TODO: Integrate with backend email service in a follow-up phase.
+    """
     return reg
 
 
-def _check_school(reg):
-    """Placeholder for school-level post-registration checks."""
+def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
+    """Placeholder for school-level post-registration checks.
+
+    TODO: Add school-level validation/workflow hooks in a follow-up phase.
+    """
     return reg
 
 
 @api_bp.route("/registrations", methods=["POST"])
 @api_bp.input(RegistrationIn, arg_name="body")
-@api_bp.output(RegistrationCreateOut, status_code=201)
 def create_registration(body):
     school = _get_or_create_school(body.get("school"))
     if school is None:
         return {"error": "School is required"}, 422
 
-    default_unit_amount = int(os.getenv("STRIPE_DEFAULT_UNIT_AMOUNT", "100"))
+    try:
+        default_unit_amount = int(os.getenv("STRIPE_DEFAULT_UNIT_AMOUNT", "5000"))
+    except ValueError:
+        return {"error": "Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration"}, 500
+    if default_unit_amount <= 0:
+        return {"error": "Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration"}, 500
+    reg_type_title = body["reg_type"].capitalize()
     line_items = body.get("line_items") or [
         {
             "price_data": {
                 "currency": "usd",
-                "product_data": {"name": f'{body["reg_type"].capitalize()} Registration'},
+                "product_data": {"name": f"{reg_type_title} Registration"},
                 "unit_amount": default_unit_amount,
             },
             "quantity": 1,
@@ -375,8 +389,12 @@ def create_registration(body):
         )
         reg.checkout_session_id = session.id
         db.session.commit()
+    except stripe.error.StripeError:
+        current_app.logger.exception("Stripe API error while creating checkout session")
+        db.session.rollback()
+        return {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}, 502
     except Exception:
-        current_app.logger.exception("Failed to create Stripe checkout session")
+        current_app.logger.exception("Unexpected error while creating checkout session")
         db.session.rollback()
         return {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}, 502
 
@@ -393,7 +411,11 @@ def stripe_webhook():
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
-    except (ValueError, stripe.error.SignatureVerificationError):
+    except ValueError:
+        current_app.logger.exception("Malformed Stripe webhook payload")
+        return jsonify({"error": "Invalid payload or signature"}), 400
+    except stripe.error.SignatureVerificationError:
+        current_app.logger.exception("Invalid Stripe webhook signature")
         return jsonify({"error": "Invalid payload or signature"}), 400
 
     session = event["data"]["object"]
