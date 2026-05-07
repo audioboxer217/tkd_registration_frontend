@@ -37,6 +37,9 @@ class Coach(db.Model):
     phone = db.Column(String(20))
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False)
     img_filename = db.Column(String(200))
+    status = db.Column(String(20), nullable=False, default="pending")
+    checkout_session_id = db.Column(String(100), index=True)
+    payment_intent = db.Column(String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -54,6 +57,7 @@ class Coach(db.Model):
             "school": self.school.name if self.school else None,
             "reg_type": "coach",
             "img_filename": self.img_filename,
+            "status": self.status,
             # Competitor-specific fields (empty for coaches)
             "parent": None,
             "birthdate": None,
@@ -73,7 +77,8 @@ class Coach(db.Model):
             "allergies": [],
             "medications": [],
             "tshirt": None,
-            "checkout_session_id": None,
+            "checkout_session_id": self.checkout_session_id,
+            "payment_intent": self.payment_intent,
             "coach_id": None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
@@ -123,7 +128,9 @@ class Competitor(db.Model):
     tshirt = db.Column(String(20))  # little dragon t-shirt size
 
     # Payment
+    status = db.Column(String(20), nullable=False, default="pending")
     checkout_session_id = db.Column(String(100), index=True)  # Stripe Checkout Session ID
+    payment_intent = db.Column(String(100))
 
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -164,6 +171,8 @@ class Competitor(db.Model):
             "img_filename": self.img_filename,
             "tshirt": self.tshirt,
             "checkout_session_id": self.checkout_session_id,
+            "payment_intent": self.payment_intent,
+            "status": self.status,
             "reg_type": "competitor",
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

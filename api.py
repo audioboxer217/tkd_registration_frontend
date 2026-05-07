@@ -47,6 +47,8 @@ class RegistrationOut(Schema):
     img_filename = String()
     tshirt = String()
     checkout_session_id = String()
+    payment_intent = String()
+    status = String()
     created_at = String()
     updated_at = String()
 
@@ -68,6 +70,44 @@ class RegistrationStatusData(Schema):
     full_name = String()
     reg_type = String()
     checkout_session_id = String()
+    status = String()
+
+
+class RegistrationCheckoutData(Schema):
+    id = Integer()
+    checkout_url = String()
+
+
+class RegistrationCreateOut(Schema):
+    data = Nested(lambda: RegistrationCheckoutData())
+
+
+class RegistrationIn(Schema):
+    reg_type = String(validate=OneOf(["competitor", "coach"]), required=True)
+    full_name = String(required=True)
+    email = String(required=True)
+    phone = String()
+    school = String(required=True)
+    parent = String()
+    birthdate = String()
+    age = Integer()
+    gender = String(validate=OneOf(["M", "F"]))
+    weight = Float()
+    height = Integer()
+    coach = String()
+    belt_rank = String()
+    events = List(String())
+    poomsae_form = String()
+    wc_poomsae_form = String()
+    pair_poomsae_form = String()
+    team_poomsae_form = String()
+    family_poomsae_form = String()
+    line_items = List(Nested(lambda: LineItemIn()))
+
+
+class LineItemIn(Schema):
+    price = String(required=True)
+    quantity = Integer(required=True)
 
 
 class RegistrationUpdateIn(Schema):
@@ -242,6 +282,131 @@ def set_weight_class(entries, config_bucket):
 # ---------------------------------------------------------------------------
 
 
+def _get_or_create_school(school_name: str):
+    if not school_name:
+        return None
+    school = School.query.filter_by(name=school_name).first()
+    if school is None:
+        school = School(name=school_name)
+        db.session.add(school)
+        db.session.flush()
+    return school
+
+
+def _find_reg_by_checkout_session(session_id):
+    reg = Competitor.query.filter_by(checkout_session_id=session_id).first()
+    if reg is None:
+        reg = Coach.query.filter_by(checkout_session_id=session_id).first()
+    return reg
+
+
+def _send_confirmation_email(reg):
+    return reg
+
+
+def _check_school(reg):
+    return reg
+
+
+@api_bp.route("/registrations", methods=["POST"])
+@api_bp.input(RegistrationIn, arg_name="body")
+@api_bp.output(RegistrationCreateOut, status_code=201)
+def create_registration(body):
+    school = _get_or_create_school(body.get("school"))
+    if school is None:
+        return {"error": "School is required"}, 422
+
+    line_items = body.get("line_items") or [
+        {"price_data": {"currency": "usd", "product_data": {"name": "Registration"}, "unit_amount": 100}, "quantity": 1}
+    ]
+
+    if body["reg_type"] == "competitor":
+        reg = Competitor(
+            full_name=body["full_name"],
+            email=body["email"],
+            phone=body.get("phone"),
+            school_id=school.id,
+            parent=body.get("parent"),
+            birthdate=body.get("birthdate"),
+            age=body.get("age"),
+            gender=body.get("gender"),
+            weight=body.get("weight"),
+            height=body.get("height"),
+            belt_rank=body.get("belt_rank"),
+            events=",".join(body.get("events", [])),
+            poomsae_form=body.get("poomsae_form"),
+            wc_poomsae_form=body.get("wc_poomsae_form"),
+            pair_poomsae_form=body.get("pair_poomsae_form"),
+            team_poomsae_form=body.get("team_poomsae_form"),
+            family_poomsae_form=body.get("family_poomsae_form"),
+            status="pending",
+        )
+    else:
+        reg = Coach(
+            full_name=body["full_name"],
+            email=body["email"],
+            phone=body.get("phone"),
+            school_id=school.id,
+            status="pending",
+        )
+
+    db.session.add(reg)
+    db.session.flush()
+
+    try:
+        base_url = request.url_root.rstrip("/")
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=line_items,
+            mode="payment",
+            success_url=f"{base_url}/success?reg_id={reg.id}",
+            cancel_url=f"{base_url}/cancel",
+            metadata={"registration_id": str(reg.id)},
+        )
+        reg.checkout_session_id = session.id
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return {"error": "Unable to create checkout session"}, 502
+
+    return {"data": {"checkout_url": session.url, "id": reg.id}}, 201
+
+
+@api_bp.route("/webhooks/stripe", methods=["POST"])
+def stripe_webhook():
+    payload = request.get_data()
+    sig_header = request.headers.get("Stripe-Signature")
+    webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    if not webhook_secret:
+        return jsonify({"error": "Server misconfiguration"}), 500
+
+    try:
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return jsonify({"error": "Invalid payload or signature"}), 400
+
+    session = event["data"]["object"]
+    session_id = session.get("id")
+    reg = _find_reg_by_checkout_session(session_id)
+    if reg is None:
+        return jsonify({"status": "ok"}), 200
+
+    if event["type"] == "checkout.session.completed":
+        reg.status = "complete"
+        reg.payment_intent = session.get("payment_intent")
+        db.session.commit()
+        try:
+            _send_confirmation_email(reg)
+            _check_school(reg)
+        except Exception:
+            pass
+    elif event["type"] == "checkout.session.expired":
+        reg.status = "failed"
+        db.session.commit()
+
+    return jsonify({"status": "ok"}), 200
+
+
 @api_bp.route("/entries", methods=["GET"])
 @api_bp.output(RegistrationListOut, description="All competitor and coach registrations")
 def entries_api():
@@ -283,6 +448,7 @@ def registration_status(registration_id):
                 "full_name": reg.full_name,
                 "reg_type": reg_type,
                 "checkout_session_id": reg.checkout_session_id,
+                "status": reg.status,
             }
         }
     )

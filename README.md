@@ -167,6 +167,7 @@ pyproject.toml
 | `PROFILE_PIC_BUCKET` | No | S3 bucket for profile pictures |
 | `SQS_QUEUE_URL` | Yes | SQS queue URL for processing notifications |
 | `STRIPE_API_KEY` | Yes | Stripe secret API key |
+| `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signing secret (`whsec_...`) |
 | `REG_URL` | Yes | Public URL of the deployed app |
 | `AWS_REGION` | No | AWS region for S3/SQS (default: `us-east-1`) |
 | `AWS_DEFAULT_REGION` | No | Alternative AWS region env var |
@@ -223,9 +224,23 @@ The S3 env JSON must include all required variables from the table above. At min
   "SUPABASE_ANON_KEY": "...",
   "SUPABASE_SERVICE_ROLE_KEY": "...",
   "SUPABASE_JWT_SECRET": "...",
-  "FLASK_SECRET_KEY": "..."
+  "FLASK_SECRET_KEY": "...",
+  "STRIPE_API_KEY": "...",
+  "STRIPE_WEBHOOK_SECRET": "whsec_..."
 }
 ```
+
+### Stripe webhooks in local development
+
+Use Stripe CLI to forward events to your local API webhook endpoint:
+
+```bash
+stripe listen --forward-to localhost:5000/api/v1/webhooks/stripe
+stripe trigger checkout.session.completed
+stripe trigger checkout.session.expired
+```
+
+Set the signing secret printed by `stripe listen` in your `frontend.env` as `STRIPE_WEBHOOK_SECRET`.
 
 ### Database Migrations
 
