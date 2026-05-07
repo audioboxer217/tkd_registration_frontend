@@ -9,7 +9,7 @@ import stripe
 from apiflask import APIBlueprint, Schema
 from apiflask.fields import Float, Integer, List, Nested, String
 from apiflask.validators import OneOf
-from flask import g, jsonify, request
+from flask import current_app, g, jsonify, request
 
 from models import Coach, Competitor, School, db
 
@@ -301,10 +301,12 @@ def _find_reg_by_checkout_session(session_id):
 
 
 def _send_confirmation_email(reg):
+    """Placeholder for registration confirmation email dispatch."""
     return reg
 
 
 def _check_school(reg):
+    """Placeholder for school-level post-registration checks."""
     return reg
 
 
@@ -316,8 +318,16 @@ def create_registration(body):
     if school is None:
         return {"error": "School is required"}, 422
 
+    default_unit_amount = int(os.getenv("STRIPE_DEFAULT_UNIT_AMOUNT", "100"))
     line_items = body.get("line_items") or [
-        {"price_data": {"currency": "usd", "product_data": {"name": "Registration"}, "unit_amount": 100}, "quantity": 1}
+        {
+            "price_data": {
+                "currency": "usd",
+                "product_data": {"name": f'{body["reg_type"].capitalize()} Registration'},
+                "unit_amount": default_unit_amount,
+            },
+            "quantity": 1,
+        }
     ]
 
     if body["reg_type"] == "competitor":
@@ -366,8 +376,9 @@ def create_registration(body):
         reg.checkout_session_id = session.id
         db.session.commit()
     except Exception:
+        current_app.logger.exception("Failed to create Stripe checkout session")
         db.session.rollback()
-        return {"error": "Unable to create checkout session"}, 502
+        return {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}, 502
 
     return {"data": {"checkout_url": session.url, "id": reg.id}}, 201
 
@@ -399,7 +410,7 @@ def stripe_webhook():
             _send_confirmation_email(reg)
             _check_school(reg)
         except Exception:
-            pass
+            current_app.logger.exception("Post-checkout completion actions failed for registration %s", reg.id)
     elif event["type"] == "checkout.session.expired":
         reg.status = "failed"
         db.session.commit()

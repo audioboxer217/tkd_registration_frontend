@@ -281,7 +281,7 @@ class TestEntriesAPI:
 class TestRegistrationsAPI:
     client = app.test_client()
 
-    def test_create_registration_creates_pending_competitor(self):
+    def test_create_pending_competitor_registration(self):
         payload = {
             "reg_type": "competitor",
             "full_name": "Webhook Pending Competitor",
@@ -305,8 +305,9 @@ class TestRegistrationsAPI:
             assert competitor is not None
             assert competitor.status == "pending"
             assert competitor.checkout_session_id == "cs_test_competitor"
+            assert competitor.school.name == "Webhook School"
 
-    def test_create_registration_creates_pending_coach(self):
+    def test_create_pending_coach_registration(self):
         payload = {
             "reg_type": "coach",
             "full_name": "Webhook Pending Coach",
@@ -328,6 +329,7 @@ class TestRegistrationsAPI:
             assert coach is not None
             assert coach.status == "pending"
             assert coach.checkout_session_id == "cs_test_coach"
+            assert coach.school.name == "Webhook School"
 
     def test_registration_status_returns_status(self):
         from models import Competitor
