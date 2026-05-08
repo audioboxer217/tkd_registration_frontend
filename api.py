@@ -366,7 +366,7 @@ def create_registration(body):
     db.session.flush()
 
     try:
-        base_url = request.url_root.rstrip("/")
+        base_url = (current_app.config.get("URL") or "").rstrip("/")
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=line_items,
