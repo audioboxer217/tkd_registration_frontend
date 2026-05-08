@@ -477,7 +477,7 @@ def registration_status(registration_id):
                 "full_name": reg.full_name,
                 "reg_type": reg_type,
                 "checkout_session_id": reg.checkout_session_id,
-                "status": reg.status,
+                "status": getattr(reg, "status", None),
             }
         }
     )
