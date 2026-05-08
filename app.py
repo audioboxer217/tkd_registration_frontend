@@ -79,7 +79,7 @@ def _sqs():
 
 def get_price_details():
     price_dict = {}
-    products = stripe.Product.list()
+    products = stripe.Product.list(active=True)
     for p in products:
         price_detail = stripe.Price.retrieve(p.default_price)
         price_dict[p.name] = {
@@ -643,7 +643,6 @@ def lookup_entry():
         entries_raw = [e for e in entries_raw if name_query in e.full_name.lower()]
 
     return render_template("form/lookup_modal.html", entries=[e.to_dict() for e in entries_raw])
-
 
 
 @ui_bp.route("/api/autofill", methods=["GET"])
