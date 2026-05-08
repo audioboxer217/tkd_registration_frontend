@@ -379,8 +379,10 @@ def create_registration(body):
             payment_method_types=["card"],
             line_items=line_items,
             mode="payment",
-            success_url=f"{base_url}/success?reg_id={reg.id}",
-            cancel_url=f"{base_url}/cancel",
+            success_url=(
+                f"{base_url}/success?session_id={{CHECKOUT_SESSION_ID}}&reg_type={body['reg_type']}"
+            ),
+            cancel_url=f"{base_url}/register?reg_type={body['reg_type']}",
             metadata={"registration_id": str(reg.id)},
         )
         reg.checkout_session_id = session.id
