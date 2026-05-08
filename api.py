@@ -105,14 +105,6 @@ class RegistrationIn(Schema):
     pair_poomsae_form = String()
     team_poomsae_form = String()
     family_poomsae_form = String()
-    line_items = List(Nested(lambda: LineItemIn()))
-
-
-class LineItemIn(Schema):
-    price = String(required=True)
-    quantity = Integer(required=True)
-
-
 class RegistrationUpdateIn(Schema):
     full_name = String()
     email = String()
@@ -330,7 +322,7 @@ def create_registration(body):
     if default_unit_amount <= 0:
         return {"error": "Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration"}, 500
     reg_type_title = body["reg_type"].capitalize()
-    line_items = body.get("line_items") or [
+    line_items = [
         {
             "price_data": {
                 "currency": "usd",
