@@ -414,18 +414,22 @@ def stripe_webhook():
     if reg is None:
         return jsonify({"status": "ok"}), 200
 
+    current_status = reg.status
+
     if event["type"] == "checkout.session.completed":
-        reg.status = "complete"
-        reg.payment_intent = session.get("payment_intent")
-        db.session.commit()
-        try:
-            _send_confirmation_email(reg)
-            _check_school(reg)
-        except Exception:
-            current_app.logger.exception("Post-checkout completion actions failed for registration %s", reg.id)
+        if current_status != "complete":
+            reg.status = "complete"
+            reg.payment_intent = session.get("payment_intent")
+            db.session.commit()
+            try:
+                _send_confirmation_email(reg)
+                _check_school(reg)
+            except Exception:
+                current_app.logger.exception("Post-checkout completion actions failed for registration %s", reg.id)
     elif event["type"] == "checkout.session.expired":
-        reg.status = "failed"
-        db.session.commit()
+        if current_status not in {"complete", "failed"}:
+            reg.status = "failed"
+            db.session.commit()
 
     return jsonify({"status": "ok"}), 200
 
