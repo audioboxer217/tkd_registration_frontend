@@ -168,7 +168,7 @@ pyproject.toml
 | `SQS_QUEUE_URL` | Yes | SQS queue URL for processing notifications |
 | `STRIPE_API_KEY` | Yes | Stripe secret API key |
 | `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signing secret (`whsec_...`) |
-| `STRIPE_DEFAULT_UNIT_AMOUNT` | No | Default Stripe Checkout amount in cents used by `/api/v1/registrations` when no `line_items` are provided (default: `5000`) |
+| `STRIPE_DEFAULT_UNIT_AMOUNT` | No | Stripe Checkout amount in cents used by `/api/v1/registrations` (default: `5000`) |
 | `REG_URL` | Yes | Public URL of the deployed app |
 | `AWS_REGION` | No | AWS region for S3/SQS (default: `us-east-1`) |
 | `AWS_DEFAULT_REGION` | No | Alternative AWS region env var |
@@ -236,7 +236,7 @@ The S3 env JSON must include all required variables from the table above. At min
 Use Stripe CLI to forward events to your local API webhook endpoint:
 
 ```bash
-stripe listen --forward-to localhost:5000/api/v1/webhooks/stripe
+stripe listen --forward-to localhost:5001/api/v1/webhooks/stripe
 stripe trigger checkout.session.completed
 stripe trigger checkout.session.expired
 ```
