@@ -434,6 +434,40 @@ class TestRegistrationsAPI:
             assert competitor.status == "complete"
             assert competitor.payment_intent == "pi_test_complete"
 
+    def test_webhook_expired_sets_status_failed(self):
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Webhook Expired School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="Webhook Expired Competitor",
+                email="webhook_expired@example.com",
+                school_id=school_id,
+                status="pending",
+                checkout_session_id="cs_test_expired",
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+            reg_id = competitor.id
+
+        event = {
+            "type": "checkout.session.expired",
+            "data": {"object": {"id": "cs_test_expired", "payment_intent": None}},
+        }
+
+        with (
+            patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_test"}),
+            patch("api.stripe.Webhook.construct_event", return_value=event),
+        ):
+            response = self.client.post("/api/v1/webhooks/stripe", data=b"{}", headers={"Stripe-Signature": "sig_test"})
+
+        assert response.status_code == 200
+
+        with app.app_context():
+            competitor = _db.session.get(Competitor, reg_id)
+            assert competitor.status == "failed"
+
     def test_webhook_invalid_signature_returns_400(self):
         with (
             patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_test"}),
