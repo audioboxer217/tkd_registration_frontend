@@ -148,12 +148,24 @@ class ErrorOut(Schema):
     error = String()
 
 
+def _err(description: str) -> dict:
+    """Build an OpenAPI response object linking ErrorOut as the response schema."""
+    return {"description": description, "content": {"application/json": {"schema": ErrorOut}}}
+
+
 def _s3():
     return boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
 
 def _sqs():
     return boto3.client("sqs", region_name=os.getenv("AWS_REGION", "us-east-1"))
+
+
+def _err_response(message: str, status: int):
+    """Return a Flask Response with an error JSON body, bypassing the @output schema."""
+    resp = jsonify({"error": message})
+    resp.status_code = status
+    return resp
 
 
 # ---------------------------------------------------------------------------
@@ -313,17 +325,18 @@ def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
 @api_bp.route("/registrations", methods=["POST"])
 @api_bp.input(RegistrationIn, arg_name="body")
 @api_bp.output(RegistrationCreateOut, status_code=201, description="Registration created")
+@api_bp.doc(responses={422: _err("Validation error"), 502: _err("Stripe error")})
 def create_registration(body):
     school = _get_or_create_school(body.get("school"))
     if school is None:
-        return {"error": "School is required"}, 422
+        return _err_response("School is required", 422)
 
     try:
         default_unit_amount = int(os.getenv("STRIPE_DEFAULT_UNIT_AMOUNT", "5000"))
     except ValueError:
-        return {"error": "Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration"}, 500
+        return _err_response("Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration", 500)
     if default_unit_amount <= 0:
-        return {"error": "Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration"}, 500
+        return _err_response("Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration", 500)
     reg_type_title = body["reg_type"].capitalize()
     line_items = [
         {
@@ -383,15 +396,11 @@ def create_registration(body):
     except stripe.error.StripeError:
         current_app.logger.exception("Stripe API error while creating checkout session")
         db.session.rollback()
-        return jsonify(
-            {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}
-        ), 502
+        return _err_response("Unable to create checkout session. Please verify payment configuration or try again later.", 502)
     except Exception:
         current_app.logger.exception("Unexpected error while creating checkout session")
         db.session.rollback()
-        return jsonify(
-            {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}
-        ), 502
+        return _err_response("Unable to create checkout session. Please verify payment configuration or try again later.", 502)
 
     return {"data": {"checkout_url": session.url, "id": reg.id}}, 201
 
@@ -458,6 +467,7 @@ def entries_api():
 
 @api_bp.route("/registrations/<string:registration_id>/status", methods=["GET"])
 @api_bp.output(RegistrationStatusOut, description="Registration and payment status")
+@api_bp.doc(responses={404: _err("Not found")})
 def registration_status(registration_id):
     """Check registration and payment status by ID."""
     try:
@@ -511,7 +521,7 @@ def _get_registration_by_id(registration_id):
 
 
 @api_bp.route("/admin/registrations", methods=["GET"])
-@api_bp.doc(security=[{"BearerAuth": []}])
+@api_bp.doc(security=[{"BearerAuth": []}], responses={401: _err("Unauthorized")})
 @api_auth_required
 @api_bp.output(RegistrationListOut, description="All registrations")
 def admin_list_registrations():
@@ -535,7 +545,7 @@ def admin_list_registrations():
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["GET"])
-@api_bp.doc(security=[{"BearerAuth": []}])
+@api_bp.doc(security=[{"BearerAuth": []}], responses={401: _err("Unauthorized"), 404: _err("Not found")})
 @api_auth_required
 @api_bp.output(RegistrationDetailOut, description="Registration detail")
 def admin_get_registration(registration_id):
@@ -547,7 +557,7 @@ def admin_get_registration(registration_id):
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["PUT"])
-@api_bp.doc(security=[{"BearerAuth": []}])
+@api_bp.doc(security=[{"BearerAuth": []}], responses={401: _err("Unauthorized"), 404: _err("Not found")})
 @api_auth_required
 @api_bp.input(RegistrationUpdateIn, arg_name="body")
 @api_bp.output(RegistrationDetailOut, description="Updated registration")
@@ -568,7 +578,7 @@ def admin_update_registration(registration_id, body):
 
 
 @api_bp.route("/admin/registrations/<string:registration_id>", methods=["DELETE"])
-@api_bp.doc(security=[{"BearerAuth": []}])
+@api_bp.doc(security=[{"BearerAuth": []}], responses={401: _err("Unauthorized"), 404: _err("Not found")})
 @api_auth_required
 @api_bp.output(DeletedOut, description="Deleted registration ID")
 def admin_delete_registration(registration_id):
@@ -582,7 +592,10 @@ def admin_delete_registration(registration_id):
 
 
 @api_bp.route("/admin/upload/<string:resource>", methods=["POST"])
-@api_bp.doc(security=[{"BearerAuth": []}])
+@api_bp.doc(
+    security=[{"BearerAuth": []}],
+    responses={401: _err("Unauthorized"), 404: _err("Unknown resource"), 422: _err("No file provided")},
+)
 @api_auth_required
 @api_bp.output(MessageOut, description="Upload result message")
 def upload_item(resource):
