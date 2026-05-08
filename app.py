@@ -579,17 +579,6 @@ def handle_form():
         )
         registration_items = [{"price": price_dict["Coach Registration"]["price_id"], "quantity": 1}]
 
-    if os.getenv("FLASK_DEBUG"):
-        db.session.add(reg)
-        db.session.commit()
-        return render_template(
-            "success.html",
-            competition_name=os.getenv("COMPETITION_NAME"),
-            email=os.getenv("CONTACT_EMAIL"),
-            reg_detail={"id": str(reg.id), "full_name": reg.full_name},
-            cost_detail=registration_items,
-        )
-
     early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
     try:
         early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"])
