@@ -312,6 +312,7 @@ def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
 
 @api_bp.route("/registrations", methods=["POST"])
 @api_bp.input(RegistrationIn, arg_name="body")
+@api_bp.output(RegistrationCreateOut, status_code=201, description="Registration created")
 def create_registration(body):
     school = _get_or_create_school(body.get("school"))
     if school is None:
