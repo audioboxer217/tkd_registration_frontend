@@ -352,6 +352,27 @@ class TestRegistrationsAPI:
             competitor = Competitor.query.filter_by(email="webhook_stripe_error@example.com").first()
             assert competitor is None
 
+    def test_registration_status_coach_returns_null_status(self):
+        from models import Coach
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Status Coach School")
+        with app.app_context():
+            coach = Coach(
+                full_name="Status Coach",
+                email="status_coach@example.com",
+                school_id=school_id,
+            )
+            _db.session.add(coach)
+            _db.session.commit()
+            coach_id = coach.id
+
+        response = self.client.get(f"/api/v1/registrations/{coach_id}/status")
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["data"]["reg_type"] == "coach"
+        assert data["data"]["status"] is None
+
     def test_registration_status_returns_status(self):
         from models import Competitor
         from models import db as _db
