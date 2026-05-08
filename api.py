@@ -105,6 +105,8 @@ class RegistrationIn(Schema):
     pair_poomsae_form = String()
     team_poomsae_form = String()
     family_poomsae_form = String()
+
+
 class RegistrationUpdateIn(Schema):
     full_name = String()
     email = String()
