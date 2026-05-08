@@ -24,7 +24,8 @@ import os
 import sys
 import time
 
-import requests
+import urllib.error
+import urllib.request
 
 WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "http://localhost:5001/api/v1/webhooks/stripe")
@@ -82,8 +83,15 @@ def trigger(checkout_session_id: str, failed: bool = False, payment_intent_id: s
     if not failed:
         print(f"  payment_intent_id   : {payment_intent_id}")
 
-    resp = requests.post(WEBHOOK_URL, data=payload, headers=headers)
-    print(f"  → {resp.status_code} {resp.text}")
+    req = urllib.request.Request(WEBHOOK_URL, data=payload.encode("utf-8"), headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req) as resp:
+            print(f"  → {resp.status} {resp.read().decode('utf-8', errors='replace')}")
+    except urllib.error.HTTPError as e:
+        print(f"  → {e.code} {e.read().decode('utf-8', errors='replace')}")
+    except urllib.error.URLError as e:
+        print(f"  ERROR: {e.reason}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
