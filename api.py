@@ -374,9 +374,7 @@ def create_registration(body):
             payment_method_types=["card"],
             line_items=line_items,
             mode="payment",
-            success_url=(
-                f"{base_url}/success?session_id={{CHECKOUT_SESSION_ID}}&reg_type={body['reg_type']}"
-            ),
+            success_url=(f"{base_url}/success?session_id={{CHECKOUT_SESSION_ID}}&reg_type={body['reg_type']}"),
             cancel_url=f"{base_url}/register?reg_type={body['reg_type']}",
             metadata={"registration_id": str(reg.id)},
         )
@@ -385,11 +383,15 @@ def create_registration(body):
     except stripe.error.StripeError:
         current_app.logger.exception("Stripe API error while creating checkout session")
         db.session.rollback()
-        return {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}, 502
+        return jsonify(
+            {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}
+        ), 502
     except Exception:
         current_app.logger.exception("Unexpected error while creating checkout session")
         db.session.rollback()
-        return {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}, 502
+        return jsonify(
+            {"error": "Unable to create checkout session. Please verify payment configuration or try again later."}
+        ), 502
 
     return {"data": {"checkout_url": session.url, "id": reg.id}}, 201
 
