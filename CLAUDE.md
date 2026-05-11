@@ -6,11 +6,13 @@ Flask 3.1 + SQLAlchemy 3.1 + Supabase (PostgreSQL) + Pytest + Zappa (Lambda). Py
 
 ```bash
 uv sync --all-extras --dev
-set -a && source frontend.env && set +a
+set -a && source .env && set +a
 flask --app app --debug run        # Development server
-uv run pytest                      # Run tests
+uv run pytest                      # Run tests (requires .env to be sourced)
 uv run ruff check .                # Lint (130 char line limit)
 ```
+
+> **Environment variables are always in `.env`** at the project root. Always source it before running the app or tests: `set -a && source .env && set +a`
 
 ## Project Layout
 
