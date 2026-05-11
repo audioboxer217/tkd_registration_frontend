@@ -28,11 +28,13 @@ This is the **Frontend** of the TKD Registration Project — a Flask-based web a
    ```
    This installs the correct Python version and all dependencies including dev.
 
-2. Create a `frontend.env` file with required environment variables (see `README.md` for the full list).
-
-3. Load env vars and start the Flask dev server:
+2. Environment variables are stored in `.env` at the project root. Load them before running the app or tests:
    ```bash
-   set -a && source frontend.env && set +a
+   set -a && source .env && set +a
+   ```
+
+3. Start the Flask dev server:
+   ```bash
    flask --app app --debug run
    ```
    Or use the VSCode debugger via the existing `launch.json`.
@@ -50,6 +52,7 @@ uv run ruff format --check .
 ## Running Tests
 
 ```bash
+set -a && source .env && set +a
 uv run pytest
 ```
 
