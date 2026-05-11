@@ -89,6 +89,7 @@ def trigger(checkout_session_id: str, failed: bool = False, payment_intent_id: s
             print(f"  → {resp.status} {resp.read().decode('utf-8', errors='replace')}")
     except urllib.error.HTTPError as e:
         print(f"  → {e.code} {e.read().decode('utf-8', errors='replace')}")
+        sys.exit(1)
     except urllib.error.URLError as e:
         print(f"  ERROR: {e.reason}")
         sys.exit(1)
