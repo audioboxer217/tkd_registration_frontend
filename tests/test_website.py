@@ -40,7 +40,7 @@ def make_admin_session(client):
 def make_stripe_coupon_mock():
     """Return a mock stripe Coupon list with one item."""
     coupon = MagicMock()
-    coupon.__getitem__.side_effect = lambda key: {"redeem_by": 1893456000, "amount_off": 2000}[key]
+    coupon.__getitem__.side_effect = lambda key: {"id": "coupon_early_reg", "redeem_by": 1893456000, "amount_off": 2000}[key]
     coupon_list = MagicMock()
     coupon_list.data = [coupon]
     return coupon_list
@@ -296,13 +296,12 @@ class TestRegistrationsAPI:
             "school": "Webhook School",
         }
 
-        with patch("api.stripe.checkout.Session.create") as mock_create:
-            mock_create.return_value = MagicMock(id="cs_test_competitor", url="https://checkout.stripe.test/competitor")
-            response = self.client.post("/api/v1/registrations", json=payload)
+        response = self.client.post("/api/v1/registrations", json=payload)
 
         assert response.status_code == 201
         response_data = json.loads(response.data)
-        assert response_data["data"]["checkout_url"] == "https://checkout.stripe.test/competitor"
+        assert "id" in response_data["data"]
+        assert "checkout_url" not in response_data["data"]
 
         from models import Competitor
 
@@ -310,7 +309,7 @@ class TestRegistrationsAPI:
             competitor = Competitor.query.filter_by(email="pending_competitor@example.com").first()
             assert competitor is not None
             assert competitor.status == "pending"
-            assert competitor.checkout_session_id == "cs_test_competitor"
+            assert competitor.checkout_session_id is None
             assert competitor.school.name == "Webhook School"
 
     def test_create_competitor_registration_links_coach(self):
@@ -338,9 +337,9 @@ class TestRegistrationsAPI:
         }
 
         with patch("api.stripe.checkout.Session.create") as mock_create:
-            mock_create.return_value = MagicMock(id="cs_test_coach_link", url="https://checkout.stripe.test/linked")
             response = self.client.post("/api/v1/registrations", json=payload)
 
+        mock_create.assert_not_called()
         assert response.status_code == 201
 
         from models import Competitor
@@ -360,9 +359,7 @@ class TestRegistrationsAPI:
             "coach": "Nonexistent Coach",
         }
 
-        with patch("api.stripe.checkout.Session.create") as mock_create:
-            mock_create.return_value = MagicMock(id="cs_test_no_coach", url="https://checkout.stripe.test/nocoach")
-            response = self.client.post("/api/v1/registrations", json=payload)
+        response = self.client.post("/api/v1/registrations", json=payload)
 
         assert response.status_code == 201
 
@@ -390,7 +387,8 @@ class TestRegistrationsAPI:
         assert response.status_code == 201
 
         data = json.loads(response.data)
-        assert data["data"]["checkout_url"] is None
+        assert "id" in data["data"]
+        assert "checkout_url" not in data["data"]
 
         from models import Coach
 
@@ -398,50 +396,6 @@ class TestRegistrationsAPI:
             coach = Coach.query.filter_by(email="pending_coach@example.com").first()
             assert coach is not None
             assert coach.school.name == "Webhook School"
-
-    def test_create_registration_returns_500_when_base_url_missing(self):
-        payload = {
-            "reg_type": "competitor",
-            "full_name": "Missing URL Competitor",
-            "email": "missing_url_competitor@example.com",
-            "phone": "555-0103",
-            "school": "Missing URL School",
-        }
-
-        with patch.dict(app.config, {"URL": None}):
-            response = self.client.post("/api/v1/registrations", json=payload)
-
-        assert response.status_code == 500
-        data = json.loads(response.data)
-        assert "misconfiguration" in data["error"].lower()
-
-        from models import Competitor
-
-        with app.app_context():
-            competitor = Competitor.query.filter_by(email="missing_url_competitor@example.com").first()
-            assert competitor is None
-
-    def test_create_registration_returns_502_when_stripe_fails(self):
-        payload = {
-            "reg_type": "competitor",
-            "full_name": "Webhook Stripe Error",
-            "email": "webhook_stripe_error@example.com",
-            "phone": "555-0102",
-            "school": "Webhook Error School",
-        }
-
-        with patch("api.stripe.checkout.Session.create", side_effect=stripe.error.StripeError("Stripe unavailable")):
-            response = self.client.post("/api/v1/registrations", json=payload)
-
-        assert response.status_code == 502
-        data = json.loads(response.data)
-        assert "Unable to create checkout session" in data["error"]
-
-        from models import Competitor
-
-        with app.app_context():
-            competitor = Competitor.query.filter_by(email="webhook_stripe_error@example.com").first()
-            assert competitor is None
 
     def test_create_registration_returns_409_for_duplicate_competitor(self):
         from models import Competitor
@@ -935,6 +889,125 @@ class TestRegisterPage:
             mock_s3_factory.return_value = mock_s3
             response = self.client.get("/register")
         assert b"eventRegistration" in response.data or b"form" in response.data.lower()
+
+
+class TestHandleForm:
+    """Tests for POST /register — validates that the UI route delegates to _create_registration_record
+    for DB writes, handles Stripe checkout for competitors, and redirects coaches directly."""
+
+    client = app.test_client()
+
+    def _base_competitor_form(self):
+        return {
+            "regType": "competitor",
+            "fname": "John",
+            "lname": "Doe",
+            "school": "Handle Form School",
+            "email": "john.doe.handleform@example.com",
+            "phone": "555-9999",
+            "coach": "",
+            "liability": "on",
+            "eventList": "sparring",
+            "heightFt": "5",
+            "heightIn": "8",
+            "weight": "150",
+            "age": "20",
+            "gender": "male",
+            "beltRank": "red",
+            "poomsae form": "",
+            "wc poomsae form": "",
+            "pair poomsae form": "",
+            "team poomsae form": "",
+            "family poomsae form": "",
+            "parentName": "",
+            "birthdate": "2004-01-01",
+            "contacts": "",
+            "medicalConditionsList": "",
+            "allergy_list": "",
+            "meds_list": "",
+        }
+
+    def test_register_post_competitor_redirects_to_stripe(self):
+        """Competitor POST should create a DB record and meta-refresh to Stripe checkout URL."""
+        from models import Competitor
+
+        form_data = self._base_competitor_form()
+
+        with (
+            patch("app.get_price_details", return_value={
+                "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
+                "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
+                "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
+                "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
+                "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
+            }),
+            patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
+            patch("app.stripe.checkout.Session.create") as mock_stripe,
+        ):
+            mock_stripe.return_value = MagicMock(id="cs_test_ui_123", url="https://checkout.stripe.test/ui")
+            response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 200
+        assert b"checkout.stripe.test" in response.data
+
+        with app.app_context():
+            comp = Competitor.query.filter_by(email="john.doe.handleform@example.com").first()
+            assert comp is not None
+            assert comp.checkout_session_id == "cs_test_ui_123"
+
+    def test_register_post_coach_redirects_to_success(self):
+        """Coach POST should create a DB Coach record and redirect to /success."""
+        from models import Coach
+
+        form_data = {
+            "regType": "coach",
+            "fname": "Coach",
+            "lname": "TestPerson",
+            "school": "Handle Form School",
+            "email": "coach.testperson.handleform@example.com",
+            "phone": "555-8888",
+            "coach": "",
+        }
+
+        response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 302
+        assert "/success" in response.headers["Location"]
+        assert "reg_type=coach" in response.headers["Location"]
+
+        with app.app_context():
+            coach = Coach.query.filter_by(email="coach.testperson.handleform@example.com").first()
+            assert coach is not None
+
+    def test_register_post_duplicate_redirects_to_error_page(self):
+        """Duplicate competitor submission should redirect to /registration_error."""
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Handle Form School")
+        with app.app_context():
+            existing = Competitor(
+                full_name="Dup Handle Form",
+                email="dup.handleform.existing@example.com",
+                school_id=school_id,
+                status="pending",
+            )
+            _db.session.add(existing)
+            _db.session.commit()
+
+        form_data = self._base_competitor_form()
+        form_data["fname"] = "Dup"
+        form_data["lname"] = "Handle Form"
+        form_data["email"] = "dup.handleform.new@example.com"
+
+        with (
+            patch("app.get_price_details", return_value={}),
+            patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
+        ):
+            response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 302
+        assert "/registration_error" in response.headers["Location"]
 
 
 class TestSchoolsAPI:

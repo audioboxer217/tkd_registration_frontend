@@ -25,7 +25,7 @@ from flask import (
 from supabase import Client, create_client
 from zoneinfo import ZoneInfo
 
-from api import api_bp
+from api import api_bp, _create_registration_record
 from models import Coach, Competitor, School, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
@@ -467,7 +467,6 @@ def _normalize_gender(value: "str | None") -> "str | None":
 @ui_bp.route("/register", methods=["POST"])
 def handle_form():
     config = _current_app_config()
-    price_dict = get_price_details()
     reg_type = request.form.get("regType")
 
     fname = request.form.get("fname").strip()
@@ -476,85 +475,83 @@ def handle_form():
     school_name = request.form.get("school")
     if school_name == "unlisted":
         school_name = request.form.get("unlistedSchool").strip()
-    coach_name = request.form.get("coach", "").strip()
 
-    # Get or create school
-    school = _get_or_create_school(school_name)
-    if not school:
-        abort(400, "School is required")
-
-    # Check for duplicate registration
-    if reg_type == "competitor":
-        duplicate = Competitor.query.filter_by(
-            full_name=full_name,
-            school_id=school.id,
-        ).first()
-    else:
-        duplicate = Coach.query.filter_by(
-            full_name=full_name,
-            school_id=school.id,
-        ).first()
-
-    if duplicate:
-        print("registration exists")
-        return redirect(f'{config["URL"]}/registration_error?reg_type={reg_type}')
-
-    registration_items = []
+    payload = {
+        "reg_type": reg_type,
+        "full_name": full_name,
+        "email": request.form.get("email"),
+        "phone": request.form.get("phone"),
+        "school": school_name,
+    }
 
     if reg_type == "competitor":
         if request.form.get("liability") != "on":
             abort(400, "Please go back and accept the Liability Waiver Conditions")
 
+        event_list = request.form.get("eventList")
+        if not event_list:
+            abort(400, "You must choose at least one event")
+
+        events_list = [e for e in event_list.split(",") if e]
         height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
         belt = request.form.get("beltRank")
         if belt == "black":
             dan = request.form.get("blackBeltDan")
             belt = "Master" if dan == "4" else f"{dan} degree {belt}"
 
-        event_list = request.form.get("eventList")
-        if not event_list:
-            abort(400, "You must choose at least one event")
-
-        # Get or create coach if specified
-        coach_id = None
-        if coach_name:
-            coach = _get_coach_by_name_and_school(coach_name, school.id)
-            coach_id = coach.id if coach else None
-
-        reg = Competitor(
-            full_name=full_name,
-            email=request.form.get("email"),
-            phone=request.form.get("phone"),
-            school_id=school.id,
-            coach_id=coach_id,
-            parent=request.form.get("parentName"),
-            birthdate=request.form.get("birthdate"),
-            age=int(request.form.get("age")),
-            gender=_normalize_gender(request.form.get("gender")),
-            weight=float(request.form.get("weight")),
-            height=height,
-            belt_rank=belt,
-            events=event_list,
-            poomsae_form=request.form.get("poomsae form", ""),
-            pair_poomsae_form=request.form.get("pair poomsae form", ""),
-            team_poomsae_form=request.form.get("team poomsae form", ""),
-            family_poomsae_form=request.form.get("family poomsae form", ""),
-            medical_contacts=request.form.get("contacts"),
-            medical_conditions=[mc for mc in request.form.get("medicalConditionsList", "").split(",") if mc],
-            allergies=[a for a in request.form.get("allergy_list", "").split("\r\n") if a],
-            medications=[m for m in request.form.get("meds_list", "").split("\r\n") if m],
-        )
-
+        img_filename = None
         if config["ENABLE_BADGES"]:
             profile_img = request.files["profilePic"]
             image_ext = os.path.splitext(profile_img.filename)[1]
             if not profile_img.content_type or not image_ext:
                 abort(400, "There was an error uploading your profile pic. Please go back and try again.")
             img_filename = f"{school_name}_{reg_type}_{fname}_{lname}{image_ext}"
-            reg.img_filename = img_filename
             _s3().upload_fileobj(profile_img, config["profilePicBucket"], img_filename)
 
-        events_list = event_list.split(",")
+        payload.update(
+            {
+                "parent": request.form.get("parentName"),
+                "birthdate": request.form.get("birthdate"),
+                "age": int(request.form.get("age")),
+                "gender": _normalize_gender(request.form.get("gender")),
+                "weight": float(request.form.get("weight")),
+                "height": height,
+                "belt_rank": belt,
+                "coach": request.form.get("coach", "").strip(),
+                "events": events_list,
+                "poomsae_form": request.form.get("poomsae form", ""),
+                "wc_poomsae_form": request.form.get("wc poomsae form", ""),
+                "pair_poomsae_form": request.form.get("pair poomsae form", ""),
+                "team_poomsae_form": request.form.get("team poomsae form", ""),
+                "family_poomsae_form": request.form.get("family poomsae form", ""),
+                "medical_contacts": request.form.get("contacts"),
+                "medical_conditions": [mc for mc in request.form.get("medicalConditionsList", "").split(",") if mc],
+                "allergies": [a for a in request.form.get("allergy_list", "").split("\r\n") if a],
+                "medications": [m for m in request.form.get("meds_list", "").split("\r\n") if m],
+                "img_filename": img_filename,
+                "tshirt": request.form.get("t-shirt") if "little_dragon" in events_list else None,
+            }
+        )
+
+    reg, err_msg, err_code = _create_registration_record(payload)
+    if err_msg:
+        if err_code == 409:
+            return redirect(f'{config["URL"]}/registration_error?reg_type={reg_type}')
+        abort(err_code or 400, err_msg)
+
+    if reg_type != "competitor":
+        db.session.commit()
+        return redirect(f'{config["URL"]}/success?reg_type=coach')
+
+    # Competitor: build Stripe checkout items and create session
+    events_list = payload.get("events", [])
+    price_dict = get_price_details()
+    early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
+    try:
+        early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"])
+        current_time = convert_to_local(datetime.now())
+        checkout_timeout = current_time + timedelta(minutes=30)
+
         if request.form.get("beltRank") == "black":
             registration_items = [{"price": price_dict["Black Belt Registration"]["price_id"], "quantity": 1}]
         else:
@@ -562,7 +559,6 @@ def handle_form():
 
         num_add_event = len(events_list) - 1
         if "little_dragon" in events_list:
-            reg.tshirt = request.form.get("t-shirt")
             if num_add_event == 0:
                 registration_items = [{"price": price_dict["Little Dragon Obstacle Course"]["price_id"], "quantity": 1}]
             else:
@@ -571,32 +567,7 @@ def handle_form():
         if num_add_event > 0:
             registration_items.append({"price": price_dict["Additional Event"]["price_id"], "quantity": num_add_event})
         registration_items.append({"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1})
-    else:
-        # Coach registration — coaches skip Stripe checkout entirely
-        reg = Coach(
-            full_name=full_name,
-            email=request.form.get("email"),
-            phone=request.form.get("phone"),
-            school_id=school.id,
-        )
-        db.session.add(reg)
-        db.session.commit()
-        _sqs().send_message(
-            QueueUrl=config["SQS_QUEUE_URL"],
-            DelaySeconds=120,
-            MessageAttributes={
-                "Name": {"DataType": "String", "StringValue": f"{fname}_{lname}"},
-                "Transaction": {"DataType": "String", "StringValue": "coach_registration"},
-            },
-            MessageBody=json.dumps({"id": str(reg.id), "full_name": reg.full_name, "email": reg.email}),
-        )
-        return redirect(f'{config["URL"]}/success?reg_type=coach')
 
-    early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
-    try:
-        early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"])
-        current_time = convert_to_local(datetime.now())
-        checkout_timeout = current_time + timedelta(minutes=30)
         checkout_details = {
             "line_items": registration_items,
             "mode": "payment",
@@ -605,7 +576,7 @@ def handle_form():
             "cancel_url": f'{config["URL"]}/register?reg_type={reg_type}',
             "expires_at": int(checkout_timeout.timestamp()),
         }
-        if reg_type == "competitor" and current_time < early_reg_date:
+        if current_time < early_reg_date:
             checkout_details["discounts"].append({"coupon": early_reg_coupon["id"]})
         checkout_session = stripe.checkout.Session.create(
             line_items=checkout_details["line_items"],
@@ -616,21 +587,11 @@ def handle_form():
             expires_at=checkout_details["expires_at"],
         )
     except Exception as e:
+        db.session.rollback()
         return str(e)
 
     reg.checkout_session_id = checkout_session.id
-    db.session.add(reg)
     db.session.commit()
-
-    _sqs().send_message(
-        QueueUrl=config["SQS_QUEUE_URL"],
-        DelaySeconds=120,
-        MessageAttributes={
-            "Name": {"DataType": "String", "StringValue": f"{fname}_{lname}"},
-            "Transaction": {"DataType": "String", "StringValue": checkout_session.id},
-        },
-        MessageBody=json.dumps({"id": str(reg.id), "full_name": reg.full_name, "email": reg.email}),
-    )
 
     return render_template_string(
         '<meta http-equiv="refresh" content="0; url={{ checkout_url }}" />', checkout_url=checkout_session.url

@@ -84,13 +84,12 @@ class RegistrationStatusData(Schema):
     status = String(allow_none=True)
 
 
-class RegistrationCheckoutData(Schema):
+class RegistrationCreatedData(Schema):
     id = Integer()
-    checkout_url = String(allow_none=True)
 
 
 class RegistrationCreateOut(Schema):
-    data = Nested(lambda: RegistrationCheckoutData())
+    data = Nested(lambda: RegistrationCreatedData())
 
 
 class RegistrationIn(Schema):
@@ -114,6 +113,11 @@ class RegistrationIn(Schema):
     team_poomsae_form = String()
     family_poomsae_form = String()
     tshirt = String()
+    medical_contacts = String()
+    medical_conditions = List(String())
+    allergies = List(String())
+    medications = List(String())
+    img_filename = String()
 
 
 class RegistrationUpdateIn(Schema):
@@ -308,6 +312,7 @@ def _get_or_create_school(school_name: str):
         school = School(name=school_name)
         db.session.add(school)
         db.session.flush()
+        _send_admin_school_alert(school_name, school)
     return school
 
 
@@ -329,7 +334,7 @@ def _check_duplicate(full_name: str, school_id: int, reg_type: str) -> None:
         raise DuplicateRegistrationError(f"Duplicate registration for {full_name}")
 
 
-def _send_admin_school_alert(school_name_or_none: str | None, reg: RegistrationRecord) -> RegistrationRecord:
+def _send_admin_school_alert(school_name: str, reg: RegistrationRecord) -> None:
     """Send an unknown-school alert email directly to the admin via SMTP."""
     comp_name = os.environ.get("COMPETITION_NAME", "")
     email_server = os.environ.get("EMAIL_SERVER")
@@ -340,30 +345,21 @@ def _send_admin_school_alert(school_name_or_none: str | None, reg: RegistrationR
 
     if not all([email_server, email_port, email_sender, email_password, admin_email]):
         current_app.logger.warning("Skipping unknown school alert; email server env vars are not fully configured")
-        return reg
-
-    reg_type = "competitor" if isinstance(reg, Competitor) else "coach"
-    entry_details = {
-        "id": reg.id,
-        "full_name": reg.full_name,
-        "email": reg.email,
-        "school": school_name_or_none,
-        "reg_type": reg_type,
-    }
+        return
 
     em = EmailMessage()
     em["From"] = formataddr((comp_name, email_sender))
     em["To"] = formataddr(("Competition Admin", admin_email))
-    em["Subject"] = f"Entry added with unknown school - {school_name_or_none}"
-    em.set_content(f"Entry Details:\n{entry_details}")
+    em["Subject"] = f"Entry added with unknown school - {school_name}"
+    em.set_content(f"New School Added: {school_name}")
 
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(email_server, int(email_port), context=context) as smtp:
         smtp.login(email_sender, email_password)
         smtp.sendmail(email_sender, admin_email, em.as_string())
 
-    current_app.logger.info("Unknown school alert sent to admin for registration %s", reg.id)
-    return reg
+    current_app.logger.info("Unknown school alert sent to admin for new school: %s", school_name)
+    return
 
 
 def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
@@ -456,50 +452,36 @@ def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
     return reg
 
 
-def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
-    school_name = reg.school.name if getattr(reg, "school", None) else None
-    school = School.query.filter_by(name=school_name).first() if school_name else None
-    if school is None:
-        _send_admin_school_alert(school_name, reg)
-    return reg
+# def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
+#     school_name = reg.school.name if getattr(reg, "school", None) else None
+#     school = School.query.filter_by(name=school_name).first() if school_name else None
+#     if school is None:
+#         _send_admin_school_alert(school_name, reg)
+#     return reg
 
 
-@api_bp.route("/registrations", methods=["POST"])
-@api_bp.input(RegistrationIn, arg_name="body")
-@api_bp.output(RegistrationCreateOut, status_code=201, description="Registration created")
-@api_bp.doc(
-    responses={
-        422: _err("Validation error"),
-        500: _err("Server configuration error"),
-        502: _err("Stripe error"),
-    }
-)
-def create_registration(body):
+def _create_registration_record(body: dict) -> tuple:
+    """Validate and persist a registration record to the database.
+
+    Performs school resolution, duplicate detection, and creates the appropriate
+    Competitor or Coach record.  The session is flushed (not committed) on success
+    so the caller can attach additional fields (e.g. checkout_session_id) before
+    committing.
+
+    Returns:
+        (reg, None, None)         on success – reg is flushed but not yet committed.
+        (None, error_msg, code)   on failure – session is rolled back.
+    """
     school = _get_or_create_school(body.get("school"))
     if school is None:
-        return _err_response("School is required", 422)
+        db.session.rollback()
+        return None, "School is required", 422
+
     try:
         _check_duplicate(body["full_name"], school.id, body["reg_type"])
     except DuplicateRegistrationError:
-        return _err_response(f"Duplicate registration for {body['full_name']}", 409)
-
-    try:
-        default_unit_amount = int(os.getenv("STRIPE_DEFAULT_UNIT_AMOUNT", "5000"))
-    except ValueError:
-        return _err_response("Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration", 500)
-    if default_unit_amount <= 0:
-        return _err_response("Invalid STRIPE_DEFAULT_UNIT_AMOUNT configuration", 500)
-    reg_type_title = body["reg_type"].capitalize()
-    line_items = [
-        {
-            "price_data": {
-                "currency": "usd",
-                "product_data": {"name": f"{reg_type_title} Registration"},
-                "unit_amount": default_unit_amount,
-            },
-            "quantity": 1,
-        }
-    ]
+        db.session.rollback()
+        return None, f"Duplicate registration for {body['full_name']}", 409
 
     if body["reg_type"] == "competitor":
         coach_name = (body.get("coach") or "").strip() or None
@@ -526,53 +508,43 @@ def create_registration(body):
             pair_poomsae_form=body.get("pair_poomsae_form"),
             team_poomsae_form=body.get("team_poomsae_form"),
             family_poomsae_form=body.get("family_poomsae_form"),
+            medical_contacts=body.get("medical_contacts"),
+            medical_conditions=body.get("medical_conditions", []),
+            allergies=body.get("allergies", []),
+            medications=body.get("medications", []),
+            img_filename=body.get("img_filename"),
             tshirt=body.get("tshirt"),
             status="pending",
         )
-        db.session.add(reg)
-        db.session.flush()
-
-        base_url = (current_app.config.get("URL") or "").rstrip("/")
-        if not base_url or not base_url.startswith(("http://", "https://")):
-            db.session.rollback()
-            return _err_response("Server misconfiguration: REG_URL is not set or is not an absolute URL.", 500)
-
-        try:
-            session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
-                line_items=line_items,
-                mode="payment",
-                success_url=(f"{base_url}/success?session_id={{CHECKOUT_SESSION_ID}}&reg_type={body['reg_type']}"),
-                cancel_url=f"{base_url}/register?reg_type={body['reg_type']}",
-                metadata={"registration_id": str(reg.id)},
-            )
-            reg.checkout_session_id = session.id
-            db.session.commit()
-        except stripe.error.StripeError:
-            current_app.logger.exception("Stripe API error while creating checkout session")
-            db.session.rollback()
-            return _err_response(
-                "Unable to create checkout session. Please verify payment configuration or try again later.", 502
-            )  # noqa: E501
-        except Exception:
-            current_app.logger.exception("Unexpected error while creating checkout session")
-            db.session.rollback()
-            return _err_response(
-                "Unable to create checkout session. Please verify payment configuration or try again later.", 502
-            )  # noqa: E501
-
-        return {"data": {"checkout_url": session.url, "id": reg.id}}, 201
     else:
-        # Coaches do not go through a Stripe checkout flow.
         reg = Coach(
             full_name=body["full_name"],
             email=body["email"],
             phone=body.get("phone"),
             school_id=school.id,
+            img_filename=body.get("img_filename"),
         )
-        db.session.add(reg)
-        db.session.commit()
-        return {"data": {"checkout_url": None, "id": reg.id}}, 201
+
+    db.session.add(reg)
+    db.session.flush()
+    return reg, None, None
+
+
+@api_bp.route("/registrations", methods=["POST"])
+@api_bp.input(RegistrationIn, arg_name="body")
+@api_bp.output(RegistrationCreateOut, status_code=201, description="Registration created")
+@api_bp.doc(
+    responses={
+        409: _err("Duplicate registration"),
+        422: _err("Validation error"),
+    }
+)
+def create_registration(body):
+    reg, err_msg, err_code = _create_registration_record(body)
+    if err_msg:
+        return _err_response(err_msg, err_code)
+    db.session.commit()
+    return {"data": {"id": reg.id}}, 201
 
 
 @api_bp.route("/webhooks/stripe", methods=["POST"])
@@ -616,7 +588,6 @@ def stripe_webhook():
             db.session.commit()
             try:
                 _send_confirmation_email(reg)
-                _check_school(reg)
             except Exception:
                 current_app.logger.exception("Post-checkout completion actions failed for registration %s", reg.id)
     elif event_type == "checkout.session.expired":
