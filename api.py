@@ -78,7 +78,7 @@ class RegistrationStatusData(Schema):
 
 class RegistrationCheckoutData(Schema):
     id = Integer()
-    checkout_url = String()
+    checkout_url = String(allow_none=True)
 
 
 class RegistrationCreateOut(Schema):
