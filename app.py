@@ -353,25 +353,27 @@ def error_page():
 
 @ui_bp.route("/success", methods=["GET"])
 def success_page():
-    price_dict = get_price_details()
-    full_session = stripe.checkout.Session.retrieve(request.args.get("session_id"), expand=["payment_intent"])
-    payment_intent = full_session.payment_intent
-    if payment_intent:
-        print(f"Payment Intent ID: {payment_intent.id}")
-        transfer_group = payment_intent.transfer_group
-        if transfer_group:
-            print(f"Transfer already completed: {transfer_group}")
-        else:
-            transfer_obj = stripe.Transfer.create(
-                amount=int(price_dict["Convenience Fee"]["price"]) * 100,
-                currency="usd",
-                source_transaction=payment_intent.latest_charge,
-                destination=os.getenv("CONNECT_ACCT"),
-            )
-            print(f"Transfer created: {transfer_obj.transfer_group}")
+    session_id = request.args.get("session_id")
+    if session_id:
+        price_dict = get_price_details()
+        full_session = stripe.checkout.Session.retrieve(session_id, expand=["payment_intent"])
+        payment_intent = full_session.payment_intent
+        if payment_intent:
+            print(f"Payment Intent ID: {payment_intent.id}")
+            transfer_group = payment_intent.transfer_group
+            if transfer_group:
+                print(f"Transfer already completed: {transfer_group}")
+            else:
+                transfer_obj = stripe.Transfer.create(
+                    amount=int(price_dict["Convenience Fee"]["price"]) * 100,
+                    currency="usd",
+                    source_transaction=payment_intent.latest_charge,
+                    destination=os.getenv("CONNECT_ACCT"),
+                )
+                print(f"Transfer created: {transfer_obj.transfer_group}")
     page_params = {
         "reg_type": request.args.get("reg_type"),
-        "session_id": request.args.get("session_id"),
+        "session_id": session_id,
         "email": os.getenv("CONTACT_EMAIL"),
     }
     if request.headers.get("HX-Request"):
@@ -570,14 +572,25 @@ def handle_form():
             registration_items.append({"price": price_dict["Additional Event"]["price_id"], "quantity": num_add_event})
         registration_items.append({"price": price_dict["Convenience Fee"]["price_id"], "quantity": 1})
     else:
-        # Coach registration
+        # Coach registration — coaches skip Stripe checkout entirely
         reg = Coach(
             full_name=full_name,
             email=request.form.get("email"),
             phone=request.form.get("phone"),
             school_id=school.id,
         )
-        registration_items = [{"price": price_dict["Coach Registration"]["price_id"], "quantity": 1}]
+        db.session.add(reg)
+        db.session.commit()
+        _sqs().send_message(
+            QueueUrl=config["SQS_QUEUE_URL"],
+            DelaySeconds=120,
+            MessageAttributes={
+                "Name": {"DataType": "String", "StringValue": f"{fname}_{lname}"},
+                "Transaction": {"DataType": "String", "StringValue": "coach_registration"},
+            },
+            MessageBody=json.dumps({"id": str(reg.id), "full_name": reg.full_name, "email": reg.email}),
+        )
+        return redirect(f'{config["URL"]}/success?reg_type=coach')
 
     early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
     try:
