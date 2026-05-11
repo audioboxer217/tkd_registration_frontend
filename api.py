@@ -72,8 +72,8 @@ class RegistrationStatusData(Schema):
     id = String()
     full_name = String()
     reg_type = String()
-    checkout_session_id = String()
-    status = String()
+    checkout_session_id = String(allow_none=True)
+    status = String(allow_none=True)
 
 
 class RegistrationCheckoutData(Schema):
