@@ -412,7 +412,7 @@ class TestRegistrationsAPI:
 
         assert response.status_code == 500
         data = json.loads(response.data)
-        assert "misconfiguration" in data["error"].lower() or "REG_URL" in data["error"]
+        assert "misconfiguration" in data["error"].lower()
 
         from models import Competitor
 
