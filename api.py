@@ -411,11 +411,15 @@ def create_registration(body):
         except stripe.error.StripeError:
             current_app.logger.exception("Stripe API error while creating checkout session")
             db.session.rollback()
-            return _err_response("Unable to create checkout session. Please verify payment configuration or try again later.", 502)  # noqa: E501
+            return _err_response(
+                "Unable to create checkout session. Please verify payment configuration or try again later.", 502
+            )  # noqa: E501
         except Exception:
             current_app.logger.exception("Unexpected error while creating checkout session")
             db.session.rollback()
-            return _err_response("Unable to create checkout session. Please verify payment configuration or try again later.", 502)  # noqa: E501
+            return _err_response(
+                "Unable to create checkout session. Please verify payment configuration or try again later.", 502
+            )  # noqa: E501
 
         return {"data": {"checkout_url": session.url, "id": reg.id}}, 201
     else:
@@ -448,15 +452,23 @@ def stripe_webhook():
         current_app.logger.exception("Invalid Stripe webhook signature")
         return jsonify({"error": "Invalid payload or signature"}), 400
 
+    event_type = event["type"]
+    if event_type not in {"checkout.session.completed", "checkout.session.expired"}:
+        return jsonify({"status": "ok"}), 200
+
     session = event["data"]["object"]
     session_id = session.get("id")
+    if not session_id:
+        current_app.logger.warning("Stripe webhook received %s event with missing session id", event_type)
+        return jsonify({"error": "Missing session id"}), 400
+
     reg = _find_reg_by_checkout_session(session_id)
     if reg is None:
         return jsonify({"status": "ok"}), 200
 
     current_status = reg.status
 
-    if event["type"] == "checkout.session.completed":
+    if event_type == "checkout.session.completed":
         if current_status != "complete":
             reg.status = "complete"
             reg.payment_intent = session.get("payment_intent")
@@ -466,7 +478,7 @@ def stripe_webhook():
                 _check_school(reg)
             except Exception:
                 current_app.logger.exception("Post-checkout completion actions failed for registration %s", reg.id)
-    elif event["type"] == "checkout.session.expired":
+    elif event_type == "checkout.session.expired":
         if current_status not in {"complete", "failed"}:
             reg.status = "failed"
             db.session.commit()
