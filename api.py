@@ -454,13 +454,14 @@ def stripe_webhook():
 
     event_type = event["type"]
     if event_type not in {"checkout.session.completed", "checkout.session.expired"}:
+        current_app.logger.debug("Ignoring unhandled Stripe webhook event type: %s", event_type)
         return jsonify({"status": "ok"}), 200
 
     session = event["data"]["object"]
     session_id = session.get("id")
     if not session_id:
         current_app.logger.warning("Stripe webhook received %s event with missing session id", event_type)
-        return jsonify({"error": "Missing session id"}), 400
+        return jsonify({"error": "Stripe checkout session ID is missing from webhook payload"}), 400
 
     reg = _find_reg_by_checkout_session(session_id)
     if reg is None:
