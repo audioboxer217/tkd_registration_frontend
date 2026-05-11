@@ -332,7 +332,13 @@ def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
 @api_bp.route("/registrations", methods=["POST"])
 @api_bp.input(RegistrationIn, arg_name="body")
 @api_bp.output(RegistrationCreateOut, status_code=201, description="Registration created")
-@api_bp.doc(responses={422: _err("Validation error"), 502: _err("Stripe error")})
+@api_bp.doc(
+    responses={
+        422: _err("Validation error"),
+        500: _err("Server configuration error"),
+        502: _err("Stripe error"),
+    }
+)
 def create_registration(body):
     school = _get_or_create_school(body.get("school"))
     if school is None:
