@@ -1,3 +1,4 @@
+import email
 import io
 import json
 import os
@@ -603,7 +604,7 @@ class TestRegistrationsAPI:
         data = json.loads(response.data)
         assert data["error"] == "Invalid payload or signature"
 
-    def test_send_confirmation_email_queues_payload_with_model_fields(self):
+    def test_send_confirmation_email_sends_directly_via_smtp(self):
         from api import _send_confirmation_email
         from models import Competitor
         from models import db as _db
@@ -614,24 +615,42 @@ class TestRegistrationsAPI:
                 full_name="Email Competitor",
                 email="email_competitor@example.com",
                 school_id=school_id,
-                events="sparring,forms",
+                events="sparring,poomsae",
                 status="complete",
+                belt_rank="Black",
+                poomsae_form="1",
             )
             _db.session.add(competitor)
             _db.session.commit()
             _db.session.refresh(competitor)
 
-            sqs_mock = MagicMock()
-            with patch("api._sqs", return_value=sqs_mock):
+            smtp_mock = MagicMock()
+            with (
+                patch("api.smtplib.SMTP_SSL") as smtp_cls_mock,
+                patch.dict(
+                    "os.environ",
+                    {
+                        "EMAIL_SERVER": "smtp.example.com",
+                        "EMAIL_PORT": "465",
+                        "FROM_EMAIL": "no-reply@example.com",
+                        "EMAIL_PASSWD": "secret",
+                        "CONTACT_EMAIL": "contact@example.com",
+                    },
+                ),
+            ):
+                smtp_cls_mock.return_value.__enter__ = MagicMock(return_value=smtp_mock)
+                smtp_cls_mock.return_value.__exit__ = MagicMock(return_value=False)
                 _send_confirmation_email(competitor)
 
-        sqs_mock.send_message.assert_called_once()
-        kwargs = sqs_mock.send_message.call_args.kwargs
-        assert kwargs["MessageAttributes"]["Transaction"]["StringValue"] == "registration_confirmation"
-        body = json.loads(kwargs["MessageBody"])
-        assert body["full_name"] == "Email Competitor"
-        assert body["reg_type"] == "competitor"
-        assert body["events"] == ["sparring", "forms"]
+        smtp_mock.login.assert_called_once_with("no-reply@example.com", "secret")
+        smtp_mock.sendmail.assert_called_once()
+        _, to_addr, msg_str = smtp_mock.sendmail.call_args.args
+        assert to_addr == "email_competitor@example.com"
+        parsed = email.message_from_string(msg_str)
+        body = parsed.get_payload(decode=True).decode()
+        assert "Email Competitor" in body
+        assert "sparring" in body.lower()
+        assert "Taegeuk 1 Jang" in body
 
     def test_check_school_sends_alert_when_school_missing(self):
         from api import _check_school
@@ -653,6 +672,50 @@ class TestRegistrationsAPI:
                 _check_school(reg)
 
             alert_mock.assert_called_once_with(None, reg)
+
+    def test_send_admin_school_alert_sends_via_smtp(self):
+        from api import _send_admin_school_alert
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Alert School")
+        with app.app_context():
+            reg = Competitor(
+                full_name="Unknown School Person",
+                email="unknown@example.com",
+                school_id=school_id,
+                status="pending",
+            )
+            _db.session.add(reg)
+            _db.session.commit()
+            _db.session.refresh(reg)
+
+            smtp_mock = MagicMock()
+            with (
+                patch("api.smtplib.SMTP_SSL") as smtp_cls_mock,
+                patch.dict(
+                    "os.environ",
+                    {
+                        "EMAIL_SERVER": "smtp.example.com",
+                        "EMAIL_PORT": "465",
+                        "FROM_EMAIL": "no-reply@example.com",
+                        "EMAIL_PASSWD": "secret",
+                        "ADMIN_EMAIL": "admin@example.com",
+                    },
+                ),
+            ):
+                smtp_cls_mock.return_value.__enter__ = MagicMock(return_value=smtp_mock)
+                smtp_cls_mock.return_value.__exit__ = MagicMock(return_value=False)
+                _send_admin_school_alert("Some Unknown School", reg)
+
+        smtp_mock.login.assert_called_once_with("no-reply@example.com", "secret")
+        smtp_mock.sendmail.assert_called_once()
+        _, to_addr, msg_str = smtp_mock.sendmail.call_args.args
+        assert to_addr == "admin@example.com"
+        parsed = email.message_from_string(msg_str)
+        body = parsed.get_payload(decode=True).decode()
+        assert "Unknown School Person" in body
+        assert "Some Unknown School" in body
 
 
 class TestUploadForm:

@@ -1,6 +1,10 @@
 import json
 import os
+import smtplib
+import ssl
 from datetime import datetime
+from email.message import EmailMessage
+from email.utils import formataddr
 from functools import wraps
 from typing import Union
 
@@ -326,58 +330,129 @@ def _check_duplicate(full_name: str, school_id: int, reg_type: str) -> None:
 
 
 def _send_admin_school_alert(school_name_or_none: str | None, reg: RegistrationRecord) -> RegistrationRecord:
-    queue_url = current_app.config.get("SQS_QUEUE_URL")
-    if not queue_url:
-        current_app.logger.warning("Skipping unknown school alert; SQS_QUEUE_URL is not configured")
+    """Send an unknown-school alert email directly to the admin via SMTP."""
+    comp_name = os.environ.get("COMPETITION_NAME", "")
+    email_server = os.environ.get("EMAIL_SERVER")
+    email_port = os.environ.get("EMAIL_PORT")
+    email_sender = os.environ.get("FROM_EMAIL")
+    email_password = os.environ.get("EMAIL_PASSWD")
+    admin_email = os.environ.get("ADMIN_EMAIL")
+
+    if not all([email_server, email_port, email_sender, email_password, admin_email]):
+        current_app.logger.warning("Skipping unknown school alert; email server env vars are not fully configured")
         return reg
 
-    payload = {
-        "id": str(reg.id),
+    reg_type = "competitor" if isinstance(reg, Competitor) else "coach"
+    entry_details = {
+        "id": reg.id,
         "full_name": reg.full_name,
         "email": reg.email,
         "school": school_name_or_none,
-        "reg_type": "competitor" if isinstance(reg, Competitor) else "coach",
+        "reg_type": reg_type,
     }
-    _sqs().send_message(
-        QueueUrl=queue_url,
-        DelaySeconds=0,
-        MessageAttributes={
-            "Name": {"DataType": "String", "StringValue": reg.full_name},
-            "Transaction": {"DataType": "String", "StringValue": "unknown_school_alert"},
-        },
-        MessageBody=json.dumps(payload),
-    )
+
+    em = EmailMessage()
+    em["From"] = formataddr((comp_name, email_sender))
+    em["To"] = formataddr(("Competition Admin", admin_email))
+    em["Subject"] = f"Entry added with unknown school - {school_name_or_none}"
+    em.set_content(f"Entry Details:\n{entry_details}")
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL(email_server, int(email_port), context=context) as smtp:
+        smtp.login(email_sender, email_password)
+        smtp.sendmail(email_sender, admin_email, em.as_string())
+
+    current_app.logger.info("Unknown school alert sent to admin for registration %s", reg.id)
     return reg
 
 
 def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
-    """Queue confirmation email payload using SQLAlchemy model fields."""
-    queue_url = current_app.config.get("SQS_QUEUE_URL")
-    if not queue_url:
-        current_app.logger.warning("Skipping confirmation email; SQS_QUEUE_URL is not configured")
+    """Send a confirmation email directly via SMTP using SQLAlchemy model fields."""
+    comp_year = os.environ.get("COMPETITION_YEAR", "")
+    comp_name = os.environ.get("COMPETITION_NAME", "")
+    email_server = os.environ.get("EMAIL_SERVER")
+    email_port = os.environ.get("EMAIL_PORT")
+    email_sender = os.environ.get("FROM_EMAIL")
+    email_password = os.environ.get("EMAIL_PASSWD")
+    contact_email = os.environ.get("CONTACT_EMAIL")
+
+    if not all([email_server, email_port, email_sender, email_password]):
+        current_app.logger.warning("Skipping confirmation email; email server env vars are not fully configured")
         return reg
 
-    reg_type = "competitor" if isinstance(reg, Competitor) else "coach"
     reg_data = reg.to_dict()
-    school_name = reg.school.name if getattr(reg, "school", None) else None
-    payload = {
-        "id": str(reg.id),
-        "full_name": reg.full_name,
-        "email": reg.email,
-        "reg_type": reg_type,
-        "school": school_name,
-        "events": reg_data.get("events", []),
-        "status": getattr(reg, "status", None),
-    }
-    _sqs().send_message(
-        QueueUrl=queue_url,
-        DelaySeconds=0,
-        MessageAttributes={
-            "Name": {"DataType": "String", "StringValue": reg.full_name},
-            "Transaction": {"DataType": "String", "StringValue": "registration_confirmation"},
-        },
-        MessageBody=json.dumps(payload),
-    )
+    reg_type = reg_data["reg_type"]
+    school_name = reg_data.get("school") or ""
+
+    reg_details = f"""
+        Name: {reg_data['full_name']}
+        Type: {reg_type}
+        Email: {reg_data['email']}
+        Phone: {reg_data.get('phone') or ''}
+        School: {school_name}
+    """
+
+    if reg_type == "competitor":
+        reg_details += f"""    Coach: {reg_data.get('coach') or ''}
+        Parent: {reg_data.get('parent') or ''}
+        Birthdate: {reg_data.get('birthdate') or ''}
+        Gender: {reg_data.get('gender') or ''}
+        Weight: {reg_data.get('weight') or ''}
+        Belt: {reg_data.get('belt_rank') or ''}
+        {f"T-Shirt size: {reg_data['tshirt']}" if reg_data.get('tshirt') else ''}
+        Events:"""
+
+        poomsae_form_lookup = {
+            "poomsae": "poomsae_form",
+            "wc poomsae": "wc_poomsae_form",
+            "pair poomsae": "pair_poomsae_form",
+            "team poomsae": "team_poomsae_form",
+            "family poomsae": "family_poomsae_form",
+        }
+
+        for e in reg_data.get("events", []):
+            display = e.strip()
+            if display == "little_dragon":
+                display = "Little Dragon Obstacle Course"
+            if display.startswith("sparring"):
+                spar_dict = {"wc": "world class ", "gr": "grass roots "}
+                spar_parts = display.split("-")
+                spar_type = spar_dict.get(spar_parts[1], "") if len(spar_parts) > 1 else ""
+                display = f"{spar_type}sparring"
+            form_key = poomsae_form_lookup.get(display.replace("_", " "))
+            if form_key:
+                form_name = reg_data.get(form_key) or ""
+                if form_name.isnumeric():
+                    form_name = f"Taegeuk {form_name} Jang"
+                display += f" (Form: {form_name})"
+            reg_details += f"\n          • {display.title()}"
+
+    body = f"""
+    Dear {reg_data['full_name']},
+
+    Thank you for being a part of the {comp_year} {comp_name}!
+
+    Your registration has been accepted with the following details.
+    {reg_details}
+
+    If you have any questions please contact us at {contact_email}
+
+    Warm Regards,
+    {comp_name}
+    """
+
+    em = EmailMessage()
+    em["From"] = formataddr((comp_name, email_sender))
+    em["To"] = formataddr((reg_data["full_name"], reg_data["email"]))
+    em["Subject"] = f"{comp_year} {comp_name} Registration"
+    em.set_content(body)
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL(email_server, int(email_port), context=context) as smtp:
+        smtp.login(email_sender, email_password)
+        smtp.sendmail(email_sender, reg_data["email"], em.as_string())
+
+    current_app.logger.info("Confirmation email sent to %s", reg_data["email"])
     return reg
 
 
