@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import stripe
@@ -442,6 +443,37 @@ class TestRegistrationsAPI:
             competitor = Competitor.query.filter_by(email="webhook_stripe_error@example.com").first()
             assert competitor is None
 
+    def test_create_registration_returns_409_for_duplicate_competitor(self):
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Duplicate API School")
+        with app.app_context():
+            existing = Competitor(
+                full_name="Duplicate Person",
+                email="first_duplicate@example.com",
+                school_id=school_id,
+                status="pending",
+            )
+            _db.session.add(existing)
+            _db.session.commit()
+
+        payload = {
+            "reg_type": "competitor",
+            "full_name": "Duplicate Person",
+            "email": "second_duplicate@example.com",
+            "phone": "555-0199",
+            "school": "Duplicate API School",
+        }
+
+        with patch("api.stripe.checkout.Session.create") as mock_create:
+            response = self.client.post("/api/v1/registrations", json=payload)
+
+        mock_create.assert_not_called()
+        assert response.status_code == 409
+        data = json.loads(response.data)
+        assert "Duplicate registration for Duplicate Person" in data["error"]
+
     def test_registration_status_coach_returns_null_status(self):
         from models import Coach
         from models import db as _db
@@ -571,6 +603,46 @@ class TestRegistrationsAPI:
         assert response.status_code == 400
         data = json.loads(response.data)
         assert data["error"] == "Invalid payload or signature"
+
+    def test_send_confirmation_email_queues_payload_with_model_fields(self):
+        from api import _send_confirmation_email
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Confirmation School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="Email Competitor",
+                email="email_competitor@example.com",
+                school_id=school_id,
+                events="sparring,forms",
+                status="complete",
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+            _db.session.refresh(competitor)
+
+            sqs_mock = MagicMock()
+            with patch("api._sqs", return_value=sqs_mock):
+                _send_confirmation_email(competitor)
+
+        sqs_mock.send_message.assert_called_once()
+        kwargs = sqs_mock.send_message.call_args.kwargs
+        assert kwargs["MessageAttributes"]["Transaction"]["StringValue"] == "registration_confirmation"
+        body = json.loads(kwargs["MessageBody"])
+        assert body["full_name"] == "Email Competitor"
+        assert body["reg_type"] == "competitor"
+        assert body["events"] == ["sparring", "forms"]
+
+    def test_check_school_sends_alert_when_school_missing(self):
+        from api import _check_school
+
+        reg = SimpleNamespace(id=1, full_name="No School", email="noschool@example.com", school=None)
+        with app.app_context():
+            with patch("api._send_admin_school_alert") as alert_mock:
+                _check_school(reg)
+
+        alert_mock.assert_called_once_with(None, reg)
 
 
 class TestUploadForm:

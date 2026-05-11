@@ -21,6 +21,10 @@ api_bp = APIBlueprint("api", __name__, url_prefix="/api/v1", tag="Registrations"
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 
 
+class DuplicateRegistrationError(Exception):
+    """Raised when a registration already exists for the same name/school/type."""
+
+
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
@@ -105,6 +109,7 @@ class RegistrationIn(Schema):
     pair_poomsae_form = String()
     team_poomsae_form = String()
     family_poomsae_form = String()
+    tshirt = String()
 
 
 class RegistrationUpdateIn(Schema):
@@ -313,19 +318,74 @@ def _get_coach_by_name_and_school(coach_name: str, school_id: int):
     return Coach.query.filter_by(full_name=coach_name, school_id=school_id).first()
 
 
-def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
-    """Placeholder for registration confirmation email dispatch.
+def _check_duplicate(full_name: str, school_id: int, reg_type: str) -> None:
+    model = Competitor if reg_type == "competitor" else Coach
+    existing = model.query.filter_by(full_name=full_name, school_id=school_id).first()
+    if existing:
+        raise DuplicateRegistrationError(f"Duplicate registration for {full_name}")
 
-    TODO: Integrate with backend email service in a follow-up phase.
-    """
+
+def _send_admin_school_alert(school_name: str | None, reg: RegistrationRecord) -> RegistrationRecord:
+    queue_url = current_app.config.get("SQS_QUEUE_URL")
+    if not queue_url:
+        current_app.logger.warning("Skipping unknown school alert; SQS_QUEUE_URL is not configured")
+        return reg
+
+    payload = {
+        "id": str(reg.id),
+        "full_name": reg.full_name,
+        "email": reg.email,
+        "school": school_name,
+        "reg_type": "competitor" if isinstance(reg, Competitor) else "coach",
+    }
+    _sqs().send_message(
+        QueueUrl=queue_url,
+        DelaySeconds=0,
+        MessageAttributes={
+            "Name": {"DataType": "String", "StringValue": reg.full_name},
+            "Transaction": {"DataType": "String", "StringValue": "unknown_school_alert"},
+        },
+        MessageBody=json.dumps(payload),
+    )
+    return reg
+
+
+def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
+    """Queue confirmation email payload using SQLAlchemy model fields."""
+    queue_url = current_app.config.get("SQS_QUEUE_URL")
+    if not queue_url:
+        current_app.logger.warning("Skipping confirmation email; SQS_QUEUE_URL is not configured")
+        return reg
+
+    reg_type = "competitor" if isinstance(reg, Competitor) else "coach"
+    events = reg.events.split(",") if getattr(reg, "events", None) else []
+    school_name = reg.school.name if getattr(reg, "school", None) else None
+    payload = {
+        "id": str(reg.id),
+        "full_name": reg.full_name,
+        "email": reg.email,
+        "reg_type": reg_type,
+        "school": school_name,
+        "events": [event.strip() for event in events if event.strip()],
+        "status": getattr(reg, "status", None),
+    }
+    _sqs().send_message(
+        QueueUrl=queue_url,
+        DelaySeconds=0,
+        MessageAttributes={
+            "Name": {"DataType": "String", "StringValue": reg.full_name},
+            "Transaction": {"DataType": "String", "StringValue": "registration_confirmation"},
+        },
+        MessageBody=json.dumps(payload),
+    )
     return reg
 
 
 def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
-    """Placeholder for school-level post-registration checks.
-
-    TODO: Add school-level validation/workflow hooks in a follow-up phase.
-    """
+    school_name = reg.school.name if reg.school else None
+    school = School.query.filter_by(name=school_name).first() if school_name else None
+    if school is None:
+        _send_admin_school_alert(school_name, reg)
     return reg
 
 
@@ -343,6 +403,10 @@ def create_registration(body):
     school = _get_or_create_school(body.get("school"))
     if school is None:
         return _err_response("School is required", 422)
+    try:
+        _check_duplicate(body["full_name"], school.id, body["reg_type"])
+    except DuplicateRegistrationError as err:
+        return _err_response(str(err), 409)
 
     try:
         default_unit_amount = int(os.getenv("STRIPE_DEFAULT_UNIT_AMOUNT", "5000"))
@@ -387,6 +451,7 @@ def create_registration(body):
             pair_poomsae_form=body.get("pair_poomsae_form"),
             team_poomsae_form=body.get("team_poomsae_form"),
             family_poomsae_form=body.get("family_poomsae_form"),
+            tshirt=body.get("tshirt"),
             status="pending",
         )
         db.session.add(reg)
