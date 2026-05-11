@@ -383,39 +383,46 @@ def create_registration(body):
             family_poomsae_form=body.get("family_poomsae_form"),
             status="pending",
         )
+        db.session.add(reg)
+        db.session.flush()
+
+        base_url = (current_app.config.get("URL") or "").rstrip("/")
+        if not base_url or not base_url.startswith(("http://", "https://")):
+            db.session.rollback()
+            return _err_response("Server misconfiguration: REG_URL is not set or is not an absolute URL.", 500)
+
+        try:
+            session = stripe.checkout.Session.create(
+                payment_method_types=["card"],
+                line_items=line_items,
+                mode="payment",
+                success_url=(f"{base_url}/success?session_id={{CHECKOUT_SESSION_ID}}&reg_type={body['reg_type']}"),
+                cancel_url=f"{base_url}/register?reg_type={body['reg_type']}",
+                metadata={"registration_id": str(reg.id)},
+            )
+            reg.checkout_session_id = session.id
+            db.session.commit()
+        except stripe.error.StripeError:
+            current_app.logger.exception("Stripe API error while creating checkout session")
+            db.session.rollback()
+            return _err_response("Unable to create checkout session. Please verify payment configuration or try again later.", 502)  # noqa: E501
+        except Exception:
+            current_app.logger.exception("Unexpected error while creating checkout session")
+            db.session.rollback()
+            return _err_response("Unable to create checkout session. Please verify payment configuration or try again later.", 502)  # noqa: E501
+
+        return {"data": {"checkout_url": session.url, "id": reg.id}}, 201
     else:
+        # Coaches do not go through a Stripe checkout flow.
         reg = Coach(
             full_name=body["full_name"],
             email=body["email"],
             phone=body.get("phone"),
             school_id=school.id,
         )
-
-    db.session.add(reg)
-    db.session.flush()
-
-    try:
-        base_url = (current_app.config.get("URL") or "").rstrip("/")
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=line_items,
-            mode="payment",
-            success_url=(f"{base_url}/success?session_id={{CHECKOUT_SESSION_ID}}&reg_type={body['reg_type']}"),
-            cancel_url=f"{base_url}/register?reg_type={body['reg_type']}",
-            metadata={"registration_id": str(reg.id)},
-        )
-        reg.checkout_session_id = session.id
+        db.session.add(reg)
         db.session.commit()
-    except stripe.error.StripeError:
-        current_app.logger.exception("Stripe API error while creating checkout session")
-        db.session.rollback()
-        return _err_response("Unable to create checkout session. Please verify payment configuration or try again later.", 502)
-    except Exception:
-        current_app.logger.exception("Unexpected error while creating checkout session")
-        db.session.rollback()
-        return _err_response("Unable to create checkout session. Please verify payment configuration or try again later.", 502)
-
-    return {"data": {"checkout_url": session.url, "id": reg.id}}, 201
+        return {"data": {"checkout_url": None, "id": reg.id}}, 201
 
 
 @api_bp.route("/webhooks/stripe", methods=["POST"])
@@ -522,7 +529,7 @@ def registration_status(registration_id):
                 "id": str(reg.id),
                 "full_name": reg.full_name,
                 "reg_type": reg_type,
-                "checkout_session_id": reg.checkout_session_id,
+                "checkout_session_id": getattr(reg, "checkout_session_id", None),
                 "status": getattr(reg, "status", None),
             }
         }

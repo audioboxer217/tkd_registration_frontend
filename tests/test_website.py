@@ -13,7 +13,12 @@ sys.path.append(app_path)
 from app import create_app
 from models import db as _db
 
-_test_app = create_app(test_config={"SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:", "TESTING": True, "WTF_CSRF_ENABLED": False})
+_test_app = create_app(test_config={
+    "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+    "TESTING": True,
+    "WTF_CSRF_ENABLED": False,
+    "URL": "http://localhost:5001",
+})
 
 with _test_app.app_context():
     _db.create_all()
@@ -377,18 +382,43 @@ class TestRegistrationsAPI:
         }
 
         with patch("api.stripe.checkout.Session.create") as mock_create:
-            mock_create.return_value = MagicMock(id="cs_test_coach", url="https://checkout.stripe.test/coach")
             response = self.client.post("/api/v1/registrations", json=payload)
 
+        # Coaches do not go through Stripe; Stripe must NOT be called.
+        mock_create.assert_not_called()
         assert response.status_code == 201
+
+        data = json.loads(response.data)
+        assert data["data"]["checkout_url"] is None
 
         from models import Coach
 
         with app.app_context():
             coach = Coach.query.filter_by(email="pending_coach@example.com").first()
             assert coach is not None
-            assert coach.checkout_session_id == "cs_test_coach"
             assert coach.school.name == "Webhook School"
+
+    def test_create_registration_returns_500_when_base_url_missing(self):
+        payload = {
+            "reg_type": "competitor",
+            "full_name": "Missing URL Competitor",
+            "email": "missing_url_competitor@example.com",
+            "phone": "555-0103",
+            "school": "Missing URL School",
+        }
+
+        with patch.dict(app.config, {"URL": None}):
+            response = self.client.post("/api/v1/registrations", json=payload)
+
+        assert response.status_code == 500
+        data = json.loads(response.data)
+        assert "misconfiguration" in data["error"].lower() or "REG_URL" in data["error"]
+
+        from models import Competitor
+
+        with app.app_context():
+            competitor = Competitor.query.filter_by(email="missing_url_competitor@example.com").first()
+            assert competitor is None
 
     def test_create_registration_returns_502_when_stripe_fails(self):
         payload = {
