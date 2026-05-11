@@ -306,6 +306,13 @@ def _find_reg_by_checkout_session(session_id):
     return Competitor.query.filter_by(checkout_session_id=session_id).first()
 
 
+def _get_coach_by_name_and_school(coach_name: str, school_id: int):
+    """Look up a coach by exact name and school_id. Returns None if not found."""
+    if not coach_name or not school_id:
+        return None
+    return Coach.query.filter_by(full_name=coach_name, school_id=school_id).first()
+
+
 def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
     """Placeholder for registration confirmation email dispatch.
 
@@ -350,11 +357,17 @@ def create_registration(body):
     ]
 
     if body["reg_type"] == "competitor":
+        coach_name = (body.get("coach") or "").strip() or None
+        coach_id = None
+        if coach_name:
+            linked_coach = _get_coach_by_name_and_school(coach_name, school.id)
+            coach_id = linked_coach.id if linked_coach else None
         reg = Competitor(
             full_name=body["full_name"],
             email=body["email"],
             phone=body.get("phone"),
             school_id=school.id,
+            coach_id=coach_id,
             parent=body.get("parent"),
             birthdate=body.get("birthdate"),
             age=body.get("age"),
@@ -469,17 +482,37 @@ def entries_api():
 @api_bp.output(RegistrationStatusOut, description="Registration and payment status")
 @api_bp.doc(responses={404: _err("Not found")})
 def registration_status(registration_id):
-    """Check registration and payment status by ID."""
+    """Check registration and payment status by ID.
+
+    Pass ``?type=coach`` to look up a coach record; omit or pass ``?type=competitor``
+    for the default competitor lookup.  This disambiguates when both tables share
+    the same integer primary key.
+    """
     try:
         reg_id = int(registration_id)
     except (ValueError, TypeError):
         return jsonify({"error": "Not found"}), 404
 
-    reg = db.session.get(Competitor, reg_id)
-    reg_type = "competitor"
-    if reg is None:
+    reg_type_hint = request.args.get("type", "competitor").lower()
+
+    # The type hint controls which table is searched first.  The fallback to the
+    # opposite table is intentional: callers that omit the parameter (or supply
+    # the wrong value) still get the correct record as long as the IDs are
+    # unambiguous.  When both tables share the same integer ID the caller should
+    # pass `?type=` explicitly to guarantee the correct result.
+    if reg_type_hint == "coach":
         reg = db.session.get(Coach, reg_id)
         reg_type = "coach"
+        if reg is None:
+            reg = db.session.get(Competitor, reg_id)
+            reg_type = "competitor"
+    else:
+        reg = db.session.get(Competitor, reg_id)
+        reg_type = "competitor"
+        if reg is None:
+            reg = db.session.get(Coach, reg_id)
+            reg_type = "coach"
+
     if reg is None:
         return jsonify({"error": "Not found"}), 404
 
