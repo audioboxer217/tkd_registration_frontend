@@ -307,6 +307,66 @@ class TestRegistrationsAPI:
             assert competitor.checkout_session_id == "cs_test_competitor"
             assert competitor.school.name == "Webhook School"
 
+    def test_create_competitor_registration_links_coach(self):
+        from models import Coach
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Coach Link School")
+        with app.app_context():
+            coach = Coach(
+                full_name="Linked Coach",
+                email="linked_coach@example.com",
+                school_id=school_id,
+            )
+            _db.session.add(coach)
+            _db.session.commit()
+            coach_id = coach.id
+
+        payload = {
+            "reg_type": "competitor",
+            "full_name": "Coach Link Competitor",
+            "email": "coach_link_competitor@example.com",
+            "phone": "555-0200",
+            "school": "Coach Link School",
+            "coach": "Linked Coach",
+        }
+
+        with patch("api.stripe.checkout.Session.create") as mock_create:
+            mock_create.return_value = MagicMock(id="cs_test_coach_link", url="https://checkout.stripe.test/linked")
+            response = self.client.post("/api/v1/registrations", json=payload)
+
+        assert response.status_code == 201
+
+        from models import Competitor
+
+        with app.app_context():
+            competitor = Competitor.query.filter_by(email="coach_link_competitor@example.com").first()
+            assert competitor is not None
+            assert competitor.coach_id == coach_id
+
+    def test_create_competitor_registration_unknown_coach_sets_null(self):
+        payload = {
+            "reg_type": "competitor",
+            "full_name": "Unknown Coach Competitor",
+            "email": "unknown_coach_competitor@example.com",
+            "phone": "555-0201",
+            "school": "Unknown Coach School",
+            "coach": "Nonexistent Coach",
+        }
+
+        with patch("api.stripe.checkout.Session.create") as mock_create:
+            mock_create.return_value = MagicMock(id="cs_test_no_coach", url="https://checkout.stripe.test/nocoach")
+            response = self.client.post("/api/v1/registrations", json=payload)
+
+        assert response.status_code == 201
+
+        from models import Competitor
+
+        with app.app_context():
+            competitor = Competitor.query.filter_by(email="unknown_coach_competitor@example.com").first()
+            assert competitor is not None
+            assert competitor.coach_id is None
+
     def test_create_pending_coach_registration(self):
         payload = {
             "reg_type": "coach",
@@ -367,7 +427,7 @@ class TestRegistrationsAPI:
             _db.session.commit()
             coach_id = coach.id
 
-        response = self.client.get(f"/api/v1/registrations/{coach_id}/status")
+        response = self.client.get(f"/api/v1/registrations/{coach_id}/status?type=coach")
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data["data"]["reg_type"] == "coach"
