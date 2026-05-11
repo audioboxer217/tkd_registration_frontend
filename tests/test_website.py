@@ -3,7 +3,6 @@ import json
 import os
 import sys
 from datetime import datetime, timedelta
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import stripe
@@ -472,7 +471,7 @@ class TestRegistrationsAPI:
         mock_create.assert_not_called()
         assert response.status_code == 409
         data = json.loads(response.data)
-        assert "Duplicate registration for Duplicate Person" in data["error"]
+        assert data["error"] == "Duplicate registration for Duplicate Person"
 
     def test_registration_status_coach_returns_null_status(self):
         from models import Coach
@@ -636,13 +635,24 @@ class TestRegistrationsAPI:
 
     def test_check_school_sends_alert_when_school_missing(self):
         from api import _check_school
+        from models import Competitor
+        from models import School
+        from models import db as _db
 
-        reg = SimpleNamespace(id=1, full_name="No School", email="noschool@example.com", school=None)
         with app.app_context():
+            max_school_id = _db.session.query(School.id).order_by(School.id.desc()).limit(1).scalar() or 0
+            reg = Competitor(
+                full_name="No School",
+                email="noschool@example.com",
+                school_id=max_school_id + 1,
+                status="pending",
+            )
+            _db.session.add(reg)
+            _db.session.commit()
             with patch("api._send_admin_school_alert") as alert_mock:
                 _check_school(reg)
 
-        alert_mock.assert_called_once_with(None, reg)
+            alert_mock.assert_called_once_with(None, reg)
 
 
 class TestUploadForm:

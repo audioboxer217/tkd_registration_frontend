@@ -229,7 +229,7 @@ def not_found(e):
 
 @api_bp.errorhandler(422)
 def unprocessable(e):
-    return jsonify({"error": str(e)}), 422
+    return jsonify({"error": getattr(e, "description", "Validation error")}), 422
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +325,7 @@ def _check_duplicate(full_name: str, school_id: int, reg_type: str) -> None:
         raise DuplicateRegistrationError(f"Duplicate registration for {full_name}")
 
 
-def _send_admin_school_alert(school_name: str | None, reg: RegistrationRecord) -> RegistrationRecord:
+def _send_admin_school_alert(school_name_or_none: str | None, reg: RegistrationRecord) -> RegistrationRecord:
     queue_url = current_app.config.get("SQS_QUEUE_URL")
     if not queue_url:
         current_app.logger.warning("Skipping unknown school alert; SQS_QUEUE_URL is not configured")
@@ -335,7 +335,7 @@ def _send_admin_school_alert(school_name: str | None, reg: RegistrationRecord) -
         "id": str(reg.id),
         "full_name": reg.full_name,
         "email": reg.email,
-        "school": school_name,
+        "school": school_name_or_none,
         "reg_type": "competitor" if isinstance(reg, Competitor) else "coach",
     }
     _sqs().send_message(
@@ -358,7 +358,7 @@ def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
         return reg
 
     reg_type = "competitor" if isinstance(reg, Competitor) else "coach"
-    events = reg.events.split(",") if getattr(reg, "events", None) else []
+    reg_data = reg.to_dict()
     school_name = reg.school.name if getattr(reg, "school", None) else None
     payload = {
         "id": str(reg.id),
@@ -366,7 +366,7 @@ def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
         "email": reg.email,
         "reg_type": reg_type,
         "school": school_name,
-        "events": [event.strip() for event in events if event.strip()],
+        "events": reg_data.get("events", []),
         "status": getattr(reg, "status", None),
     }
     _sqs().send_message(
@@ -382,7 +382,7 @@ def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
 
 
 def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
-    school_name = reg.school.name if reg.school else None
+    school_name = reg.school.name if getattr(reg, "school", None) else None
     school = School.query.filter_by(name=school_name).first() if school_name else None
     if school is None:
         _send_admin_school_alert(school_name, reg)
@@ -405,8 +405,8 @@ def create_registration(body):
         return _err_response("School is required", 422)
     try:
         _check_duplicate(body["full_name"], school.id, body["reg_type"])
-    except DuplicateRegistrationError as err:
-        return _err_response(str(err), 409)
+    except DuplicateRegistrationError:
+        return _err_response(f"Duplicate registration for {body['full_name']}", 409)
 
     try:
         default_unit_amount = int(os.getenv("STRIPE_DEFAULT_UNIT_AMOUNT", "5000"))
