@@ -237,7 +237,12 @@ def not_found(e):
 
 @api_bp.errorhandler(422)
 def unprocessable(e):
-    return jsonify({"error": getattr(e, "description", "Validation error")}), 422
+    description = getattr(e, "description", "Validation error")
+    if isinstance(description, (dict, list)):
+        error = json.dumps(description, sort_keys=True)
+    else:
+        error = str(description or "Validation error")
+    return jsonify({"error": error}), 422
 
 
 # ---------------------------------------------------------------------------

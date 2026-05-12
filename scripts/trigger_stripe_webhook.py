@@ -39,7 +39,7 @@ def sign_payload(payload: str, secret: str, timestamp: int) -> str:
 
 def trigger(checkout_session_id: str, failed: bool = False, payment_intent_id: str = "pi_test_simulated") -> None:
     if not WEBHOOK_SECRET:
-        print("ERROR: STRIPE_WEBHOOK_SECRET is not set. Load your frontend.env first.")
+        print("ERROR: STRIPE_WEBHOOK_SECRET is not set. Load your .env first.")
         sys.exit(1)
 
     timestamp = int(time.time())

@@ -221,7 +221,7 @@ Script: `scripts/fuzzy_match_coaches.py`
 
 **Running the script**:
 ```bash
-set -a && source frontend.env && set +a
+set -a && source .env && set +a
 uv run python scripts/fuzzy_match_coaches.py
 ```
 
@@ -312,7 +312,7 @@ All templates updated to use native Python dict format (no DynamoDB `.S`/`.N` wr
 
 ### 1. Run Fuzzy Matching on Production
 ```bash
-set -a && source frontend.env && set +a
+set -a && source .env && set +a
 uv run python scripts/fuzzy_match_coaches.py
 ```
 

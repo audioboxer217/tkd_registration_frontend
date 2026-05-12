@@ -56,7 +56,7 @@ export PUBLIC_MEDIA_BUCKET="test-media"
 export STRIPE_API_KEY="sk_test_..."
 ```
 
-Or run with `set -a && source frontend.env && set +a` before pytest.
+Or run with `set -a && source .env && set +a` before pytest.
 
 ---
 

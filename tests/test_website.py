@@ -439,6 +439,13 @@ class TestRegistrationsAPI:
         data = json.loads(response.data)
         assert data["error"] == "Duplicate registration for Duplicate Person"
 
+    def test_create_registration_validation_error_returns_string_error(self):
+        response = self.client.post("/api/v1/registrations", json={})
+
+        assert response.status_code == 422
+        data = json.loads(response.data)
+        assert isinstance(data.get("error", data.get("message")), str)
+
     def test_registration_status_coach_returns_null_status(self):
         from models import Coach
         from models import db as _db
@@ -1005,6 +1012,37 @@ class TestHandleForm:
 
         assert response.status_code == 302
         assert "/registration_error" in response.headers["Location"]
+
+    def test_register_post_missing_name_returns_400(self):
+        form_data = {
+            "regType": "coach",
+            "fname": "",
+            "lname": "TestPerson",
+            "school": "Handle Form School",
+            "email": "coach.missingname@example.com",
+            "phone": "555-8888",
+            "coach": "",
+        }
+
+        response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 400
+
+    def test_register_post_unlisted_school_missing_name_returns_400(self):
+        form_data = {
+            "regType": "coach",
+            "fname": "Coach",
+            "lname": "TestPerson",
+            "school": "unlisted",
+            "unlistedSchool": "",
+            "email": "coach.unlistedmissing@example.com",
+            "phone": "555-8888",
+            "coach": "",
+        }
+
+        response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 400
 
     def test_register_duplicate_with_badges_does_not_upload_profile_image(self):
         from models import Competitor
