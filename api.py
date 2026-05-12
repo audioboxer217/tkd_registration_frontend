@@ -371,10 +371,7 @@ def _send_admin_school_alert(school_name: str) -> None:
 
 
 def send_admin_school_alert(school_name: str) -> None:
-    """Public best-effort admin alert for newly created schools.
-
-    Exceptions are handled and logged by `_send_admin_school_alert`.
-    """
+    """Public wrapper used by callers outside this module for school-alert sending."""
     _send_admin_school_alert(school_name)
 
 
@@ -477,7 +474,7 @@ def create_registration_record(body: dict) -> tuple:
     committing.
 
     Returns:
-        (reg, None, None, school_name_or_none) on success – reg is flushed but not yet committed.
+        (reg, None, None, new_school_name_or_none) on success – reg is flushed but not yet committed.
         (None, error_msg, code, None)          on failure – session is rolled back.
     """
     school, new_school_name = _get_or_create_school(body.get("school"))
