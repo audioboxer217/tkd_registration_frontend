@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import stripe
+import pytest
 
 base_path = os.path.dirname(os.path.realpath(__file__))
 app_path = os.path.dirname(base_path)
@@ -445,6 +446,24 @@ class TestRegistrationsAPI:
         assert response.status_code == 422
         data = json.loads(response.data)
         assert isinstance(data.get("error", data.get("message")), str)
+
+    def test_create_registration_does_not_send_school_alert_when_commit_fails(self):
+        payload = {
+            "reg_type": "coach",
+            "full_name": "Commit Failure Coach",
+            "email": "commit.failure.coach@example.com",
+            "phone": "555-0198",
+            "school": "Commit Failure School",
+        }
+
+        with (
+            patch("api.send_admin_school_alert") as send_alert,
+            patch("api.db.session.commit", side_effect=RuntimeError("commit failed")),
+        ):
+            with pytest.raises(RuntimeError, match="commit failed"):
+                self.client.post("/api/v1/registrations", json=payload)
+
+        send_alert.assert_not_called()
 
     def test_registration_status_coach_returns_null_status(self):
         from models import Coach
@@ -1039,6 +1058,37 @@ class TestHandleForm:
             "phone": "555-8888",
             "coach": "",
         }
+
+        response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 400
+
+    def test_register_post_missing_email_returns_400(self):
+        form_data = {
+            "regType": "coach",
+            "fname": "Coach",
+            "lname": "TestPerson",
+            "school": "Handle Form School",
+            "email": "",
+            "phone": "555-8888",
+            "coach": "",
+        }
+
+        response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 400
+
+    def test_register_post_invalid_competitor_height_returns_400(self):
+        form_data = self._base_competitor_form()
+        form_data["heightFt"] = "five"
+
+        response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 400
+
+    def test_register_post_invalid_competitor_weight_returns_400(self):
+        form_data = self._base_competitor_form()
+        form_data["weight"] = "heavy"
 
         response = self.client.post("/register", data=form_data)
 

@@ -311,17 +311,15 @@ def set_weight_class(entries, config_bucket):
 
 def _get_or_create_school(school_name: str):
     if not school_name:
-        return None
+        return None, None
     school = School.query.filter_by(name=school_name).first()
+    new_school_name = None
     if school is None:
         school = School(name=school_name)
         db.session.add(school)
         db.session.flush()
-        try:
-            _send_admin_school_alert(school_name)
-        except Exception:
-            current_app.logger.exception("Failed to send admin school alert for new school '%s'", school_name)
-    return school
+        new_school_name = school_name
+    return school, new_school_name
 
 
 def _find_reg_by_checkout_session(session_id):
@@ -370,6 +368,11 @@ def _send_admin_school_alert(school_name: str) -> None:
     except (smtplib.SMTPException, ssl.SSLError, OSError):
         current_app.logger.exception("Failed to send unknown school alert for school: %s", school_name)
     return
+
+
+def send_admin_school_alert(school_name: str) -> None:
+    """Public wrapper for sending admin alerts about newly created schools."""
+    _send_admin_school_alert(school_name)
 
 
 def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
@@ -471,19 +474,19 @@ def create_registration_record(body: dict) -> tuple:
     committing.
 
     Returns:
-        (reg, None, None)         on success – reg is flushed but not yet committed.
-        (None, error_msg, code)   on failure – session is rolled back.
+        (reg, None, None, school_name_or_none) on success – reg is flushed but not yet committed.
+        (None, error_msg, code, None)          on failure – session is rolled back.
     """
-    school = _get_or_create_school(body.get("school"))
+    school, new_school_name = _get_or_create_school(body.get("school"))
     if school is None:
         db.session.rollback()
-        return None, "School is required", 422
+        return None, "School is required", 422, None
 
     try:
         _check_duplicate(body["full_name"], school.id, body["reg_type"])
     except DuplicateRegistrationError:
         db.session.rollback()
-        return None, f"Duplicate registration for {body['full_name']}", 409
+        return None, f"Duplicate registration for {body['full_name']}", 409, None
 
     if body["reg_type"] == "competitor":
         coach_name = (body.get("coach") or "").strip() or None
@@ -529,7 +532,7 @@ def create_registration_record(body: dict) -> tuple:
 
     db.session.add(reg)
     db.session.flush()
-    return reg, None, None
+    return reg, None, None, new_school_name
 
 
 @api_bp.route("/registrations", methods=["POST"])
@@ -542,10 +545,12 @@ def create_registration_record(body: dict) -> tuple:
     }
 )
 def create_registration(body):
-    reg, err_msg, err_code = create_registration_record(body)
+    reg, err_msg, err_code, new_school_name = create_registration_record(body)
     if err_msg:
         return _err_response(err_msg, err_code)
     db.session.commit()
+    if new_school_name:
+        send_admin_school_alert(new_school_name)
     return {"data": {"id": reg.id}}, 201
 
 
