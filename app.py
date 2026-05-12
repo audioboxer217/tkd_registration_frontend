@@ -471,14 +471,14 @@ def handle_form():
         raw_value = (request.form.get(field_name) or "").strip()
         try:
             return int(raw_value)
-        except (TypeError, ValueError):
+        except ValueError:
             abort(400, error_message)
 
     def _parse_float_field(field_name: str, error_message: str) -> float:
         raw_value = (request.form.get(field_name) or "").strip()
         try:
             return float(raw_value)
-        except (TypeError, ValueError):
+        except ValueError:
             abort(400, error_message)
 
     reg_type = (request.form.get("regType") or "").strip()
