@@ -467,6 +467,7 @@ def _normalize_gender(value: "str | None") -> "str | None":
 @ui_bp.route("/register", methods=["POST"])
 def handle_form():
     config = _current_app_config()
+
     def _parse_int_field(field_name: str, error_message: str) -> int:
         """Parse a required integer form field or abort 400 with the provided message."""
         raw_value = (request.form.get(field_name) or "").strip()

@@ -52,7 +52,12 @@ def make_admin_session(client):
 def make_stripe_coupon_mock():
     """Return a mock stripe Coupon list with one item."""
     coupon = MagicMock()
-    coupon.__getitem__.side_effect = lambda key: {"id": "coupon_early_reg", "redeem_by": 1893456000, "amount_off": 2000}[key]
+    coupon_data = {
+        "id": "coupon_early_reg",
+        "redeem_by": 1893456000,
+        "amount_off": 2000,
+    }
+    coupon.__getitem__.side_effect = lambda key: coupon_data[key]
     coupon_list = MagicMock()
     coupon_list.data = [coupon]
     return coupon_list
