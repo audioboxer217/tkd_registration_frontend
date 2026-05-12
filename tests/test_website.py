@@ -11,6 +11,16 @@ import stripe
 base_path = os.path.dirname(os.path.realpath(__file__))
 app_path = os.path.dirname(base_path)
 sys.path.append(app_path)
+
+# Ensure required env vars have defaults so tests pass without a full environment
+os.environ.setdefault("COMPETITION_NAME", "Test Taekwondo Championship")
+os.environ.setdefault("CONTACT_EMAIL", "contact@example.com")
+os.environ.setdefault("EARLY_REG_DATE", "January 01, 2025")
+os.environ.setdefault("REG_CLOSE_DATE", "December 31, 2099")
+os.environ.setdefault("STRIPE_API_KEY", "sk_test_placeholder")
+os.environ.setdefault("CONFIG_BUCKET", "test-config-bucket")
+os.environ.setdefault("PUBLIC_MEDIA_BUCKET", "test-media-bucket")
+
 from app import create_app
 from models import db as _db
 
@@ -497,13 +507,11 @@ class TestRegistrationsAPI:
             patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_test"}),
             patch("api.stripe.Webhook.construct_event", return_value=event),
             patch("api._send_confirmation_email") as send_email,
-            patch("api._check_school") as check_school,
         ):
             response = self.client.post("/api/v1/webhooks/stripe", data=b"{}", headers={"Stripe-Signature": "sig_test"})
 
         assert response.status_code == 200
         send_email.assert_called_once()
-        check_school.assert_called_once()
 
         with app.app_context():
             competitor = _db.session.get(Competitor, reg_id)
@@ -606,61 +614,27 @@ class TestRegistrationsAPI:
         assert "sparring" in body.lower()
         assert "Taegeuk 1 Jang" in body
 
-    def test_check_school_sends_alert_when_school_missing(self):
-        from api import _check_school
-        from models import Competitor
-        from models import School
-        from models import db as _db
-
-        with app.app_context():
-            max_school_id = _db.session.query(School.id).order_by(School.id.desc()).limit(1).scalar() or 0
-            reg = Competitor(
-                full_name="No School",
-                email="noschool@example.com",
-                school_id=max_school_id + 1,
-                status="pending",
-            )
-            _db.session.add(reg)
-            _db.session.commit()
-            with patch("api._send_admin_school_alert") as alert_mock:
-                _check_school(reg)
-
-            alert_mock.assert_called_once_with(None, reg)
-
     def test_send_admin_school_alert_sends_via_smtp(self):
         from api import _send_admin_school_alert
-        from models import Competitor
-        from models import db as _db
 
-        school_id = get_or_create_test_school("Alert School")
-        with app.app_context():
-            reg = Competitor(
-                full_name="Unknown School Person",
-                email="unknown@example.com",
-                school_id=school_id,
-                status="pending",
-            )
-            _db.session.add(reg)
-            _db.session.commit()
-            _db.session.refresh(reg)
-
-            smtp_mock = MagicMock()
-            with (
-                patch("api.smtplib.SMTP_SSL") as smtp_cls_mock,
-                patch.dict(
-                    "os.environ",
-                    {
-                        "EMAIL_SERVER": "smtp.example.com",
-                        "EMAIL_PORT": "465",
-                        "FROM_EMAIL": "no-reply@example.com",
-                        "EMAIL_PASSWD": "secret",
-                        "ADMIN_EMAIL": "admin@example.com",
-                    },
-                ),
-            ):
-                smtp_cls_mock.return_value.__enter__ = MagicMock(return_value=smtp_mock)
-                smtp_cls_mock.return_value.__exit__ = MagicMock(return_value=False)
-                _send_admin_school_alert("Some Unknown School", reg)
+        smtp_mock = MagicMock()
+        with (
+            patch("api.smtplib.SMTP_SSL") as smtp_cls_mock,
+            patch.dict(
+                "os.environ",
+                {
+                    "EMAIL_SERVER": "smtp.example.com",
+                    "EMAIL_PORT": "465",
+                    "FROM_EMAIL": "no-reply@example.com",
+                    "EMAIL_PASSWD": "secret",
+                    "ADMIN_EMAIL": "admin@example.com",
+                },
+            ),
+        ):
+            smtp_cls_mock.return_value.__enter__ = MagicMock(return_value=smtp_mock)
+            smtp_cls_mock.return_value.__exit__ = MagicMock(return_value=False)
+            with app.app_context():
+                _send_admin_school_alert("Some Unknown School")
 
         smtp_mock.login.assert_called_once_with("no-reply@example.com", "secret")
         smtp_mock.sendmail.assert_called_once()
@@ -668,7 +642,6 @@ class TestRegistrationsAPI:
         assert to_addr == "admin@example.com"
         parsed = email.message_from_string(msg_str)
         body = parsed.get_payload(decode=True).decode()
-        assert "Unknown School Person" in body
         assert "Some Unknown School" in body
 
 

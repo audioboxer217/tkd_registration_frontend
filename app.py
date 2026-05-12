@@ -1184,7 +1184,9 @@ def create_app(test_config=None):
 
 
 # Module-level app instance for Zappa and pytest compatibility
-app = create_app()
+# Only create when a database URL is available (Lambda/debug), not during test collection
+if os.getenv("DATABASE_URL") or os.getenv("FLASK_DEBUG"):
+    app = create_app()
 
 
 if __name__ == "__main__":
