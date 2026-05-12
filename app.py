@@ -25,7 +25,7 @@ from flask import (
 from supabase import Client, create_client
 from zoneinfo import ZoneInfo
 
-from api import api_bp, _create_registration_record
+from api import api_bp, create_registration_record
 from models import Coach, Competitor, School, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
@@ -499,14 +499,15 @@ def handle_form():
             dan = request.form.get("blackBeltDan")
             belt = "Master" if dan == "4" else f"{dan} degree {belt}"
 
+        profile_img = request.files.get("profilePic") if config["ENABLE_BADGES"] else None
         img_filename = None
         if config["ENABLE_BADGES"]:
-            profile_img = request.files["profilePic"]
+            if profile_img is None:
+                abort(400, "Profile picture is required but was not provided.")
             image_ext = os.path.splitext(profile_img.filename)[1]
             if not profile_img.content_type or not image_ext:
                 abort(400, "There was an error uploading your profile pic. Please go back and try again.")
             img_filename = f"{school_name}_{reg_type}_{fname}_{lname}{image_ext}"
-            _s3().upload_fileobj(profile_img, config["profilePicBucket"], img_filename)
 
         payload.update(
             {
@@ -533,7 +534,7 @@ def handle_form():
             }
         )
 
-    reg, err_msg, err_code = _create_registration_record(payload)
+    reg, err_msg, err_code = create_registration_record(payload)
     if err_msg:
         if err_code == 409:
             return redirect(f'{config["URL"]}/registration_error?reg_type={reg_type}')
@@ -547,6 +548,16 @@ def handle_form():
     events_list = payload.get("events", [])
     price_dict = get_price_details()
     early_reg_coupon = stripe.Coupon.list(limit=1).data[0]
+    uploaded_img_key = None
+    if config["ENABLE_BADGES"] and img_filename and profile_img:
+        try:
+            _s3().upload_fileobj(profile_img, config["profilePicBucket"], img_filename)
+            uploaded_img_key = img_filename
+        except Exception:
+            current_app.logger.exception("Failed to upload competitor profile image")
+            db.session.rollback()
+            abort(502, "Unable to upload profile image. Please try again later.")
+
     try:
         early_reg_date = datetime.fromtimestamp(early_reg_coupon["redeem_by"]).replace(tzinfo=config["TZ_LOCAL"])
         current_time = convert_to_local(datetime.now())
@@ -586,9 +597,15 @@ def handle_form():
             cancel_url=checkout_details["cancel_url"],
             expires_at=checkout_details["expires_at"],
         )
-    except Exception as e:
+    except Exception:
+        current_app.logger.exception("Failed to create Stripe checkout session for UI registration")
         db.session.rollback()
-        return str(e)
+        if uploaded_img_key:
+            try:
+                _s3().delete_object(Bucket=config["profilePicBucket"], Key=uploaded_img_key)
+            except Exception:
+                current_app.logger.exception("Failed to cleanup uploaded profile image: %s", uploaded_img_key)
+        abort(502, "Unable to create checkout session. Please try again later.")
 
     reg.checkout_session_id = checkout_session.id
     db.session.commit()

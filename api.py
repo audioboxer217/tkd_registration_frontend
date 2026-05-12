@@ -356,12 +356,14 @@ def _send_admin_school_alert(school_name: str) -> None:
     em["Subject"] = f"Entry added with unknown school - {school_name}"
     em.set_content(f"New School Added: {school_name}")
 
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(email_server, int(email_port), context=context) as smtp:
-        smtp.login(email_sender, email_password)
-        smtp.sendmail(email_sender, admin_email, em.as_string())
-
-    current_app.logger.info("Unknown school alert sent to admin for new school: %s", school_name)
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(email_server, int(email_port), context=context) as smtp:
+            smtp.login(email_sender, email_password)
+            smtp.sendmail(email_sender, admin_email, em.as_string())
+        current_app.logger.info("Unknown school alert sent to admin for new school: %s", school_name)
+    except (smtplib.SMTPException, ssl.SSLError, OSError):
+        current_app.logger.exception("Failed to send unknown school alert for school: %s", school_name)
     return
 
 
@@ -455,7 +457,7 @@ def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
     return reg
 
 
-def _create_registration_record(body: dict) -> tuple:
+def create_registration_record(body: dict) -> tuple:
     """Validate and persist a registration record to the database.
 
     Performs school resolution, duplicate detection, and creates the appropriate
@@ -535,7 +537,7 @@ def _create_registration_record(body: dict) -> tuple:
     }
 )
 def create_registration(body):
-    reg, err_msg, err_code = _create_registration_record(body)
+    reg, err_msg, err_code = create_registration_record(body)
     if err_msg:
         return _err_response(err_msg, err_code)
     db.session.commit()
