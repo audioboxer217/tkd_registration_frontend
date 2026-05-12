@@ -25,7 +25,7 @@ from flask import (
 from supabase import Client, create_client
 from zoneinfo import ZoneInfo
 
-from api import api_bp, create_registration_record
+from api import api_bp, create_registration_record, send_admin_school_alert
 from models import Coach, Competitor, School, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
@@ -467,6 +467,20 @@ def _normalize_gender(value: "str | None") -> "str | None":
 @ui_bp.route("/register", methods=["POST"])
 def handle_form():
     config = _current_app_config()
+    def _parse_int_field(field_name: str, error_message: str) -> int:
+        raw_value = (request.form.get(field_name) or "").strip()
+        try:
+            return int(raw_value)
+        except (TypeError, ValueError):
+            abort(400, error_message)
+
+    def _parse_float_field(field_name: str, error_message: str) -> float:
+        raw_value = (request.form.get(field_name) or "").strip()
+        try:
+            return float(raw_value)
+        except (TypeError, ValueError):
+            abort(400, error_message)
+
     reg_type = (request.form.get("regType") or "").strip()
     if reg_type not in {"competitor", "coach"}:
         abort(400, "Invalid registration type.")
@@ -483,11 +497,14 @@ def handle_form():
         school_name = (request.form.get("unlistedSchool") or "").strip()
         if not school_name:
             abort(400, "Unlisted school name is required.")
+    email = (request.form.get("email") or "").strip()
+    if not email:
+        abort(400, "Email is required.")
 
     payload = {
         "reg_type": reg_type,
         "full_name": full_name,
-        "email": request.form.get("email"),
+        "email": email,
         "phone": request.form.get("phone"),
         "school": school_name,
     }
@@ -501,7 +518,11 @@ def handle_form():
             abort(400, "You must choose at least one event")
 
         events_list = [e for e in event_list.split(",") if e]
-        height = (int(request.form.get("heightFt")) * 12) + int(request.form.get("heightIn"))
+        height_ft = _parse_int_field("heightFt", "Height feet must be a whole number.")
+        height_in = _parse_int_field("heightIn", "Height inches must be a whole number.")
+        height = (height_ft * 12) + height_in
+        age = _parse_int_field("age", "Age must be a whole number.")
+        weight = _parse_float_field("weight", "Weight must be a number.")
         belt = request.form.get("beltRank")
         if belt == "black":
             dan = request.form.get("blackBeltDan")
@@ -521,9 +542,9 @@ def handle_form():
             {
                 "parent": request.form.get("parentName"),
                 "birthdate": request.form.get("birthdate"),
-                "age": int(request.form.get("age")),
+                "age": age,
                 "gender": _normalize_gender(request.form.get("gender")),
-                "weight": float(request.form.get("weight")),
+                "weight": weight,
                 "height": height,
                 "belt_rank": belt,
                 "coach": request.form.get("coach", "").strip(),
@@ -542,7 +563,7 @@ def handle_form():
             }
         )
 
-    reg, err_msg, err_code = create_registration_record(payload)
+    reg, err_msg, err_code, new_school_name = create_registration_record(payload)
     if err_msg:
         if err_code == 409:
             return redirect(f'{config["URL"]}/registration_error?reg_type={reg_type}')
@@ -550,6 +571,8 @@ def handle_form():
 
     if reg_type != "competitor":
         db.session.commit()
+        if new_school_name:
+            send_admin_school_alert(new_school_name)
         return redirect(f'{config["URL"]}/success?reg_type=coach')
 
     # Competitor: build Stripe checkout items and create session
@@ -617,6 +640,8 @@ def handle_form():
 
     reg.checkout_session_id = checkout_session.id
     db.session.commit()
+    if new_school_name:
+        send_admin_school_alert(new_school_name)
 
     return render_template_string(
         '<meta http-equiv="refresh" content="0; url={{ checkout_url }}" />', checkout_url=checkout_session.url
