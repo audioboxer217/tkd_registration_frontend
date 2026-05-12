@@ -2,6 +2,7 @@ import email
 import io
 import json
 import os
+import smtplib
 import sys
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
@@ -644,6 +645,29 @@ class TestRegistrationsAPI:
         body = parsed.get_payload(decode=True).decode()
         assert "Some Unknown School" in body
 
+    def test_send_admin_school_alert_swallows_smtp_errors(self):
+        from api import _send_admin_school_alert
+
+        smtp_mock = MagicMock()
+        smtp_mock.login.side_effect = smtplib.SMTPAuthenticationError(535, b"Auth failed")
+        with (
+            patch("api.smtplib.SMTP_SSL") as smtp_cls_mock,
+            patch.dict(
+                "os.environ",
+                {
+                    "EMAIL_SERVER": "smtp.example.com",
+                    "EMAIL_PORT": "465",
+                    "FROM_EMAIL": "no-reply@example.com",
+                    "EMAIL_PASSWD": "secret",
+                    "ADMIN_EMAIL": "admin@example.com",
+                },
+            ),
+        ):
+            smtp_cls_mock.return_value.__enter__ = MagicMock(return_value=smtp_mock)
+            smtp_cls_mock.return_value.__exit__ = MagicMock(return_value=False)
+            with app.app_context():
+                _send_admin_school_alert("Some Unknown School")
+
 
 class TestUploadForm:
     def test_schedule_upload_form(self):
@@ -865,7 +889,7 @@ class TestRegisterPage:
 
 
 class TestHandleForm:
-    """Tests for POST /register — validates that the UI route delegates to _create_registration_record
+    """Tests for POST /register — validates that the UI route delegates to create_registration_record
     for DB writes, handles Stripe checkout for competitors, and redirects coaches directly."""
 
     client = app.test_client()
@@ -981,6 +1005,73 @@ class TestHandleForm:
 
         assert response.status_code == 302
         assert "/registration_error" in response.headers["Location"]
+
+    def test_register_duplicate_with_badges_does_not_upload_profile_image(self):
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Handle Form School")
+        with app.app_context():
+            existing = Competitor(
+                full_name="Dup Handle Form",
+                email="dup.badges.existing@example.com",
+                school_id=school_id,
+                status="pending",
+            )
+            _db.session.add(existing)
+            _db.session.commit()
+
+        form_data = self._base_competitor_form()
+        form_data["fname"] = "Dup"
+        form_data["lname"] = "Handle Form"
+        form_data["email"] = "dup.badges.new@example.com"
+        form_data["profilePic"] = (io.BytesIO(b"avatar"), "avatar.jpg", "image/jpeg")
+
+        with (
+            patch.dict(app.config, {"ENABLE_BADGES": True, "profilePicBucket": "test-profile-bucket"}),
+            patch("app._s3") as mock_s3_factory,
+            patch("app.get_price_details", return_value={}),
+            patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
+        ):
+            mock_s3 = MagicMock()
+            mock_s3_factory.return_value = mock_s3
+            response = self.client.post("/register", data=form_data, content_type="multipart/form-data")
+
+        assert response.status_code == 302
+        assert "/registration_error" in response.headers["Location"]
+        mock_s3.upload_fileobj.assert_not_called()
+
+    def test_register_stripe_failure_cleans_up_uploaded_badge_and_returns_502(self):
+        form_data = self._base_competitor_form()
+        form_data["fname"] = "Stripe"
+        form_data["lname"] = "Failure"
+        form_data["email"] = "stripe.failure.cleanup@example.com"
+        form_data["profilePic"] = (io.BytesIO(b"avatar"), "avatar.jpg", "image/jpeg")
+
+        with (
+            patch.dict(app.config, {"ENABLE_BADGES": True, "profilePicBucket": "test-profile-bucket"}),
+            patch("app._s3") as mock_s3_factory,
+            patch("app.get_price_details", return_value={
+                "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
+                "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
+                "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
+                "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
+                "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
+            }),
+            patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
+            patch("app.stripe.checkout.Session.create", side_effect=stripe.error.StripeError("Stripe unavailable")),
+        ):
+            mock_s3 = MagicMock()
+            mock_s3_factory.return_value = mock_s3
+            response = self.client.post("/register", data=form_data, content_type="multipart/form-data")
+
+        assert response.status_code == 502
+        mock_s3.upload_fileobj.assert_called_once()
+        mock_s3.delete_object.assert_called_once()
+        _, upload_bucket, upload_key = mock_s3.upload_fileobj.call_args.args
+        assert upload_bucket == "test-profile-bucket"
+        assert upload_key == "Handle Form School_competitor_Stripe_Failure.jpg"
+        mock_s3.delete_object.assert_called_once_with(Bucket=upload_bucket, Key=upload_key)
 
 
 class TestSchoolsAPI:
