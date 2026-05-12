@@ -467,14 +467,22 @@ def _normalize_gender(value: "str | None") -> "str | None":
 @ui_bp.route("/register", methods=["POST"])
 def handle_form():
     config = _current_app_config()
-    reg_type = request.form.get("regType")
+    reg_type = (request.form.get("regType") or "").strip()
+    if reg_type not in {"competitor", "coach"}:
+        abort(400, "Invalid registration type.")
 
-    fname = request.form.get("fname").strip()
-    lname = request.form.get("lname").strip()
+    fname = (request.form.get("fname") or "").strip()
+    lname = (request.form.get("lname") or "").strip()
+    if not fname or not lname:
+        abort(400, "First and last name are required.")
     full_name = f"{fname} {lname}"
-    school_name = request.form.get("school")
+    school_name = (request.form.get("school") or "").strip()
+    if not school_name:
+        abort(400, "School is required.")
     if school_name == "unlisted":
-        school_name = request.form.get("unlistedSchool").strip()
+        school_name = (request.form.get("unlistedSchool") or "").strip()
+        if not school_name:
+            abort(400, "Unlisted school name is required.")
 
     payload = {
         "reg_type": reg_type,

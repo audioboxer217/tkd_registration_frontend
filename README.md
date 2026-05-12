@@ -127,22 +127,22 @@ pyproject.toml
     uv sync --all-extras --dev
     ```
 
-2. Create a `frontend.env` file with the necessary environment variables (see table below).
+2. Create a `.env` file with the necessary environment variables (see table below).
 
 3. Initialize the database (first time only):
     ```bash
-    set -a && source frontend.env && set +a
+    set -a && source .env && set +a
     uv run python scripts/init_db.py
     ```
     If you need to recreate the local database from scratch, use:
     ```bash
-    set -a && source frontend.env && set +a
+    set -a && source .env && set +a
     uv run python scripts/reset_db.py
     ```
 
 4. Run the local development server:
     ```bash
-    set -a && source frontend.env && set +a
+    set -a && source .env && set +a
     flask --app app --debug run
     ```
     Or use the VSCode debugger via the existing `launch.json`.
@@ -241,7 +241,7 @@ stripe trigger checkout.session.completed
 stripe trigger checkout.session.expired
 ```
 
-Set the signing secret printed by `stripe listen` in your `frontend.env` as `STRIPE_WEBHOOK_SECRET`.
+Set the signing secret printed by `stripe listen` in your `.env` as `STRIPE_WEBHOOK_SECRET`.
 
 ### Database Migrations
 
