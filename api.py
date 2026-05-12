@@ -312,7 +312,10 @@ def _get_or_create_school(school_name: str):
         school = School(name=school_name)
         db.session.add(school)
         db.session.flush()
-        _send_admin_school_alert(school_name)
+        try:
+            _send_admin_school_alert(school_name)
+        except Exception:
+            current_app.logger.exception("Failed to send admin school alert for new school '%s'", school_name)
     return school
 
 
