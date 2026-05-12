@@ -312,7 +312,7 @@ def _get_or_create_school(school_name: str):
         school = School(name=school_name)
         db.session.add(school)
         db.session.flush()
-        _send_admin_school_alert(school_name, school)
+        _send_admin_school_alert(school_name)
     return school
 
 
@@ -334,7 +334,7 @@ def _check_duplicate(full_name: str, school_id: int, reg_type: str) -> None:
         raise DuplicateRegistrationError(f"Duplicate registration for {full_name}")
 
 
-def _send_admin_school_alert(school_name: str, reg: RegistrationRecord) -> None:
+def _send_admin_school_alert(school_name: str) -> None:
     """Send an unknown-school alert email directly to the admin via SMTP."""
     comp_name = os.environ.get("COMPETITION_NAME", "")
     email_server = os.environ.get("EMAIL_SERVER")
@@ -450,14 +450,6 @@ def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
 
     current_app.logger.info("Confirmation email sent to %s", reg_data["email"])
     return reg
-
-
-# def _check_school(reg: RegistrationRecord) -> RegistrationRecord:
-#     school_name = reg.school.name if getattr(reg, "school", None) else None
-#     school = School.query.filter_by(name=school_name).first() if school_name else None
-#     if school is None:
-#         _send_admin_school_alert(school_name, reg)
-#     return reg
 
 
 def _create_registration_record(body: dict) -> tuple:
