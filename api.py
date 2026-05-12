@@ -371,7 +371,10 @@ def _send_admin_school_alert(school_name: str) -> None:
 
 
 def send_admin_school_alert(school_name: str) -> None:
-    """Public wrapper for sending admin alerts about newly created schools."""
+    """Public best-effort admin alert for newly created schools.
+
+    Exceptions are handled and logged by `_send_admin_school_alert`.
+    """
     _send_admin_school_alert(school_name)
 
 
