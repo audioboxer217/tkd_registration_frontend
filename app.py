@@ -468,6 +468,7 @@ def _normalize_gender(value: "str | None") -> "str | None":
 def handle_form():
     config = _current_app_config()
     def _parse_int_field(field_name: str, error_message: str) -> int:
+        """Parse a required integer form field or abort 400 with the provided message."""
         raw_value = (request.form.get(field_name) or "").strip()
         try:
             return int(raw_value)
@@ -475,6 +476,7 @@ def handle_form():
             abort(400, error_message)
 
     def _parse_float_field(field_name: str, error_message: str) -> float:
+        """Parse a required float form field or abort 400 with the provided message."""
         raw_value = (request.form.get(field_name) or "").strip()
         try:
             return float(raw_value)
