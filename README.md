@@ -70,7 +70,7 @@ graph TB
     class UIBlueprint,APIBlueprint,Models frontendComponent
     class SchoolsTable,CoachesTable,CompetitorsTable,S3 database
     class RegistrationsTable legacy
-    class Stripe,GoogleDrive,Challonge,SupabaseAuth external
+    class Stripe,SupabaseAuth external
 ```
 
 ## Dependencies
@@ -134,6 +134,11 @@ pyproject.toml
 | `COMPETITION_NAME` | Yes | Name to use for the competition |
 | `COMPETITION_YEAR` | No | Year of the competition |
 | `CONTACT_EMAIL` | Yes | Contact email shown to registrants |
+| `ADMIN_EMAIL` | Yes | Email address that receives admin alerts (e.g., unknown school notifications) |
+| `EMAIL_SERVER` | Yes | SMTP server hostname used for outbound emails |
+| `EMAIL_PORT` | Yes | SMTP server port (e.g., `465`) |
+| `FROM_EMAIL` | Yes | Sender email address used for outbound emails |
+| `EMAIL_PASSWD` | Yes | SMTP password or app password for `FROM_EMAIL` |
 | `EARLY_REG_DATE` | Yes | When the early registration discount ends (e.g. `June 01, 2026`) |
 | `REG_CLOSE_DATE` | Yes | When to close registrations (e.g. `July 01, 2026`) |
 | `CONFIG_BUCKET` | Yes | S3 bucket containing config files (schools.json, weight_classes.json, etc.) |
