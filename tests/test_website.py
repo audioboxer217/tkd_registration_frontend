@@ -24,6 +24,7 @@ os.environ.setdefault("CONFIG_BUCKET", "test-config-bucket")
 os.environ.setdefault("PUBLIC_MEDIA_BUCKET", "test-media-bucket")
 
 from app import create_app
+from models import Coach
 from models import db as _db
 
 _test_app = create_app(test_config={
@@ -1453,8 +1454,6 @@ class TestAddEntryPost:
         response = client.post("/add_entry", data=form_data)
         assert response.status_code == 303
         assert response.headers["Location"].endswith("/admin")
-
-        from models import Coach
 
         with app.app_context():
             coach = Coach.query.filter_by(full_name="Coach Manual").first()
