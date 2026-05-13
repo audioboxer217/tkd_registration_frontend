@@ -750,7 +750,7 @@ class TestRegistrationEndToEnd:
 
         1. POST /register submits the competitor form and creates a DB record.
         2. A Stripe checkout session is created (mocked); checkout_session_id is saved.
-        3. Simulating stripe.checkout.session.completed sets status="complete".
+        3. Webhook processing for checkout.session.completed event sets status="complete".
         4. A confirmation email is sent after the webhook is processed.
         """
         from models import Competitor
@@ -866,6 +866,9 @@ class TestRegistrationEndToEnd:
             coach = Coach.query.filter_by(email="e2e.coach@example.com").first()
             assert coach is not None
             assert coach.full_name == "E2E Coach"
+            assert coach.phone == "555-0301"
+            assert coach.school is not None
+            assert coach.school.name == "E2E Coach School"
 
 
 class TestUploadForm:
