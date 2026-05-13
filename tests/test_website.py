@@ -1434,6 +1434,34 @@ class TestAddEntryForm:
         assert response.status_code == 200
 
 
+class TestAddEntryPost:
+    """Test add entry POST flow for admin manual entry."""
+
+    def test_add_entry_post_coach_creates_record_without_sqs(self):
+        client = app.test_client()
+        make_admin_session(client)
+
+        form_data = {
+            "regType": "coach",
+            "fname": "Coach",
+            "lname": "Manual",
+            "email": "coach.manual@example.com",
+            "phone": "555-555-1212",
+            "school": "Manual Entry School",
+        }
+
+        response = client.post("/add_entry", data=form_data)
+        assert response.status_code == 303
+        assert response.headers["Location"].endswith("/admin")
+
+        from models import Coach
+
+        with app.app_context():
+            coach = Coach.query.filter_by(full_name="Coach Manual").first()
+            assert coach is not None
+            assert coach.email == "coach.manual@example.com"
+
+
 class TestEditEntryForm:
     """Test edit entry form with authenticated admin session."""
 

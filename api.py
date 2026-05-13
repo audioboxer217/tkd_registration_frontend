@@ -170,11 +170,6 @@ def _err(description: str) -> dict:
 def _s3():
     return boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
-
-def _sqs():
-    return boto3.client("sqs", region_name=os.getenv("AWS_REGION", "us-east-1"))
-
-
 def _err_response(message: str, status: int):
     """Return a Flask Response with an error JSON body, bypassing the @output schema."""
     resp = jsonify({"error": message})

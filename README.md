@@ -19,12 +19,6 @@ graph TB
             end
         end
 
-        subgraph "Backend Services"
-            ProcessEntries["Process Entries<br/>(Python)"]
-            GenerateBadges["Generate Badges<br/>(Python)"]
-            SyncAWSGDrive["Sync AWS-GDrive<br/>(Python)"]
-        end
-
         subgraph "Data Storage"
             subgraph Supabase["Supabase (Postgres)"]
                 SchoolsTable[("schools")]
@@ -35,10 +29,7 @@ graph TB
             S3[("S3 Buckets")]
         end
 
-        subgraph "Communication Services"
-            SQS["SQS"]
-            EmailService["Email Service"]
-        end
+        EmailService["Email Service"]
     end
 
     User --> FrontendApp
@@ -53,34 +44,18 @@ graph TB
     Models --> CompetitorsTable
     Models --> RegistrationsTable
 
-    APIBlueprint --> ProcessEntries
-    ProcessEntries --> GenerateBadges
-    ProcessEntries --> SyncAWSGDrive
-
-    ProcessEntries --> S3
-    GenerateBadges --> S3
-    SyncAWSGDrive --> S3
-
-    ProcessEntries --> SQS
-    SQS --> ProcessEntries
-    ProcessEntries --> EmailService
+    APIBlueprint --> EmailService
 
     Admin --> SupabaseAuth
     FrontendApp --> SupabaseAuth
 
-    ProcessEntries --> Stripe
-    SyncAWSGDrive --> GoogleDrive
-    GenerateBadges --> Challonge
+    APIBlueprint --> Stripe
 
     EmailService ~~~ Stripe
-    EmailService ~~~ GoogleDrive
-    EmailService ~~~ Challonge
     S3 ~~~ SupabaseAuth
 
     subgraph "External Services"
         Stripe["Stripe API"]
-        GoogleDrive["Google Drive API"]
-        Challonge["Challonge API"]
         SupabaseAuth["Supabase Auth"]
     end
 
@@ -93,7 +68,6 @@ graph TB
 
     class FrontendApp frontend
     class UIBlueprint,APIBlueprint,Models frontendComponent
-    class ProcessEntries,GenerateBadges,SyncAWSGDrive backend
     class SchoolsTable,CoachesTable,CompetitorsTable,S3 database
     class RegistrationsTable legacy
     class Stripe,GoogleDrive,Challonge,SupabaseAuth external
@@ -165,12 +139,11 @@ pyproject.toml
 | `CONFIG_BUCKET` | Yes | S3 bucket containing config files (schools.json, weight_classes.json, etc.) |
 | `PUBLIC_MEDIA_BUCKET` | Yes | S3 bucket for public media (schedule, booklet) |
 | `PROFILE_PIC_BUCKET` | No | S3 bucket for profile pictures |
-| `SQS_QUEUE_URL` | Yes | SQS queue URL for processing notifications |
 | `STRIPE_API_KEY` | Yes | Stripe secret API key |
 | `STRIPE_WEBHOOK_SECRET` | Yes | Stripe webhook signing secret (`whsec_...`) |
 | `STRIPE_DEFAULT_UNIT_AMOUNT` | No | Stripe Checkout amount in cents used by `/api/v1/registrations` (default: `5000`) |
 | `REG_URL` | Yes | Public URL of the deployed app |
-| `AWS_REGION` | No | AWS region for S3/SQS (default: `us-east-1`) |
+| `AWS_REGION` | No | AWS region for S3 (default: `us-east-1`) |
 | `AWS_DEFAULT_REGION` | No | Alternative AWS region env var |
 | `AWS_PROFILE` | No | AWS profile from `~/.aws/config` for local dev |
 | `LOCAL_TIMEZONE` | No | Timezone for date display (default: `US/Central`) |
@@ -226,6 +199,15 @@ The S3 env JSON must include all required variables from the table above. At min
   "SUPABASE_SERVICE_ROLE_KEY": "...",
   "SUPABASE_JWT_SECRET": "...",
   "FLASK_SECRET_KEY": "...",
+  "COMPETITION_NAME": "...",
+  "COMPETITION_YEAR": "...",
+  "CONTACT_EMAIL": "...",
+  "ADMIN_EMAIL": "...",
+  "EMAIL_SERVER": "...",
+  "EMAIL_PORT": "...",
+  "FROM_EMAIL": "...",
+  "EMAIL_PASSWD": "...",
+  "CONFIG_BUCKET": "...",
   "STRIPE_API_KEY": "...",
   "STRIPE_WEBHOOK_SECRET": "whsec_..."
 }
