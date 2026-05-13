@@ -72,11 +72,6 @@ def login_required(f):
 def _s3():
     return boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
-
-def _sqs():
-    return boto3.client("sqs", region_name=os.getenv("AWS_REGION", "us-east-1"))
-
-
 def get_price_details():
     price_dict = {}
     products = stripe.Product.list(active=True)
@@ -1023,19 +1018,11 @@ def add_entry():
             reg_detail={"id": str(reg.id), "full_name": reg.full_name},
         )
 
-    reg.checkout_session_id = "manual_entry"
+    if reg_type == "competitor":
+        reg.checkout_session_id = "manual_entry"
     db.session.add(reg)
     db.session.commit()
 
-    _sqs().send_message(
-        QueueUrl=config["SQS_QUEUE_URL"],
-        DelaySeconds=120,
-        MessageAttributes={
-            "Name": {"DataType": "String", "StringValue": f"{fname}_{lname}"},
-            "Transaction": {"DataType": "String", "StringValue": "manual_entry"},
-        },
-        MessageBody=json.dumps({"id": str(reg.id), "full_name": reg.full_name, "email": reg.email}),
-    )
     flash(f"{full_name} added successfully!", "success")
     return redirect(f'{config["URL"]}/admin', code=303)
 
@@ -1199,7 +1186,6 @@ def create_app(test_config=None):
     flask_app.config["configBucket"] = os.getenv("CONFIG_BUCKET")
     flask_app.config["mediaBucket"] = os.getenv("PUBLIC_MEDIA_BUCKET")
     flask_app.config["URL"] = "http://localhost:5001" if os.getenv("FLASK_DEBUG") else os.getenv("REG_URL")
-    flask_app.config["SQS_QUEUE_URL"] = os.getenv("SQS_QUEUE_URL")
     flask_app.config["TZ_LOCAL"] = ZoneInfo(os.getenv("LOCAL_TIMEZONE", "US/Central"))
     flask_app.config["ENABLE_BADGES"] = _parse_bool_env("ENABLE_BADGES")
     flask_app.config["ENABLE_ADDRESS"] = _parse_bool_env("ENABLE_ADDRESS")

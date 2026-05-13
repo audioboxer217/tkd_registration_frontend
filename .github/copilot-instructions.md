@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is the **Frontend** of the TKD Registration Project — a Flask-based web application that allows users to register for Taekwondo competitions. It integrates with Supabase (PostgreSQL + Auth), Stripe for payments, and AWS services (S3, SQS) for media storage and background job queues.
+This is the **Frontend** of the TKD Registration Project — a Flask-based web application that allows users to register for Taekwondo competitions. It integrates with Supabase (PostgreSQL + Auth), Stripe for payments, and AWS services (S3) for media storage.
 
 ## Tech Stack
 
@@ -15,7 +15,7 @@ This is the **Frontend** of the TKD Registration Project — a Flask-based web a
 - **Linter**: [ruff](https://github.com/astral-sh/ruff) (130 char line limit, rules E/F)
 - **Test Framework**: pytest with mocks for external services
 - **Deployment**: [Zappa](https://github.com/Zappa/Zappa) to AWS Lambda
-- **AWS Services**: S3 (media storage), SQS (job queue)
+- **AWS Services**: S3 (media storage)
 - **External APIs**: Stripe, Google Maps, Supabase
 
 ## Development Environment Setup
