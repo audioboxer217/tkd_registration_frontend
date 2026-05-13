@@ -770,7 +770,7 @@ class TestRegistrationEndToEnd:
             "heightIn": "8",
             "weight": "150",
             "age": "20",
-            "gender": "male",
+            "gender": "M",
             "beltRank": "red",
             "poomsae form": "",
             "wc poomsae form": "",
