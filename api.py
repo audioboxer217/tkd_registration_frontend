@@ -82,6 +82,7 @@ class RegistrationStatusData(Schema):
     reg_type = String()
     checkout_session_id = String(allow_none=True)
     status = String(allow_none=True)
+    payment_intent = String(allow_none=True)
 
 
 class RegistrationCreatedData(Schema):
@@ -668,6 +669,7 @@ def registration_status(registration_id):
                 "reg_type": reg_type,
                 "checkout_session_id": getattr(reg, "checkout_session_id", None),
                 "status": getattr(reg, "status", None),
+                "payment_intent": getattr(reg, "payment_intent", None),
             }
         }
     )

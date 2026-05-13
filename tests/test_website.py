@@ -699,6 +699,174 @@ class TestRegistrationsAPI:
             with app.app_context():
                 _send_admin_school_alert("Some Unknown School")
 
+    def test_create_registration_with_unknown_school_sends_admin_alert(self):
+        """Registering with a school not yet in the DB should trigger an admin alert."""
+        payload = {
+            "reg_type": "competitor",
+            "full_name": "New School Competitor",
+            "email": "newschool.competitor@example.com",
+            "phone": "555-0302",
+            "school": "Brand New Unknown School",
+        }
+
+        with patch("api.send_admin_school_alert") as mock_alert:
+            response = self.client.post("/api/v1/registrations", json=payload)
+
+        assert response.status_code == 201
+        mock_alert.assert_called_once_with("Brand New Unknown School")
+
+    def test_registration_status_includes_payment_intent(self):
+        """registration_status endpoint should return payment_intent field."""
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Payment Intent School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="PayIntent Competitor",
+                email="payintent_competitor@example.com",
+                school_id=school_id,
+                status="complete",
+                checkout_session_id="cs_test_payintent",
+                payment_intent="pi_test_payintent",
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+            reg_id = competitor.id
+
+        response = self.client.get(f"/api/v1/registrations/{reg_id}/status")
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["data"]["payment_intent"] == "pi_test_payintent"
+
+
+class TestRegistrationEndToEnd:
+    """End-to-end tests covering the full registration lifecycle."""
+
+    client = app.test_client()
+
+    def test_competitor_registration_full_end_to_end(self):
+        """End-to-end: UI form → Stripe checkout → webhook completed → confirmation email.
+
+        1. POST /register submits the competitor form and creates a DB record.
+        2. A Stripe checkout session is created (mocked); checkout_session_id is saved.
+        3. Simulating stripe.checkout.session.completed sets status="complete".
+        4. A confirmation email is sent after the webhook is processed.
+        """
+        from models import Competitor
+        from models import db as _db
+
+        form_data = {
+            "regType": "competitor",
+            "fname": "E2E",
+            "lname": "Competitor",
+            "school": "E2E End-to-End School",
+            "email": "e2e.competitor@example.com",
+            "phone": "555-0300",
+            "coach": "",
+            "liability": "on",
+            "eventList": "sparring",
+            "heightFt": "5",
+            "heightIn": "8",
+            "weight": "150",
+            "age": "20",
+            "gender": "male",
+            "beltRank": "red",
+            "poomsae form": "",
+            "wc poomsae form": "",
+            "pair poomsae form": "",
+            "team poomsae form": "",
+            "family poomsae form": "",
+            "parentName": "",
+            "birthdate": "2004-01-01",
+            "contacts": "",
+            "medicalConditionsList": "",
+            "allergy_list": "",
+            "meds_list": "",
+        }
+
+        mock_checkout_session = MagicMock()
+        mock_checkout_session.id = "cs_test_e2e_comp"
+        mock_checkout_session.url = "https://checkout.stripe.test/e2e_comp"
+
+        with (
+            patch("app.get_price_details", return_value={
+                "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
+                "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
+                "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
+                "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
+                "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
+            }),
+            patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
+            patch("app.stripe.checkout.Session.create", return_value=mock_checkout_session),
+        ):
+            form_response = self.client.post("/register", data=form_data)
+
+        # Step 1: form submission creates a pending record and returns a Stripe redirect
+        assert form_response.status_code == 200
+        assert b"checkout.stripe.test" in form_response.data
+
+        with app.app_context():
+            competitor = Competitor.query.filter_by(email="e2e.competitor@example.com").first()
+            assert competitor is not None
+            assert competitor.checkout_session_id == "cs_test_e2e_comp"
+            assert competitor.status == "pending"
+            reg_id = competitor.id
+
+        # Step 2: Stripe sends a webhook event for successful payment
+        event = {
+            "type": "checkout.session.completed",
+            "data": {"object": {"id": "cs_test_e2e_comp", "payment_intent": "pi_e2e_comp"}},
+        }
+
+        with (
+            patch.dict(os.environ, {"STRIPE_WEBHOOK_SECRET": "whsec_e2e_test"}),
+            patch("api.stripe.Webhook.construct_event", return_value=event),
+            patch("api._send_confirmation_email") as mock_email,
+        ):
+            webhook_response = self.client.post(
+                "/api/v1/webhooks/stripe",
+                data=b"{}",
+                headers={"Stripe-Signature": "sig_e2e"},
+            )
+
+        assert webhook_response.status_code == 200
+        mock_email.assert_called_once()
+
+        # Step 3: DB record reflects payment completion
+        with app.app_context():
+            competitor = _db.session.get(Competitor, reg_id)
+            assert competitor.status == "complete"
+            assert competitor.payment_intent == "pi_e2e_comp"
+
+    def test_coach_registration_full_end_to_end(self):
+        """End-to-end coach registration: UI form → DB record created → redirect to success.
+
+        Coaches skip Stripe payment entirely and are immediately redirected to /success.
+        """
+        from models import Coach
+
+        form_data = {
+            "regType": "coach",
+            "fname": "E2E",
+            "lname": "Coach",
+            "school": "E2E Coach School",
+            "email": "e2e.coach@example.com",
+            "phone": "555-0301",
+            "coach": "",
+        }
+
+        form_response = self.client.post("/register", data=form_data)
+
+        assert form_response.status_code == 302
+        assert "/success" in form_response.headers["Location"]
+        assert "reg_type=coach" in form_response.headers["Location"]
+
+        with app.app_context():
+            coach = Coach.query.filter_by(email="e2e.coach@example.com").first()
+            assert coach is not None
+            assert coach.full_name == "E2E Coach"
+
 
 class TestUploadForm:
     def test_schedule_upload_form(self):
