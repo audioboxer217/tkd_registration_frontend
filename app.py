@@ -1149,7 +1149,9 @@ def generate_csv():
 # Error handlers
 # ---------------------------------------------------------------------------
 
-# Tracks the last time an admin alert was sent for a 500 error (throttle to once per 5 min)
+# Tracks the last time an admin alert was sent for a 500 error (throttle to once per 5 min).
+# Note: this is per-process state; in multi-worker deployments (e.g. Lambda with concurrent
+# invocations) each worker tracks independently, so alerts may still arrive more frequently.
 _last_500_alert_time: datetime | None = None
 _500_ALERT_COOLDOWN_SECONDS = 300
 
@@ -1200,6 +1202,7 @@ def create_app(test_config=None):
             level=logging.DEBUG if os.getenv("FLASK_DEBUG") else logging.WARNING,
             format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
             stream=sys.stdout,
+            force=True,
         )
 
     flask_app.security_schemes = {
