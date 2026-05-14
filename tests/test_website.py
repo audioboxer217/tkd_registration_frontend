@@ -1752,6 +1752,43 @@ class TestAdminAlertBranches:
         # Only the first call should have triggered an alert email
         mock_alert.assert_called_once()
 
+    def test_500_page_renders_mailto_link_when_contact_email_set(self):
+        """500.html should render a mailto link when CONTACT_EMAIL is configured."""
+        import app as app_module
+        from app import internal_server_error
+
+        app_module._last_500_alert_time = None  # reset throttle state
+
+        with (
+            app.test_request_context("/test-path", method="GET"),
+            patch("app.send_admin_alert"),
+            patch.dict("os.environ", {"CONTACT_EMAIL": "ops@example.com"}),
+        ):
+            response_body, status_code = internal_server_error(RuntimeError("boom"))
+
+        assert status_code == 500
+        assert b"mailto:ops@example.com" in response_body if isinstance(response_body, bytes) else "mailto:ops@example.com" in response_body
+        assert "ops@example.com" in response_body
+
+    def test_500_page_renders_administrator_fallback_when_contact_email_missing(self):
+        """500.html should show 'Administrator' instead of a mailto link when CONTACT_EMAIL is unset."""
+        import app as app_module
+        from app import internal_server_error
+
+        app_module._last_500_alert_time = None  # reset throttle state
+
+        env_without_contact = {k: v for k, v in os.environ.items() if k != "CONTACT_EMAIL"}
+        with (
+            app.test_request_context("/test-path", method="GET"),
+            patch("app.send_admin_alert"),
+            patch.dict("os.environ", env_without_contact, clear=True),
+        ):
+            response_body, status_code = internal_server_error(RuntimeError("boom"))
+
+        assert status_code == 500
+        assert "Administrator" in response_body
+        assert "mailto:None" not in response_body
+
 
 if __name__ == "__main__":
     homepage = TestHomepage()
