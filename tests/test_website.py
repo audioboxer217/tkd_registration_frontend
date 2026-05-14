@@ -1767,7 +1767,7 @@ class TestAdminAlertBranches:
             response_body, status_code = internal_server_error(RuntimeError("boom"))
 
         assert status_code == 500
-        assert b"mailto:ops@example.com" in response_body if isinstance(response_body, bytes) else "mailto:ops@example.com" in response_body
+        assert "mailto:ops@example.com" in response_body
         assert "ops@example.com" in response_body
 
     def test_500_page_renders_administrator_fallback_when_contact_email_missing(self):
