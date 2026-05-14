@@ -1604,6 +1604,155 @@ class TestNotFoundPage:
         assert response.status_code == 404
 
 
+class TestAdminAlertBranches:
+    """Tests that verify admin-alert emails are sent for critical error paths.
+
+    Covers the three branches added in the logging/alerting PR:
+    - Stripe checkout session creation failure (app.py add_entry / handle_form)
+    - Confirmation email SMTP failure (api.py _send_confirmation_email)
+    - Unhandled 500 error handler (app.py internal_server_error)
+    """
+
+    client = app.test_client()
+
+    def _base_competitor_form(self):
+        return {
+            "regType": "competitor",
+            "fname": "Alert",
+            "lname": "TestUser",
+            "school": "Alert Branch School",
+            "email": "alert.branch.test@example.com",
+            "phone": "555-6666",
+            "coach": "",
+            "liability": "on",
+            "eventList": "sparring",
+            "heightFt": "5",
+            "heightIn": "8",
+            "weight": "150",
+            "age": "20",
+            "gender": "M",
+            "beltRank": "red",
+            "poomsae form": "",
+            "wc poomsae form": "",
+            "pair poomsae form": "",
+            "team poomsae form": "",
+            "family poomsae form": "",
+            "parentName": "",
+            "birthdate": "2004-01-01",
+            "contacts": "",
+            "medicalConditionsList": "",
+            "allergy_list": "",
+            "meds_list": "",
+        }
+
+    def test_stripe_checkout_failure_sends_admin_alert(self):
+        """Stripe Session.create failure should invoke send_admin_alert with the expected subject."""
+        form_data = self._base_competitor_form()
+        form_data["email"] = "stripe.alert.branch@example.com"
+
+        with (
+            patch("app.get_price_details", return_value={
+                "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
+                "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
+                "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
+                "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
+                "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
+            }),
+            patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
+            patch("app.stripe.checkout.Session.create", side_effect=stripe.error.StripeError("Stripe down")),
+            patch("app.send_admin_alert") as mock_alert,
+        ):
+            response = self.client.post("/register", data=form_data)
+
+        assert response.status_code == 502
+        mock_alert.assert_called_once()
+        subject = mock_alert.call_args[0][0]
+        assert subject == "Stripe checkout session creation failed"
+
+    def test_confirmation_email_failure_sends_admin_alert(self):
+        """SMTP failure in _send_confirmation_email should invoke _send_admin_alert with the expected subject."""
+        from api import _send_confirmation_email
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Confirm Alert School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="Confirm Alert Competitor",
+                email="confirm.alert.branch@example.com",
+                school_id=school_id,
+                status="complete",
+                belt_rank="Black",
+                events="sparring",
+                poomsae_form="1",
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+            _db.session.refresh(competitor)
+
+            smtp_mock = MagicMock()
+            smtp_mock.sendmail.side_effect = smtplib.SMTPException("Send failed")
+            with (
+                patch("api.smtplib.SMTP_SSL") as smtp_cls_mock,
+                patch.dict(
+                    "os.environ",
+                    {
+                        "EMAIL_SERVER": "smtp.example.com",
+                        "EMAIL_PORT": "465",
+                        "FROM_EMAIL": "no-reply@example.com",
+                        "EMAIL_PASSWD": "secret",
+                        "ADMIN_EMAIL": "admin@example.com",
+                    },
+                ),
+                patch("api._send_admin_alert") as mock_admin_alert,
+            ):
+                smtp_cls_mock.return_value.__enter__ = MagicMock(return_value=smtp_mock)
+                smtp_cls_mock.return_value.__exit__ = MagicMock(return_value=False)
+                _send_confirmation_email(competitor)
+
+        mock_admin_alert.assert_called_once()
+        subject = mock_admin_alert.call_args[0][0]
+        assert "CRITICAL: Confirmation email failed" in subject
+
+    def test_500_handler_sends_admin_alert_and_renders_page(self):
+        """Unhandled 500 error handler should call send_admin_alert and return 500.html content."""
+        import app as app_module
+        from app import internal_server_error
+
+        app_module._last_500_alert_time = None  # reset throttle state
+
+        with (
+            app.test_request_context("/test-path", method="GET"),
+            patch("app.send_admin_alert") as mock_alert,
+        ):
+            response_body, status_code = internal_server_error(RuntimeError("boom"))
+
+        assert status_code == 500
+        mock_alert.assert_called_once()
+        subject = mock_alert.call_args[0][0]
+        assert "500 Server Error" in subject
+        assert "GET" in subject
+        assert "/test-path" in subject
+        assert "unexpected error" in response_body.lower()
+
+    def test_500_handler_throttles_repeated_alerts(self):
+        """Within the cooldown window, only the first 500 error sends an admin alert."""
+        import app as app_module
+        from app import internal_server_error
+
+        app_module._last_500_alert_time = None  # reset throttle state
+
+        with (
+            app.test_request_context("/test-path", method="GET"),
+            patch("app.send_admin_alert") as mock_alert,
+        ):
+            internal_server_error(RuntimeError("first error"))
+            internal_server_error(RuntimeError("second error within cooldown"))
+
+        # Only the first call should have triggered an alert email
+        mock_alert.assert_called_once()
+
+
 if __name__ == "__main__":
     homepage = TestHomepage()
     print(homepage.test_response_code())
