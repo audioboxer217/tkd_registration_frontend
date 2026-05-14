@@ -336,34 +336,49 @@ def _check_duplicate(full_name: str, school_id: int, reg_type: str) -> None:
         raise DuplicateRegistrationError(f"Duplicate registration for {full_name}")
 
 
-def _send_admin_school_alert(school_name: str) -> None:
-    """Send an unknown-school alert email directly to the admin via SMTP."""
-    comp_name = os.environ.get("COMPETITION_NAME", "")
+def _send_admin_alert(subject: str, body: str) -> None:
+    """Send an arbitrary admin alert email to ADMIN_EMAIL via SMTP.
+
+    Best-effort: SMTP failures are logged but never re-raised.
+    """
     email_server = os.environ.get("EMAIL_SERVER")
     email_port = os.environ.get("EMAIL_PORT")
     email_sender = os.environ.get("FROM_EMAIL")
     email_password = os.environ.get("EMAIL_PASSWD")
     admin_email = os.environ.get("ADMIN_EMAIL")
+    comp_name = os.environ.get("COMPETITION_NAME", "")
 
     if not all([email_server, email_port, email_sender, email_password, admin_email]):
-        current_app.logger.warning("Skipping unknown school alert; email server env vars are not fully configured")
+        current_app.logger.warning("Skipping admin alert '%s'; email env vars not configured", subject)
         return
 
     em = EmailMessage()
     em["From"] = formataddr((comp_name, email_sender))
     em["To"] = formataddr(("Competition Admin", admin_email))
-    em["Subject"] = f"Entry added with unknown school - {school_name}"
-    em.set_content(f"New School Added: {school_name}")
+    em["Subject"] = subject
+    em.set_content(body)
 
     try:
         context = ssl.create_default_context()
         with smtplib.SMTP_SSL(email_server, int(email_port), context=context) as smtp:
             smtp.login(email_sender, email_password)
             smtp.sendmail(email_sender, admin_email, em.as_string())
-        current_app.logger.info("Unknown school alert sent to admin for new school: %s", school_name)
+        current_app.logger.info("Admin alert sent: %s", subject)
     except (smtplib.SMTPException, ssl.SSLError, OSError):
-        current_app.logger.exception("Failed to send unknown school alert for school: %s", school_name)
-    return
+        current_app.logger.exception("Failed to send admin alert: %s", subject)
+
+
+def send_admin_alert(subject: str, body: str) -> None:
+    """Public wrapper for sending arbitrary admin alerts."""
+    _send_admin_alert(subject, body)
+
+
+def _send_admin_school_alert(school_name: str) -> None:
+    """Send an unknown-school alert email directly to the admin via SMTP."""
+    _send_admin_alert(
+        f"Entry added with unknown school - {school_name}",
+        f"New School Added: {school_name}",
+    )
 
 
 def send_admin_school_alert(school_name: str) -> None:
@@ -452,12 +467,31 @@ def _send_confirmation_email(reg: RegistrationRecord) -> RegistrationRecord:
     em["Subject"] = f"{comp_year} {comp_name} Registration"
     em.set_content(body)
 
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(email_server, int(email_port), context=context) as smtp:
-        smtp.login(email_sender, email_password)
-        smtp.sendmail(email_sender, reg_data["email"], em.as_string())
-
-    current_app.logger.info("Confirmation email sent to %s", reg_data["email"])
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(email_server, int(email_port), context=context) as smtp:
+            smtp.login(email_sender, email_password)
+            smtp.sendmail(email_sender, reg_data["email"], em.as_string())
+        current_app.logger.info("Confirmation email sent to %s", reg_data["email"])
+    except (smtplib.SMTPException, ssl.SSLError, OSError):
+        current_app.logger.exception(
+            "Failed to send confirmation email to %s for registration id=%s",
+            reg_data["email"],
+            reg_data.get("id"),
+        )
+        _send_admin_alert(
+            f"CRITICAL: Confirmation email failed for registration {reg_data.get('id')}",
+            (
+                f"Payment received but confirmation email could not be sent.\n\n"
+                f"Registration ID : {reg_data.get('id')}\n"
+                f"Name            : {reg_data['full_name']}\n"
+                f"Email           : {reg_data['email']}\n"
+                f"Type            : {reg_data['reg_type']}\n\n"
+                f"The registration IS in the database (status='complete').\n"
+                f"Please manually follow up with this registrant.\n\n"
+                f"Full error trace is in CloudWatch Logs."
+            ),
+        )
     return reg
 
 

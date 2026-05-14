@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import sys
 from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -25,10 +27,17 @@ from flask import (
 from supabase import Client, create_client
 from zoneinfo import ZoneInfo
 
-from api import api_bp, create_registration_record, send_admin_school_alert
+from api import api_bp, create_registration_record, send_admin_alert, send_admin_school_alert
 from models import Coach, Competitor, School, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
+
+logging.basicConfig(
+    level=logging.DEBUG if os.getenv("FLASK_DEBUG") else logging.WARNING,
+    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+    stream=sys.stdout,
+    force=True,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +109,7 @@ def get_s3_file(bucket, file_name):
         try:
             _s3().download_file(bucket, file_name, f"static/{output}")
         except Exception as e:
-            print(f"Error downloading {file_name} from S3: {e}")
+            current_app.logger.warning("Error downloading %s from S3: %s", file_name, e)
             return None
 
     return output
@@ -354,10 +363,10 @@ def success_page():
         full_session = stripe.checkout.Session.retrieve(session_id, expand=["payment_intent"])
         payment_intent = full_session.payment_intent
         if payment_intent:
-            print(f"Payment Intent ID: {payment_intent.id}")
+            current_app.logger.info("Payment Intent ID: %s", payment_intent.id)
             transfer_group = payment_intent.transfer_group
             if transfer_group:
-                print(f"Transfer already completed: {transfer_group}")
+                current_app.logger.info("Stripe transfer already completed: %s", transfer_group)
             else:
                 transfer_obj = stripe.Transfer.create(
                     amount=int(price_dict["Convenience Fee"]["price"]) * 100,
@@ -365,7 +374,7 @@ def success_page():
                     source_transaction=payment_intent.latest_charge,
                     destination=os.getenv("CONNECT_ACCT"),
                 )
-                print(f"Transfer created: {transfer_obj.transfer_group}")
+                current_app.logger.info("Stripe transfer created: %s", transfer_obj.transfer_group)
     page_params = {
         "reg_type": request.args.get("reg_type"),
         "session_id": session_id,
@@ -628,6 +637,14 @@ def handle_form():
         )
     except Exception:
         current_app.logger.exception("Failed to create Stripe checkout session for UI registration")
+        send_admin_alert(
+            "Stripe checkout session creation failed",
+            (
+                f"A {reg_type} registration failed to create a Stripe checkout session.\n\n"
+                f"The DB record was rolled back — no charge occurred.\n"
+                f"Full error trace is in CloudWatch Logs."
+            ),
+        )
         db.session.rollback()
         if uploaded_img_key:
             try:
@@ -1008,16 +1025,6 @@ def add_entry():
             school_id=school.id,
         )
 
-    if os.getenv("FLASK_DEBUG"):
-        db.session.add(reg)
-        db.session.commit()
-        return render_template(
-            "success.html",
-            competition_name=os.getenv("COMPETITION_NAME"),
-            email=os.getenv("CONTACT_EMAIL"),
-            reg_detail={"id": str(reg.id), "full_name": reg.full_name},
-        )
-
     if reg_type == "competitor":
         reg.checkout_session_id = "manual_entry"
     db.session.add(reg)
@@ -1153,6 +1160,22 @@ def generate_csv():
 @ui_bp.app_errorhandler(404)
 def page_not_found(e):
     return render_base("404.html"), 404
+
+
+@ui_bp.app_errorhandler(500)
+def internal_server_error(e):
+    current_app.logger.exception("Unhandled 500 error: %s", e)
+    send_admin_alert(
+        f"500 Server Error: {request.method} {request.path}",
+        (
+            f"An unhandled server error occurred.\n\n"
+            f"Method : {request.method}\n"
+            f"Path   : {request.path}\n"
+            f"Error  : {e}\n\n"
+            f"Full trace is in CloudWatch Logs."
+        ),
+    )
+    return render_base("500.html", email=os.getenv("CONTACT_EMAIL")), 500
 
 
 # ---------------------------------------------------------------------------
