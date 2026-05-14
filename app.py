@@ -32,13 +32,6 @@ from models import Coach, Competitor, School, db, init_db
 
 ui_bp = Blueprint("ui", __name__)
 
-logging.basicConfig(
-    level=logging.DEBUG if os.getenv("FLASK_DEBUG") else logging.WARNING,
-    format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
-    stream=sys.stdout,
-    force=True,
-)
-
 
 # ---------------------------------------------------------------------------
 # Supabase client (lazy, created once per request context via g)
@@ -637,6 +630,12 @@ def handle_form():
         )
     except Exception:
         current_app.logger.exception("Failed to create Stripe checkout session for UI registration")
+        db.session.rollback()
+        if uploaded_img_key:
+            try:
+                _s3().delete_object(Bucket=config["profilePicBucket"], Key=uploaded_img_key)
+            except Exception:
+                current_app.logger.exception("Failed to cleanup uploaded profile image: %s", uploaded_img_key)
         send_admin_alert(
             "Stripe checkout session creation failed",
             (
@@ -645,12 +644,6 @@ def handle_form():
                 f"Full error trace is in CloudWatch Logs."
             ),
         )
-        db.session.rollback()
-        if uploaded_img_key:
-            try:
-                _s3().delete_object(Bucket=config["profilePicBucket"], Key=uploaded_img_key)
-            except Exception:
-                current_app.logger.exception("Failed to cleanup uploaded profile image: %s", uploaded_img_key)
         abort(502, "Unable to create checkout session. Please try again later.")
 
     reg.checkout_session_id = checkout_session.id
@@ -1156,6 +1149,10 @@ def generate_csv():
 # Error handlers
 # ---------------------------------------------------------------------------
 
+# Tracks the last time an admin alert was sent for a 500 error (throttle to once per 5 min)
+_last_500_alert_time: datetime | None = None
+_500_ALERT_COOLDOWN_SECONDS = 300
+
 
 @ui_bp.app_errorhandler(404)
 def page_not_found(e):
@@ -1164,18 +1161,22 @@ def page_not_found(e):
 
 @ui_bp.app_errorhandler(500)
 def internal_server_error(e):
+    global _last_500_alert_time
     current_app.logger.exception("Unhandled 500 error: %s", e)
-    send_admin_alert(
-        f"500 Server Error: {request.method} {request.path}",
-        (
-            f"An unhandled server error occurred.\n\n"
-            f"Method : {request.method}\n"
-            f"Path   : {request.path}\n"
-            f"Error  : {e}\n\n"
-            f"Full trace is in CloudWatch Logs."
-        ),
-    )
-    return render_base("500.html", email=os.getenv("CONTACT_EMAIL")), 500
+    now = datetime.now(tz=pytz.utc)
+    if _last_500_alert_time is None or (now - _last_500_alert_time).total_seconds() >= _500_ALERT_COOLDOWN_SECONDS:
+        _last_500_alert_time = now
+        send_admin_alert(
+            f"500 Server Error: {request.method} {request.path}",
+            (
+                f"An unhandled server error occurred.\n\n"
+                f"Method : {request.method}\n"
+                f"Path   : {request.path}\n"
+                f"Error  : {e}\n\n"
+                f"Full trace is in CloudWatch Logs."
+            ),
+        )
+    return render_template("500.html", email=os.getenv("CONTACT_EMAIL")), 500
 
 
 # ---------------------------------------------------------------------------
@@ -1192,6 +1193,14 @@ def _parse_bool_env(name: str, default: bool = False) -> bool:
 def create_app(test_config=None):
     flask_app = APIFlask(__name__, title="TKD Registration API", version="1.0")
     flask_app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
+
+    # Configure logging only outside Lambda (Lambda has its own root handler that should not be overridden)
+    if not os.getenv("AWS_EXECUTION_ENV"):
+        logging.basicConfig(
+            level=logging.DEBUG if os.getenv("FLASK_DEBUG") else logging.WARNING,
+            format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+            stream=sys.stdout,
+        )
 
     flask_app.security_schemes = {
         "BearerAuth": {
