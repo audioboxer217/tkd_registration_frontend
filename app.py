@@ -1178,6 +1178,8 @@ def internal_server_error(e):
                 f"Full trace is in CloudWatch Logs."
             ),
         )
+    # Intentionally avoid render_base() here so the 500 handler does not trigger
+    # additional config lookups or external calls while handling a server error.
     return render_template("500.html", email=os.getenv("CONTACT_EMAIL")), 500
 
 
