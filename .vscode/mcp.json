@@ -3,7 +3,46 @@
 		"supabase": {
 			"type": "http",
 			"url": "https://mcp.supabase.com/mcp?project_ref=exioocnsjxntyfpqgblc"
+		},
+		"io.github.hashicorp/terraform-mcp-server": {
+			"type": "stdio",
+			"command": "podman",
+			"args": [
+				"run",
+				"-i",
+				"--rm",
+				"-e",
+				"TFE_ADDRESS=${input:address}",
+				"-e",
+				"TFE_TOKEN=${input:token}",
+				"-e",
+				"ENABLE_TF_OPERATIONS=${input:enabled}",
+				"docker.io/hashicorp/terraform-mcp-server:0.5.0"
+			],
+			"gallery": "https://api.mcp.github.com",
+			"version": "0.5.0"
 		}
 	},
-	"inputs": []
+	"inputs": [
+		{
+			"id": "address",
+			"type": "promptString",
+			"description": "",
+			"password": false,
+			"default": "https://app.terraform.io"
+		},
+		{
+			"id": "token",
+			"type": "promptString",
+			"description": "",
+			"password": true
+		},
+		{
+			"id": "enabled",
+			"type": "promptString",
+			"description": "",
+			"password": false,
+			"default": "false"
+		}
+	]
 }
