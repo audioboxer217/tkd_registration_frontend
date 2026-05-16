@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
 import argparse
+import io
 import os
 
+import boto3
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 try:
@@ -21,15 +23,44 @@ def get_entries():
     return Competitor.query.all()
 
 
+def get_s3_profile_image(img_filename: str) -> Image.Image | None:
+    """Fetch a competitor profile image from the S3 profile-pic bucket.
+
+    Returns a PIL Image (EXIF-corrected) on success, or None when the bucket
+    env var is missing or the download fails.
+    """
+    bucket = os.getenv("PROFILE_PIC_BUCKET")
+    if not bucket:
+        return None
+    try:
+        s3 = boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
+        buf = io.BytesIO()
+        s3.download_fileobj(bucket, img_filename, buf)
+        buf.seek(0)
+        img = Image.open(buf)
+        return ImageOps.exif_transpose(img)
+    except Exception as e:
+        print(f"Warning: could not download profile image '{img_filename}' from S3: {e}")
+        return None
+
+
 def generate_badge(competitor, output_dir):
     """Generate an ID Badge using competitor DB data."""
     badge = Image.new("RGBA", (400, 600), color="white")
 
-    # Opening and resizing the profile image
-    img_filename = competitor.img_filename or os.getenv("BADGE_IMG_FILENAME")
-    if img_filename:
-        profile_img = Image.open(f"img/{img_filename}")
-        profile_img = ImageOps.exif_transpose(profile_img)
+    # Profile image: prefer the competitor's S3-hosted photo; fall back to the
+    # local default image in the img/ folder (controlled by BADGE_IMG_FILENAME).
+    profile_img = None
+    if competitor.img_filename:
+        profile_img = get_s3_profile_image(competitor.img_filename)
+    if profile_img is None:
+        fallback = os.getenv("BADGE_IMG_FILENAME")
+        if fallback:
+            try:
+                profile_img = ImageOps.exif_transpose(Image.open(f"img/{fallback}"))
+            except Exception as e:
+                print(f"Warning: could not open fallback image 'img/{fallback}': {e}")
+    if profile_img is not None:
         profile_img = profile_img.resize((400, 250))
         badge.paste(profile_img, (10, 20))
 

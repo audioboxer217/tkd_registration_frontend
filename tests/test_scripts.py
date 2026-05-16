@@ -15,13 +15,15 @@ scripts' ``from app import app`` import to succeed.
 """
 
 import csv
+import io
 import json
 import os
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
+from PIL import Image as _PILImage
 
 # ---------------------------------------------------------------------------
 # Environment setup — mirrors the defaults in test_website.py.
@@ -824,6 +826,45 @@ class TestSparringCounts:
 # ---------------------------------------------------------------------------
 
 
+class TestDownloadS3ProfileImage:
+    def test_returns_none_when_no_bucket_env_var(self, monkeypatch):
+        monkeypatch.delenv("PROFILE_PIC_BUCKET", raising=False)
+        result = badges_mod.get_s3_profile_image("photo.jpg")
+        assert result is None
+
+    def test_downloads_image_from_s3(self, monkeypatch):
+        """When PROFILE_PIC_BUCKET is set, the image is fetched via boto3."""
+        monkeypatch.setenv("PROFILE_PIC_BUCKET", "test-profile-bucket")
+
+        img_buf = io.BytesIO()
+        _PILImage.new("RGB", (50, 50), color="red").save(img_buf, format="JPEG")
+        img_bytes = img_buf.getvalue()
+
+        def fake_download_fileobj(bucket, key, fileobj):
+            fileobj.write(img_bytes)
+
+        mock_s3 = MagicMock()
+        mock_s3.download_fileobj.side_effect = fake_download_fileobj
+
+        with patch("scripts.generate_badges.boto3") as mock_boto3:
+            mock_boto3.client.return_value = mock_s3
+            result = badges_mod.get_s3_profile_image("photo.jpg")
+
+        assert result is not None
+        assert mock_s3.download_fileobj.called
+
+    def test_returns_none_on_s3_error(self, monkeypatch):
+        monkeypatch.setenv("PROFILE_PIC_BUCKET", "test-profile-bucket")
+        mock_s3 = MagicMock()
+        mock_s3.download_fileobj.side_effect = Exception("S3 error")
+
+        with patch("scripts.generate_badges.boto3") as mock_boto3:
+            mock_boto3.client.return_value = mock_s3
+            result = badges_mod.get_s3_profile_image("photo.jpg")
+
+        assert result is None
+
+
 class TestGenerateBadges:
     @pytest.fixture(autouse=True)
     def set_working_dir(self, monkeypatch):
@@ -844,6 +885,60 @@ class TestGenerateBadges:
         result = badges_mod.generate_badge(competitor, str(tmp_path))
         assert "generated" in result
         assert (tmp_path / "42_badge.jpg").exists()
+
+    def test_generate_badge_uses_s3_image(self, tmp_path, monkeypatch):
+        """When img_filename is set, the profile image is fetched from S3."""
+        img_buf = io.BytesIO()
+        _PILImage.new("RGB", (100, 100), color="blue").save(img_buf, format="JPEG")
+        img_bytes = img_buf.getvalue()
+
+        def fake_download_fileobj(bucket, key, fileobj):
+            fileobj.write(img_bytes)
+
+        monkeypatch.setenv("PROFILE_PIC_BUCKET", "test-profile-bucket")
+        mock_s3 = MagicMock()
+        mock_s3.download_fileobj.side_effect = fake_download_fileobj
+
+        competitor = make_competitor(
+            id=43,
+            full_name="S3 Photo User",
+            img_filename="43_profile.jpg",
+            events="sparring",
+        )
+        with patch("scripts.generate_badges.boto3") as mock_boto3:
+            mock_boto3.client.return_value = mock_s3
+            result = badges_mod.generate_badge(competitor, str(tmp_path))
+
+        assert "generated" in result
+        assert (tmp_path / "43_badge.jpg").exists()
+        assert mock_s3.download_fileobj.called
+
+    def test_generate_badge_falls_back_when_s3_fails(self, tmp_path, monkeypatch):
+        """If S3 download fails, badge is still generated without a profile photo."""
+        monkeypatch.setenv("PROFILE_PIC_BUCKET", "test-profile-bucket")
+        mock_s3 = MagicMock()
+        mock_s3.download_fileobj.side_effect = Exception("S3 unavailable")
+
+        competitor = make_competitor(
+            id=44,
+            full_name="S3 Fail User",
+            img_filename="44_profile.jpg",
+            events="poomsae",
+        )
+        with patch("scripts.generate_badges.boto3") as mock_boto3:
+            mock_boto3.client.return_value = mock_s3
+            result = badges_mod.generate_badge(competitor, str(tmp_path))
+
+        assert "generated" in result
+        assert (tmp_path / "44_badge.jpg").exists()
+
+    def test_generate_badge_no_img_filename_uses_local_fallback(self, tmp_path, monkeypatch):
+        """When img_filename is None, fall back to local BADGE_IMG_FILENAME (if set)."""
+        # No BADGE_IMG_FILENAME set — no local fallback either; badge still generates.
+        monkeypatch.delenv("BADGE_IMG_FILENAME", raising=False)
+        competitor = make_competitor(id=45, full_name="No Photo", img_filename=None, events="sparring")
+        result = badges_mod.generate_badge(competitor, str(tmp_path))
+        assert "generated" in result
 
     def test_generate_badge_black_belt_normalized(self, tmp_path):
         competitor = make_competitor(
