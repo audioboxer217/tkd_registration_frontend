@@ -3,9 +3,14 @@
 import argparse
 import io
 import os
+from pathlib import Path
 
 import boto3
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+
+# Directory containing badge assets (fonts, default profile image).
+# Resolved relative to this script so the CLI works regardless of CWD.
+_IMG_DIR = Path(__file__).resolve().parent.parent / "img"
 
 try:
     from scripts._bootstrap import add_repo_root_to_path
@@ -56,17 +61,18 @@ def generate_badge(competitor, output_dir):
     if profile_img is None:
         fallback = os.getenv("BADGE_IMG_FILENAME")
         if fallback:
+            fallback_path = _IMG_DIR / fallback
             try:
-                profile_img = ImageOps.exif_transpose(Image.open(f"img/{fallback}"))
+                profile_img = ImageOps.exif_transpose(Image.open(fallback_path))
             except Exception as e:
-                print(f"Warning: could not open fallback image 'img/{fallback}': {e}")
+                print(f"Warning: could not open fallback image '{fallback_path}': {e}")
     if profile_img is not None:
         profile_img = profile_img.resize((400, 250))
         badge.paste(profile_img, (10, 20))
 
     # Add text items
-    font_name = ImageFont.truetype("img/OpenSans-Regular.ttf", size=30)
-    font = ImageFont.truetype("img/OpenSans-Regular.ttf", size=24)
+    font_name = ImageFont.truetype(str(_IMG_DIR / "OpenSans-Regular.ttf"), size=30)
+    font = ImageFont.truetype(str(_IMG_DIR / "OpenSans-Regular.ttf"), size=24)
     badge_draw = ImageDraw.Draw(badge)
 
     # Name
