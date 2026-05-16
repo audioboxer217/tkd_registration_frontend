@@ -80,10 +80,12 @@ def main():
         world_class_poomsae = [entry for entry in entries if has_event(entry, "world-class poomsae")]
         pair_poomsae = [entry for entry in entries if has_event(entry, "pair poomsae")]
         team_poomsae = [entry for entry in entries if has_event(entry, "team poomsae")]
+        family_poomsae = [entry for entry in entries if has_event(entry, "family poomsae")]
         poomsae_groups = divide_age_groups(poomsae)
         world_class_poomsae_groups = divide_age_groups(world_class_poomsae)
         pair_poomsae_groups = divide_age_groups(pair_poomsae)
         team_poomsae_groups = divide_age_groups(team_poomsae)
+        family_poomsae_groups = divide_age_groups(family_poomsae)
 
         print(f"World Class (Total: {len(world_class_poomsae)})")
         for ag in age_groups:
@@ -116,6 +118,15 @@ def main():
         for ag in age_groups:
             female = [entry for entry in team_poomsae_groups[ag] if entry.gender == "F"]
             male = [entry for entry in team_poomsae_groups[ag] if entry.gender == "M"]
+            print(f"  {ag.capitalize()}")
+            print(f"    Female: {len(female)}")
+            print(f"      Male: {len(male)}")
+            print()
+
+        print(f"Family Poomsae (Total: {len(family_poomsae)})")
+        for ag in age_groups:
+            female = [entry for entry in family_poomsae_groups[ag] if entry.gender == "F"]
+            male = [entry for entry in family_poomsae_groups[ag] if entry.gender == "M"]
             print(f"  {ag.capitalize()}")
             print(f"    Female: {len(female)}")
             print(f"      Male: {len(male)}")

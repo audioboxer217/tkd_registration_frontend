@@ -770,6 +770,24 @@ class TestPoomsaeCounts:
         expected_keys = {"dragon", "tiger", "youth", "cadet", "junior", "senior", "ultra"}
         assert set(groups.keys()) == expected_keys
 
+    def test_has_event_family_poomsae(self):
+        entry = make_competitor(events="family poomsae,sparring")
+        assert poomsae_counts_mod.has_event(entry, "family poomsae") is True
+
+    def test_family_poomsae_counted_separately(self):
+        """family poomsae registrations are filtered separately from individual/pair/team."""
+        entries = [
+            make_competitor(age=20, gender="F", events="family poomsae"),
+            make_competitor(age=20, gender="M", events="family poomsae"),
+            make_competitor(age=20, gender="F", events="poomsae"),
+        ]
+        family = [e for e in entries if poomsae_counts_mod.has_event(e, "family poomsae")]
+        individual = [e for e in entries if poomsae_counts_mod.has_event(e, "poomsae")]
+        assert len(family) == 2
+        assert len(individual) == 1
+        family_groups = poomsae_counts_mod.divide_age_groups(family)
+        assert len(family_groups["senior"]) == 2
+
 
 # ---------------------------------------------------------------------------
 # get_sparring_counts tests
