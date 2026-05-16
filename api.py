@@ -636,7 +636,7 @@ def stripe_webhook():
     return jsonify({"status": "ok"}), 200
 
 
-def get_eligible_competitors(status: str = "complete") -> list:
+def get_eligible_competitors(status: str | None = "complete") -> list:
     """Return competitors filtered by payment status.
 
     Args:
