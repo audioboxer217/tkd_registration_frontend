@@ -170,6 +170,7 @@ def _err(description: str) -> dict:
 def _s3():
     return boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
+
 def _err_response(message: str, status: int):
     """Return a Flask Response with an error JSON body, bypassing the @output schema."""
     resp = jsonify({"error": message})
@@ -635,13 +636,34 @@ def stripe_webhook():
     return jsonify({"status": "ok"}), 200
 
 
+def get_eligible_competitors(status: str = "complete") -> list:
+    """Return competitors filtered by payment status.
+
+    Args:
+        status: Payment status to filter by (e.g. ``"complete"``).  Pass
+            ``None`` to return all competitors regardless of status.
+
+    Returns:
+        A list of :class:`~models.Competitor` ORM objects.
+    """
+    if status is None:
+        return Competitor.query.all()
+    return Competitor.query.filter_by(status=status).all()
+
+
 @api_bp.route("/entries", methods=["GET"])
 @api_bp.output(RegistrationListOut, description="All competitor and coach registrations")
 def entries_api():
-    """Return all competitor and coach registrations as JSON."""
-    config_bucket = os.getenv("CONFIG_BUCKET")
+    """Return all competitor and coach registrations as JSON.
 
-    competitors = Competitor.query.all()
+    Query Parameters:
+        status: Optional payment status filter (e.g. ``complete``, ``pending``,
+            ``failed``).  When omitted all competitors are returned.
+    """
+    config_bucket = os.getenv("CONFIG_BUCKET")
+    status_filter = request.args.get("status") or None
+
+    competitors = get_eligible_competitors(status=status_filter)
     coaches = Coach.query.all()
 
     competitor_dicts = [c.to_dict() for c in competitors]

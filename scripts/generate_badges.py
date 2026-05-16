@@ -14,13 +14,13 @@ except ModuleNotFoundError:  # Allows `python scripts/generate_badges.py`
 
 add_repo_root_to_path()
 
+from api import get_eligible_competitors  # noqa: E402
 from app import app  # noqa: E402
-from models import Competitor  # noqa: E402
 
 
 def get_entries():
-    """Query all competitors from the database."""
-    return Competitor.query.all()
+    """Query all paid (complete) competitors from the database."""
+    return get_eligible_competitors(status="complete")
 
 
 def get_s3_profile_image(img_filename: str) -> Image.Image | None:

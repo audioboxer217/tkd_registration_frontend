@@ -27,12 +27,14 @@ from app import create_app
 from models import Coach
 from models import db as _db
 
-_test_app = create_app(test_config={
-    "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-    "TESTING": True,
-    "WTF_CSRF_ENABLED": False,
-    "URL": "http://localhost:5001",
-})
+_test_app = create_app(
+    test_config={
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        "TESTING": True,
+        "WTF_CSRF_ENABLED": False,
+        "URL": "http://localhost:5001",
+    }
+)
 
 with _test_app.app_context():
     _db.create_all()
@@ -300,6 +302,105 @@ class TestEntriesAPI:
         entries = data["data"]
         assert any(entry.get("id") == c_id and entry.get("reg_type") == "competitor" for entry in entries)
         assert any(entry.get("id") == co_id and entry.get("reg_type") == "coach" for entry in entries)
+
+    def test_status_filter_complete(self):
+        from api import get_eligible_competitors
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Status Filter School")
+        with app.app_context():
+            complete = Competitor(
+                full_name="Complete Competitor",
+                email="complete@example.com",
+                school_id=school_id,
+                age=20,
+                gender="M",
+                status="complete",
+            )
+            pending = Competitor(
+                full_name="Pending Competitor",
+                email="pending@example.com",
+                school_id=school_id,
+                age=20,
+                gender="M",
+                status="pending",
+            )
+            _db.session.add_all([complete, pending])
+            _db.session.commit()
+            complete_id = complete.id
+
+            results = get_eligible_competitors(status="complete")
+            result_ids = [c.id for c in results]
+            assert complete_id in result_ids
+            assert pending.id not in result_ids
+
+    def test_status_filter_none_returns_all(self):
+        from api import get_eligible_competitors
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Status None School")
+        with app.app_context():
+            c1 = Competitor(
+                full_name="All1 Competitor",
+                email="all1@example.com",
+                school_id=school_id,
+                age=20,
+                gender="M",
+                status="complete",
+            )
+            c2 = Competitor(
+                full_name="All2 Competitor",
+                email="all2@example.com",
+                school_id=school_id,
+                age=20,
+                gender="F",
+                status="failed",
+            )
+            _db.session.add_all([c1, c2])
+            _db.session.commit()
+            id1, id2 = c1.id, c2.id
+
+            results = get_eligible_competitors(status=None)
+            result_ids = [c.id for c in results]
+            assert id1 in result_ids
+            assert id2 in result_ids
+
+    def test_entries_endpoint_status_query_param(self):
+        from models import Competitor
+        from models import db as _db
+
+        school_id = get_or_create_test_school("Endpoint Status School")
+        with app.app_context():
+            complete = Competitor(
+                full_name="EP Complete",
+                email="ep_complete@example.com",
+                school_id=school_id,
+                age=20,
+                gender="M",
+                status="complete",
+            )
+            pending = Competitor(
+                full_name="EP Pending",
+                email="ep_pending@example.com",
+                school_id=school_id,
+                age=20,
+                gender="F",
+                status="pending",
+            )
+            _db.session.add_all([complete, pending])
+            _db.session.commit()
+            complete_id = complete.id
+            pending_id = pending.id
+
+        with patch("api.set_weight_class", side_effect=lambda entries, _: entries):
+            response = self.client.get("/api/v1/entries?status=complete")
+        data = json.loads(response.data)
+        entries = data["data"]
+        result_ids = [e.get("id") for e in entries if e.get("reg_type") == "competitor"]
+        assert complete_id in result_ids
+        assert pending_id not in result_ids
 
 
 class TestRegistrationsAPI:
@@ -791,13 +892,16 @@ class TestRegistrationEndToEnd:
         mock_checkout_session.url = "https://checkout.stripe.test/e2e_comp"
 
         with (
-            patch("app.get_price_details", return_value={
-                "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
-                "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
-                "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
-                "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
-                "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
-            }),
+            patch(
+                "app.get_price_details",
+                return_value={
+                    "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
+                    "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
+                    "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
+                    "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
+                    "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
+                },
+            ),
             patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
             patch("app.stripe.checkout.Session.create", return_value=mock_checkout_session),
         ):
@@ -1134,13 +1238,16 @@ class TestHandleForm:
         form_data = self._base_competitor_form()
 
         with (
-            patch("app.get_price_details", return_value={
-                "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
-                "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
-                "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
-                "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
-                "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
-            }),
+            patch(
+                "app.get_price_details",
+                return_value={
+                    "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
+                    "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
+                    "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
+                    "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
+                    "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
+                },
+            ),
             patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
             patch("app.stripe.checkout.Session.create") as mock_stripe,
         ):
@@ -1316,13 +1423,16 @@ class TestHandleForm:
         with (
             patch.dict(app.config, {"ENABLE_BADGES": True, "profilePicBucket": "test-profile-bucket"}),
             patch("app._s3") as mock_s3_factory,
-            patch("app.get_price_details", return_value={
-                "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
-                "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
-                "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
-                "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
-                "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
-            }),
+            patch(
+                "app.get_price_details",
+                return_value={
+                    "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
+                    "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
+                    "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
+                    "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
+                    "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
+                },
+            ),
             patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
             patch("app.stripe.checkout.Session.create", side_effect=stripe.error.StripeError("Stripe unavailable")),
         ):
@@ -1651,13 +1761,16 @@ class TestAdminAlertBranches:
         form_data["email"] = "stripe.alert.branch@example.com"
 
         with (
-            patch("app.get_price_details", return_value={
-                "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
-                "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
-                "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
-                "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
-                "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
-            }),
+            patch(
+                "app.get_price_details",
+                return_value={
+                    "Color Belt Registration": {"price_id": "price_color", "unit_amount": 8000},
+                    "Black Belt Registration": {"price_id": "price_black", "unit_amount": 8000},
+                    "Additional Event": {"price_id": "price_add", "unit_amount": 2000},
+                    "Little Dragon Obstacle Course": {"price_id": "price_ld", "unit_amount": 3000},
+                    "Convenience Fee": {"price_id": "price_fee", "unit_amount": 300},
+                },
+            ),
             patch("app.stripe.Coupon.list", return_value=make_stripe_coupon_mock()),
             patch("app.stripe.checkout.Session.create", side_effect=stripe.error.StripeError("Stripe down")),
             patch("app.send_admin_alert") as mock_alert,

@@ -14,8 +14,8 @@ except ModuleNotFoundError:  # Allows `python scripts/generate_sparring_schedule
 
 add_repo_root_to_path()
 
+from api import get_eligible_competitors  # noqa: E402
 from app import app  # noqa: E402
-from models import Competitor  # noqa: E402
 
 AGE_GROUP_ORDER = ["dragon", "tiger", "youth", "cadet", "junior", "senior", "ultra"]
 AGE_GROUPS = {
@@ -51,8 +51,8 @@ class Group:
 
 
 def get_entries():
-    """Query all competitors from the database."""
-    return Competitor.query.all()
+    """Query all paid (complete) competitors from the database."""
+    return get_eligible_competitors(status="complete")
 
 
 def get_age_group(age: int) -> str:
