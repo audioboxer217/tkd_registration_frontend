@@ -329,11 +329,12 @@ class TestEntriesAPI:
             _db.session.add_all([complete, pending])
             _db.session.commit()
             complete_id = complete.id
+            pending_id = pending.id
 
             results = get_eligible_competitors(status="complete")
             result_ids = [c.id for c in results]
             assert complete_id in result_ids
-            assert pending.id not in result_ids
+            assert pending_id not in result_ids
 
     def test_status_filter_none_returns_all(self):
         from api import get_eligible_competitors
