@@ -29,8 +29,8 @@ def generate_badge(competitor, output_dir):
     img_filename = competitor.img_filename or os.getenv("BADGE_IMG_FILENAME")
     if img_filename:
         profile_img = Image.open(f"img/{img_filename}")
-        profile_img = profile_img.resize((400, 250))
         profile_img = ImageOps.exif_transpose(profile_img)
+        profile_img = profile_img.resize((400, 250))
         badge.paste(profile_img, (10, 20))
 
     # Add text items
