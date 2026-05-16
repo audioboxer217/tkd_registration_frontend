@@ -1162,6 +1162,231 @@ class TestLookupEntry:
         assert b"john" in response.data.lower()
 
 
+class TestLoadHistoricalEntries:
+    """Unit tests for the _load_historical_entries helper."""
+
+    def test_returns_entries_matching_email(self):
+        from app import _load_historical_entries
+
+        entries = [
+            {"full_name": "Alice Smith", "email": "alice@example.com", "reg_type": "competitor"},
+            {"full_name": "Bob Jones", "email": "bob@example.com", "reg_type": "coach"},
+        ]
+        with (
+            patch("app._s3") as mock_s3_factory,
+            app.app_context(),
+        ):
+            mock_s3 = MagicMock()
+            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(entries).encode())}
+            mock_s3_factory.return_value = mock_s3
+            result = _load_historical_entries("alice@example.com")
+
+        assert len(result) == 1
+        assert result[0]["full_name"] == "Alice Smith"
+
+    def test_excludes_entries_with_different_email(self):
+        from app import _load_historical_entries
+
+        entries = [
+            {"full_name": "Alice Smith", "email": "alice@example.com"},
+            {"full_name": "Bob Jones", "email": "bob@example.com"},
+        ]
+        with (
+            patch("app._s3") as mock_s3_factory,
+            app.app_context(),
+        ):
+            mock_s3 = MagicMock()
+            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(entries).encode())}
+            mock_s3_factory.return_value = mock_s3
+            result = _load_historical_entries("bob@example.com")
+
+        assert len(result) == 1
+        assert result[0]["full_name"] == "Bob Jones"
+
+    def test_returns_empty_list_when_no_email_match(self):
+        from app import _load_historical_entries
+
+        entries = [{"full_name": "Alice Smith", "email": "alice@example.com"}]
+        with (
+            patch("app._s3") as mock_s3_factory,
+            app.app_context(),
+        ):
+            mock_s3 = MagicMock()
+            mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(entries).encode())}
+            mock_s3_factory.return_value = mock_s3
+            result = _load_historical_entries("nobody@example.com")
+
+        assert result == []
+
+    def test_returns_empty_list_on_s3_exception(self):
+        from app import _load_historical_entries
+
+        with (
+            patch("app._s3") as mock_s3_factory,
+            app.app_context(),
+        ):
+            mock_s3 = MagicMock()
+            mock_s3.get_object.side_effect = Exception("S3 unavailable")
+            mock_s3_factory.return_value = mock_s3
+            result = _load_historical_entries("anyone@example.com")
+
+        assert result == []
+
+    def test_returns_empty_list_on_malformed_json(self):
+        from app import _load_historical_entries
+
+        with (
+            patch("app._s3") as mock_s3_factory,
+            app.app_context(),
+        ):
+            mock_s3 = MagicMock()
+            mock_s3.get_object.return_value = {"Body": io.BytesIO(b"not valid json")}
+            mock_s3_factory.return_value = mock_s3
+            result = _load_historical_entries("anyone@example.com")
+
+        assert result == []
+
+
+class TestLookupEntryWithHistory:
+    """Tests for lookup_entry merging current DB results with historical S3 entries."""
+
+    client = app.test_client()
+
+    _historical_entries = [
+        {
+            "full_name": "Historical Person",
+            "email": "historical@example.com",
+            "reg_type": "competitor",
+            "school": "Old School",
+            "belt_rank": "2 degree black",
+        }
+    ]
+
+    def _mock_s3_with_history(self, mock_s3_factory, entries=None):
+        data = entries if entries is not None else self._historical_entries
+        mock_s3 = MagicMock()
+        mock_s3.get_object.return_value = {"Body": io.BytesIO(json.dumps(data).encode())}
+        mock_s3_factory.return_value = mock_s3
+        return mock_s3
+
+    def test_returns_historical_entry_when_not_in_current_db(self):
+        with patch("app._s3") as mock_s3_factory:
+            self._mock_s3_with_history(mock_s3_factory)
+            response = self.client.post(
+                "/lookup_entry",
+                data={"email": "historical@example.com", "fname": "", "lname": ""},
+            )
+        assert response.status_code == 200
+        assert b"Historical Person" in response.data
+
+    def test_current_db_entry_takes_precedence_over_historical_same_name(self):
+        from models import Competitor
+
+        school_id = get_or_create_test_school("Precedence Test School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="Duplicate Person",
+                email="dup@example.com",
+                school_id=school_id,
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+
+        historical = [{"full_name": "Duplicate Person", "email": "dup@example.com", "reg_type": "competitor"}]
+        with patch("app._s3") as mock_s3_factory:
+            self._mock_s3_with_history(mock_s3_factory, historical)
+            response = self.client.post(
+                "/lookup_entry",
+                data={"email": "dup@example.com", "fname": "", "lname": ""},
+            )
+        assert response.status_code == 200
+        # Name appears exactly once (deduplication — only the DB entry is kept)
+        assert response.data.lower().count(b"duplicate person") == 1
+
+    def test_merges_historical_and_current_db_different_names(self):
+        from models import Competitor
+
+        school_id = get_or_create_test_school("Merge Test School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="Current Person",
+                email="merge@example.com",
+                school_id=school_id,
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+
+        historical = [{"full_name": "Historical Person 2", "email": "merge@example.com", "reg_type": "competitor"}]
+        with patch("app._s3") as mock_s3_factory:
+            self._mock_s3_with_history(mock_s3_factory, historical)
+            response = self.client.post(
+                "/lookup_entry",
+                data={"email": "merge@example.com", "fname": "", "lname": ""},
+            )
+        assert response.status_code == 200
+        assert b"Current Person" in response.data
+        assert b"Historical Person 2" in response.data
+
+    def test_name_filter_applies_to_merged_results(self):
+        from models import Competitor
+
+        school_id = get_or_create_test_school("Filter Test School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="Alice Filter",
+                email="filter@example.com",
+                school_id=school_id,
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+
+        historical = [{"full_name": "Bob Filter", "email": "filter@example.com", "reg_type": "competitor"}]
+        with patch("app._s3") as mock_s3_factory:
+            self._mock_s3_with_history(mock_s3_factory, historical)
+            response = self.client.post(
+                "/lookup_entry",
+                data={"email": "filter@example.com", "fname": "alice", "lname": "filter"},
+            )
+        assert response.status_code == 200
+        assert b"Alice Filter" in response.data
+        assert b"Bob Filter" not in response.data
+
+    def test_gracefully_falls_back_to_db_only_when_s3_unavailable(self):
+        from models import Competitor
+
+        school_id = get_or_create_test_school("Fallback Test School")
+        with app.app_context():
+            competitor = Competitor(
+                full_name="DB Only Person",
+                email="fallback@example.com",
+                school_id=school_id,
+            )
+            _db.session.add(competitor)
+            _db.session.commit()
+
+        with patch("app._s3") as mock_s3_factory:
+            mock_s3 = MagicMock()
+            mock_s3.get_object.side_effect = Exception("S3 down")
+            mock_s3_factory.return_value = mock_s3
+            response = self.client.post(
+                "/lookup_entry",
+                data={"email": "fallback@example.com", "fname": "", "lname": ""},
+            )
+        assert response.status_code == 200
+        assert b"DB Only Person" in response.data
+
+    def test_no_results_returns_200_when_s3_unavailable(self):
+        with patch("app._s3") as mock_s3_factory:
+            mock_s3 = MagicMock()
+            mock_s3.get_object.side_effect = Exception("S3 down")
+            mock_s3_factory.return_value = mock_s3
+            response = self.client.post(
+                "/lookup_entry",
+                data={"email": "ghost@example.com", "fname": "", "lname": ""},
+            )
+        assert response.status_code == 200
+
+
 class TestRegisterPage:
     client = app.test_client()
 

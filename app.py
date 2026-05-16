@@ -108,6 +108,20 @@ def get_s3_file(bucket, file_name):
     return output
 
 
+def _load_historical_entries(email: str) -> list:
+    """Load entries from historical_entries.json in configBucket, filtered by email.
+
+    Returns an empty list if the file doesn't exist or any error occurs.
+    """
+    try:
+        config = _current_app_config()
+        obj = _s3().get_object(Bucket=config["configBucket"], Key="historical_entries.json")
+        entries = json.loads(obj["Body"].read())
+        return [e for e in entries if e.get("email") == email]
+    except Exception:
+        return []
+
+
 def get_age_group(age):
     age_groups = {
         "too_young": list(range(0, 4)),
@@ -666,15 +680,20 @@ def lookup_entry():
     email = request.form.get("email")
     name_query = f"{request.form.get('fname','').lower()} {request.form.get('lname','').lower()}".strip()
 
-    # Query both competitors and coaches by email
+    # Query both competitors and coaches by email (current competition)
     competitors_raw = Competitor.query.filter(Competitor.email == email).all()
     coaches_raw = Coach.query.filter(Coach.email == email).all()
-    entries_raw = competitors_raw + coaches_raw
+    current_entries = competitors_raw + coaches_raw
 
-    if len(entries_raw) > 1 and name_query:
-        entries_raw = [e for e in entries_raw if name_query in e.full_name.lower()]
+    # Merge historical entries from S3, skipping names already in current competition
+    seen_names = {e.full_name.lower() for e in current_entries}
+    historical = [h for h in _load_historical_entries(email) if h.get("full_name", "").lower() not in seen_names]
+    entries = [e.to_dict() for e in current_entries] + historical
 
-    return render_template("form/lookup_modal.html", entries=[e.to_dict() for e in entries_raw])
+    if len(entries) > 1 and name_query:
+        entries = [e for e in entries if name_query in e.get("full_name", "").lower()]
+
+    return render_template("form/lookup_modal.html", entries=entries)
 
 
 @ui_bp.route("/api/autofill", methods=["GET"])
