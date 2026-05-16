@@ -8,4 +8,4 @@ do ``from app import app`` at module level.
 
 import os
 
-os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
