@@ -20,7 +20,7 @@ add_repo_root_to_path()
 import boto3
 
 from app import app
-from models import Coach, Competitor, db
+from models import Coach, Competitor
 
 _HISTORICAL_KEY = "historical_entries.json"
 
