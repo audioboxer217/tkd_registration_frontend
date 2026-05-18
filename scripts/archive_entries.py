@@ -25,10 +25,21 @@ from models import Coach, Competitor
 _HISTORICAL_KEY = "historical_entries.json"
 
 _AUTOFILL_FIELDS = {
-    "full_name", "email", "phone", "school",
-    "birthdate", "age", "gender", "parent",
-    "allergies", "medications", "medical_conditions", "medical_contacts",
-    "reg_type", "coach", "belt_rank",
+    "full_name",
+    "email",
+    "phone",
+    "school",
+    "birthdate",
+    "age",
+    "gender",
+    "parent",
+    "allergies",
+    "medications",
+    "medical_conditions",
+    "medical_contacts",
+    "reg_type",
+    "coach",
+    "belt_rank",
 }
 
 
@@ -38,6 +49,7 @@ def _slim(entry: dict) -> dict:
 
 def _s3_client():
     import os
+
     return boto3.client("s3", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
 
@@ -57,7 +69,7 @@ with app.app_context():
     except s3.exceptions.NoSuchKey:
         print("No existing historical_entries.json found — creating new file.")
     except Exception as exc:
-        print(f"Warning: could not load existing file ({exc}). Starting fresh.")
+        raise SystemExit(f"Error: could not load existing historical archive ({exc}). Aborting to prevent data loss.") from exc
 
     # Collect current competition entries
     competitors = Competitor.query.all()
